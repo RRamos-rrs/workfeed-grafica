@@ -135,7 +135,6 @@ def add_collaborator(
             status_code=400,
             content={"success": False, "message": "Este nome de utilizador já existe!"}
         )
-    )
 
     new_user = models.User(
         full_name=full_name,
