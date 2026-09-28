@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WorkFeed Gráfica - Gestão Técnica de Ferramentais</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    .kanban-dropzone.dragover {
+      background-color: #e0e7ff;
+      border: 2px dashed #4f46e5;
+    }
+  </style>
+</head>
+<body class="bg-[#f8fafc] text-slate-800 min-h-screen flex flex-col antialiased">
+
+  <!-- NAVBAR SUPERIOR -->
+  <header class="bg-white/80 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3 cursor-pointer" onclick="switchTab('my-profile')">
+        <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-extrabold text-lg shadow-sm shadow-indigo-200">
+          W
+        </div>
+        <div>
+          <span class="text-base font-bold tracking-tight text-slate-900 block leading-tight">WorkFeed <span class="text-indigo-600">Gráfica</span></span>
+          <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Controlo de Ferramentais</p>
+        </div>
+      </div>
+
+      <!-- Perfil Logado -->
+      <div class="flex items-center gap-3 pl-4 border-l border-slate-200">
+     {% if current_user.role == 'Gestor' or current_user.role == 'manager' %}
+      <button 
+        type="button"
+        onclick="document.getElementById('modalCollaborator').classList.remove('hidden')" 
+        class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-1.5 px-3 rounded-xl shadow-sm flex items-center gap-1.5 text-xs transition-all">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+        </svg>
+        + Colaborador
+      </button>
+      {% endif %}
+        <button onclick="switchTab('my-profile')" class="flex items-center gap-2.5 text-left group">
+          <div class="w-9 h-9 rounded-xl bg-slate-900 group-hover:bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-sm transition">
+            {{ current_user.full_name[:2]|upper }}
+          </div>
+          <div class="hidden sm:block">
+            <p class="text-xs font-bold text-slate-800 leading-snug group-hover:text-indigo-600 transition">{{ current_user.full_name }}</p>
+            <span class="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">{{ current_user.role }}</span>
+          </div>
+        </button>
+        <a href="/logout" title="Terminar Sessão" class="text-slate-400 hover:text-rose-600 transition ml-2">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ÁREA DE TRABALHO -->
+  <div class="max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
+
+    <!-- BARRA LATERAL (MENU) -->
+    <aside class="lg:col-span-3 space-y-4">
+      <nav class="bg-white rounded-2xl border border-slate-200/80 p-2 shadow-xs space-y-1">
+        
+        <!-- Botão Meu Perfil (Destaque Principal) -->
+        <button onclick="switchTab('my-profile')" id="tab-btn-my-profile" class="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-bold rounded-xl transition text-indigo-600 bg-indigo-50/80">
+          <div class="flex items-center gap-3">
+            <i data-lucide="user-check" class="w-4 h-4"></i>
+            <span>Meu Perfil & Tarefas</span>
+          </div>
+          {% set pending_total = (my_pending_tasks|length) + (my_in_progress_tasks|length) %}
+          {% if pending_total > 0 %}
+          <span class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-indigo-600 text-white">
+            {{ pending_total }}
+          </span>
+          {% endif %}
+        </button>
+
+        <button onclick="switchTab('kanban')" id="tab-btn-kanban" class="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-50 hover:text-slate-900">
+          <div class="flex items-center gap-3">
+            <i data-lucide="kanban" class="w-4 h-4"></i>
+            <span>Quadro Geral (Kanban)</span>
+          </div>
+          <span class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+            {{ tasks|length }}
+          </span>
+        </button>
+
+        <button onclick="switchTab('feed')" id="tab-btn-feed" class="w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-50 hover:text-slate-900">
+          <i data-lucide="layout-list" class="w-4 h-4"></i>
+          <span>Feed de Homologação</span>
+        </button>
+
+        <button onclick="switchTab('profiles')" id="tab-btn-profiles" class="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-50 hover:text-slate-900">
+          <div class="flex items-center gap-3">
+            <i data-lucide="users" class="w-4 h-4"></i>
+            <span>Equipa & Métricas</span>
+          </div>
+          <span class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+            {{ collaborators|length }}
+          </span>
+        </button>
+
+        <button onclick="switchTab('new-task')" id="tab-btn-new-task" class="w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-50 hover:text-slate-900">
+          <i data-lucide="plus-circle" class="w-4 h-4 text-indigo-500"></i>
+          <span>Delegar Tarefa</span>
+        </button>
+      </nav>
+
+      <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3">
+        <h4 class="font-bold text-slate-900 text-xs tracking-tight flex items-center gap-2">
+          <i data-lucide="boxes" class="w-4 h-4 text-slate-400"></i> Ferramentais Aceites
+        </h4>
+        <div class="space-y-1.5 text-xs text-slate-700">
+          <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 font-medium">🔪 Faca Corte e Vinco</div>
+          <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 font-medium">📐 Clichê Relevo/Braille</div>
+          <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 font-medium">🏷️ Fitas de Braille</div>
+          <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 font-medium">✨ Matriz Hot Stamping</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ÁREA PRINCIPAL -->
+    <main class="lg:col-span-9 space-y-6">
+
+      <!-- ================= ABA 0: MEU PERFIL & MINHAS TAREFAS ================= -->
+      <section id="content-my-profile" class="space-y-6">
+        
+        <!-- Cartão Superior do Perfil -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="flex items-center gap-4">
+            <div class="w-16 h-16 rounded-2xl bg-indigo-600 text-white font-black text-2xl flex items-center justify-center shadow-md shadow-indigo-100">
+              {{ current_user.full_name[:2]|upper }}
+            </div>
+            <div>
+              <h2 class="text-lg font-bold text-slate-900 leading-snug">{{ current_user.full_name }}</h2>
+              <p class="text-xs text-slate-500">Utilizador: <span class="font-mono font-semibold text-slate-700">@{{ current_user.username }}</span> • Função: <span class="font-semibold text-indigo-600">{{ current_user.role }}</span></p>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-3">
+            <div class="px-4 py-2 bg-amber-50 rounded-xl border border-amber-200 text-center">
+              <p class="text-[10px] uppercase font-bold text-amber-700">Minhas Pendências</p>
+              <p class="text-lg font-bold text-amber-800 font-mono">{{ (my_pending_tasks|length) + (my_in_progress_tasks|length) }}</p>
+            </div>
+            <div class="px-4 py-2 bg-emerald-50 rounded-xl border border-emerald-200 text-center">
+              <p class="text-[10px] uppercase font-bold text-emerald-700">Concluídos</p>
+              <p class="text-lg font-bold text-emerald-800 font-mono">{{ my_completed_posts|length }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bloco 1: Tarefas Atribuídas a Fazer (Novas Solicitações) -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> 
+              Tarefas Atribuídas a Mim (A Fazer / Solicitar)
+            </h3>
+            <span class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+              {{ my_pending_tasks|length }} pendência(s)
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for task in my_pending_tasks %}
+            <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs space-y-3 hover:border-indigo-300 transition">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+                  {{ task.tool_type }}
+                </span>
+                <span class="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                  OP: {{ task.op_number }}
+                </span>
+              </div>
+              
+              <h4 class="text-xs font-bold text-slate-900 leading-snug">{{ task.title }}</h4>
+              
+              <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 space-y-1">
+                <p class="flex items-center gap-1.5 font-semibold text-indigo-700">
+                  <i data-lucide="truck" class="w-3.5 h-3.5 text-indigo-500"></i> Fornecedor: {{ task.supplier }}
+                </p>
+                <p class="text-amber-700 font-semibold font-mono text-[10px]">
+                  📅 Prazo Limite: {{ task.due_date }}
+                </p>
+                {% if task.instructions %}
+                <p class="text-slate-500 text-[10px] pt-1 border-t border-slate-200/60 leading-relaxed">{{ task.instructions }}</p>
+                {% endif %}
+              </div>
+
+              <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+                <button type="button" onclick="copyOrderText('{{ task.op_number }}', '{{ task.tool_type }}', '{{ task.title }}', '{{ task.supplier }}', '{{ task.due_date }}', `{{ task.instructions }}`)" class="text-slate-600 hover:text-indigo-600 font-semibold flex items-center gap-1 text-[11px] transition">
+                  <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Pedido
+                </button>
+                <button onclick="updateTaskStatusFast('{{ task.id }}', 'Em Produção')" class="text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition border border-blue-200 flex items-center gap-1">
+                  Iniciar Preparação <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+            {% else %}
+            <div class="col-span-2 p-6 bg-white rounded-xl border border-slate-200/80 text-center text-xs text-slate-400">
+              <i data-lucide="check-circle" class="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80"></i>
+              Não tem nenhuma nova tarefa pendente neste momento.
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Bloco 2: Tarefas em Preparação / No Fornecedor -->
+        <div class="space-y-3 pt-2">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> 
+              Em Preparação / Aguardando Fornecedor
+            </h3>
+            <span class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+              {{ my_in_progress_tasks|length }} em curso
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for task in my_in_progress_tasks %}
+            <div class="bg-white p-4 rounded-xl border border-blue-200 shadow-xs space-y-3 hover:border-blue-300 transition">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                  {{ task.tool_type }}
+                </span>
+                <span class="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                  OP: {{ task.op_number }}
+                </span>
+              </div>
+              
+              <h4 class="text-xs font-bold text-slate-900 leading-snug">{{ task.title }}</h4>
+              
+              <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 space-y-1">
+                <p class="flex items-center gap-1.5 font-semibold text-blue-700">
+                  <i data-lucide="truck" class="w-3.5 h-3.5 text-blue-500"></i> No Fabricante: {{ task.supplier }}
+                </p>
+                <p class="text-amber-700 font-semibold font-mono text-[10px]">
+                  📅 Previsão: {{ task.due_date }}
+                </p>
+              </div>
+
+              <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+                <span class="text-[11px] text-slate-400 font-medium">Chegou do fornecedor?</span>
+                <button onclick="updateTaskStatusFast('{{ task.id }}', 'Aprovado')" class="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-1.5 rounded-lg transition shadow-xs flex items-center gap-1">
+                  <i data-lucide="check" class="w-3.5 h-3.5"></i> Homologar & Publicar
+                </button>
+              </div>
+            </div>
+            {% else %}
+            <div class="col-span-2 p-6 bg-white rounded-xl border border-slate-200/80 text-center text-xs text-slate-400">
+              Nenhuma ferramenta em fase de preparação com fornecedor.
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Bloco 3: Meu Histórico / Portefólio no Feed -->
+        <div class="space-y-3 pt-2">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> 
+              Meus Ferramentais Homologados (Histórico Concluído)
+            </h3>
+            <span class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+              {{ my_completed_posts|length }} concluído(s)
+            </span>
+          </div>
+
+          <div class="space-y-3">
+            {% for post in my_completed_posts %}
+            <div class="bg-white p-4 rounded-xl border border-slate-200/80 flex items-center justify-between gap-4">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+                    {{ post.tool_type }}
+                  </span>
+                  {% if post.op_number %}
+                  <span class="text-[10px] font-mono font-bold text-slate-600">OP: {{ post.op_number }}</span>
+                  {% endif %}
+                </div>
+                <h4 class="text-xs font-bold text-slate-900">{{ post.title }}</h4>
+                <p class="text-[10px] text-slate-400">Fornecedor: <b>{{ post.supplier }}</b> • Concluído em: {{ post.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+              </div>
+              <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200 whitespace-nowrap">
+                ✔ No Feed
+              </span>
+            </div>
+            {% else %}
+            <div class="p-6 bg-white rounded-xl border border-slate-200/80 text-center text-xs text-slate-400">
+              Ainda não tem ferramentais homologados no histórico.
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================= ABA 1: FEED GERAL ================= -->
+      <section id="content-feed" class="hidden max-w-2xl mx-auto space-y-6">
+        <div class="flex items-center justify-between px-1">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 tracking-tight">Feed de Ferramentais Homologados</h2>
+            <p class="text-xs text-slate-500">Histórico de especificações concluídas e validadas pela equipa</p>
+          </div>
+          <span class="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
+            {{ posts|length }} registo(s)
+          </span>
+        </div>
+
+        <div class="space-y-6">
+          {% for post in posts %}
+          <article class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <div class="p-5 border-b border-slate-100 bg-gradient-to-b from-slate-50/60 to-white flex items-start justify-between gap-4">
+              <div class="space-y-1.5">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
+                    {{ post.tool_type }}
+                  </span>
+                  {% if post.op_number %}
+                  <span class="text-[11px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                    OP: {{ post.op_number }}
+                  </span>
+                  {% endif %}
+                </div>
+                <h3 class="text-sm sm:text-base font-bold text-slate-900 leading-snug">{{ post.title }}</h3>
+              </div>
+              <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 whitespace-nowrap shadow-2xs">
+                <i data-lucide="check-check" class="w-3.5 h-3.5 text-emerald-600"></i> Aprovado
+              </span>
+            </div>
+
+            <div class="p-5 space-y-4">
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 bg-slate-50/80 rounded-xl border border-slate-100 text-xs">
+                <div>
+                  <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Solicitado por</p>
+                  <p class="font-bold text-slate-800 flex items-center gap-1.5 mt-0.5">
+                    <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> {{ post.author }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Fornecedor</p>
+                  <p class="font-bold text-indigo-700 flex items-center gap-1.5 mt-0.5">
+                    <i data-lucide="truck" class="w-3.5 h-3.5 text-indigo-500"></i> {{ post.supplier }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Data de Limite</p>
+                  <p class="font-semibold text-slate-700 flex items-center gap-1.5 mt-0.5 font-mono">
+                    <i data-lucide="calendar" class="w-3.5 h-3.5 text-amber-500"></i> {{ post.due_date }}
+                  </p>
+                </div>
+              </div>
+
+              {% if post.instructions %}
+              <div class="p-3.5 bg-indigo-50/40 rounded-xl border border-indigo-100/70 text-xs space-y-1">
+                <span class="font-bold text-indigo-900 flex items-center gap-1.5 text-[11px]">
+                  <i data-lucide="file-text" class="w-3.5 h-3.5 text-indigo-600"></i> Especificações Técnicas:
+                </span>
+                <p class="text-slate-700 leading-relaxed">{{ post.instructions }}</p>
+              </div>
+              {% endif %}
+            </div>
+
+            {% if post.image_url %}
+            <div class="bg-slate-950 flex items-center justify-center border-y border-slate-200 overflow-hidden">
+              <img src="{{ post.image_url }}" alt="Ferramental Concluído" class="w-full object-cover max-h-[460px]">
+            </div>
+            {% endif %}
+
+            <div class="px-5 py-2.5 flex items-center gap-3 bg-white border-b border-slate-100">
+              <form action="/posts/{{ post.id }}/like" method="post">
+                <button class="flex items-center gap-1.5 text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-lg hover:bg-rose-100 transition shadow-2xs">
+                  <i data-lucide="heart" class="w-3.5 h-3.5 fill-rose-600"></i> {{ post.likes }} Validações
+                </button>
+              </form>
+            </div>
+
+            <div class="p-5 bg-slate-50/70 space-y-3">
+              <span class="text-xs font-bold text-slate-700 block">Comentários e Inspeções Técnicas:</span>
+              {% for c in post.comments %}
+              <div class="bg-white p-3 rounded-xl border border-slate-200/80 text-xs shadow-2xs">
+                <span class="font-bold text-slate-900">{{ c.author }}:</span> 
+                <span class="text-slate-700 ml-1">{{ c.text }}</span>
+              </div>
+              {% endfor %}
+              <form action="/posts/{{ post.id }}/comment" method="post" class="flex gap-2 pt-1">
+                <input required type="text" name="text" placeholder="Adicionar parecer técnico..." class="flex-1 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                <button type="submit" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-700 transition shadow-xs">
+                  Publicar
+                </button>
+              </form>
+            </div>
+          </article>
+          {% else %}
+          <div class="text-center py-16 bg-white rounded-2xl border border-slate-200/80 p-8 shadow-xs">
+            <i data-lucide="inbox" class="w-10 h-10 text-slate-300 mx-auto mb-2"></i>
+            <h3 class="text-sm font-bold text-slate-800">Nenhum registo no feed</h3>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <!-- ================= ABA 2: QUADRO KANBAN GERAL ================= -->
+      <section id="content-kanban" class="hidden space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 tracking-tight">Quadro Geral de Acompanhamento</h2>
+            <p class="text-xs text-slate-500">Mova os cartões para atualizar as fases da preparação técnica</p>
+          </div>
+          <button onclick="switchTab('new-task')" class="text-xs font-semibold bg-indigo-600 text-white px-3.5 py-2 rounded-xl hover:bg-indigo-700 transition flex items-center gap-1.5 shadow-xs">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Delegar Tarefa
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+          
+          <!-- COLUNA 1 -->
+          <div class="bg-slate-100/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col min-h-[520px]">
+            <div class="flex items-center justify-between px-2 mb-3">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-amber-500 ring-4 ring-amber-100"></span>
+                <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">1. Atribuído</h3>
+              </div>
+              <span class="text-xs font-mono font-bold bg-white text-slate-600 px-2 py-0.5 rounded-full shadow-2xs">
+                {{ tasks|selectattr('status', 'equalto', 'Atribuído')|list|length }}
+              </span>
+            </div>
+
+            <div class="kanban-dropzone space-y-3 flex-1 p-1 rounded-xl" data-status="Atribuído" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Atribuído')">
+              {% for task in tasks if task.status == 'Atribuído' %}
+              <div id="task-{{ task.id }}" class="kanban-card bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md transition space-y-3" draggable="true" ondragstart="handleDragStart(event, '{{ task.id }}')">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+                    {{ task.tool_type }}
+                  </span>
+                  <span class="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
+                    OP: {{ task.op_number }}
+                  </span>
+                </div>
+                <h4 class="text-xs font-bold text-slate-900 leading-snug">{{ task.title }}</h4>
+                <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 space-y-1">
+                  <p class="flex items-center gap-1.5 font-semibold text-indigo-700">
+                    <i data-lucide="truck" class="w-3 h-3 text-indigo-500"></i> {{ task.supplier }}
+                  </p>
+                  {% if task.instructions %}
+                  <p class="text-slate-500 line-clamp-2 text-[10px]">{{ task.instructions }}</p>
+                  {% endif %}
+                </div>
+                <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
+                  <span class="text-slate-600 flex items-center gap-1">
+                    <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
+                  </span>
+                  <button type="button" onclick="copyOrderText('{{ task.op_number }}', '{{ task.tool_type }}', '{{ task.title }}', '{{ task.supplier }}', '{{ task.due_date }}', `{{ task.instructions }}`)" class="text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 text-[10px] bg-indigo-50 px-2 py-0.5 rounded transition">
+                    <i data-lucide="copy" class="w-3 h-3"></i> Copiar Pedido
+                  </button>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- COLUNA 2 -->
+          <div class="bg-slate-100/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col min-h-[520px]">
+            <div class="flex items-center justify-between px-2 mb-3">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-blue-500 ring-4 ring-blue-100"></span>
+                <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">2. Em Preparação</h3>
+              </div>
+              <span class="text-xs font-mono font-bold bg-white text-slate-600 px-2 py-0.5 rounded-full shadow-2xs">
+                {{ tasks|selectattr('status', 'equalto', 'Em Produção')|list|length }}
+              </span>
+            </div>
+
+            <div class="kanban-dropzone space-y-3 flex-1 p-1 rounded-xl" data-status="Em Produção" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Em Produção')">
+              {% for task in tasks if task.status == 'Em Produção' %}
+              <div id="task-{{ task.id }}" class="kanban-card bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md transition space-y-3" draggable="true" ondragstart="handleDragStart(event, '{{ task.id }}')">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                    {{ task.tool_type }}
+                  </span>
+                  <span class="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
+                    OP: {{ task.op_number }}
+                  </span>
+                </div>
+                <h4 class="text-xs font-bold text-slate-900 leading-snug">{{ task.title }}</h4>
+                <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 space-y-1">
+                  <p class="flex items-center gap-1.5 font-semibold text-blue-700">
+                    <i data-lucide="truck" class="w-3 h-3 text-blue-500"></i> {{ task.supplier }}
+                  </p>
+                  <p class="text-amber-600 font-mono text-[10px]">📅 Prazo: {{ task.due_date }}</p>
+                </div>
+                <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
+                  <span class="text-slate-600 flex items-center gap-1">
+                    <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
+                  </span>
+                  <span class="text-blue-600 font-semibold text-[10px] bg-blue-50 px-2 py-0.5 rounded">Em Andamento</span>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- COLUNA 3 -->
+          <div class="bg-slate-100/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col min-h-[520px]">
+            <div class="flex items-center justify-between px-2 mb-3">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 ring-4 ring-emerald-100"></span>
+                <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">3. Aprovado ✔</h3>
+              </div>
+              <span class="text-xs font-mono font-bold bg-white text-emerald-700 px-2 py-0.5 rounded-full shadow-2xs">
+                {{ tasks|selectattr('status', 'equalto', 'Aprovado')|list|length }}
+              </span>
+            </div>
+
+            <div class="kanban-dropzone space-y-3 flex-1 p-1 rounded-xl" data-status="Aprovado" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Aprovado')">
+              {% for task in tasks if task.status == 'Aprovado' %}
+              <div id="task-{{ task.id }}" class="kanban-card bg-emerald-50/50 p-4 rounded-xl border border-emerald-200 shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md transition space-y-2.5" draggable="true" ondragstart="handleDragStart(event, '{{ task.id }}')">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
+                    {{ task.tool_type }}
+                  </span>
+                  <span class="text-[10px] font-bold text-emerald-700 bg-white px-2 py-0.5 rounded shadow-2xs">No Feed</span>
+                </div>
+                <h4 class="text-xs font-bold text-slate-900 leading-snug line-through opacity-70">{{ task.title }}</h4>
+                <p class="text-[10px] text-slate-500 pt-2 border-t border-emerald-100">
+                  Fornecedor: <b>{{ task.supplier }}</b> • Resp: <b>{{ task.assigned_to }}</b>
+                </p>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ================= ABA 3: EQUIPA GERAL ================= -->
+      <section id="content-profiles" class="hidden space-y-6">
+        <div class="flex items-center justify-between px-1">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 tracking-tight">Equipa Técnica & Perfis</h2>
+            <p class="text-xs text-slate-500">Métricas operacionais de todos os membros cadastrados</p>
+          </div>
+          <span class="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
+            {{ collaborators|length }} colaborador(es)
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {% for member in collaborators %}
+          <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex flex-col justify-between space-y-4">
+            <div class="flex items-start justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-800 text-white font-black text-sm flex items-center justify-center shadow-sm">
+                  {{ member.name[:2]|upper }}
+                </div>
+                <div>
+                  <h3 class="text-sm font-bold text-slate-900 leading-snug">{{ member.name }}</h3>
+                  <span class="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">{{ member.role }}</span>
+                </div>
+              </div>
+              <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Ativo
+              </span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 text-center">
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <p class="text-slate-400 font-semibold text-[10px] uppercase">Em Execução</p>
+                <p class="text-lg font-bold text-indigo-600 font-mono">{{ member.active_tasks }}</p>
+              </div>
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <p class="text-slate-400 font-semibold text-[10px] uppercase">Homologados</p>
+                <p class="text-lg font-bold text-emerald-600 font-mono">{{ member.approved_tasks }}</p>
+              </div>
+            </div>
+
+            <div class="space-y-2 pt-2 border-t border-slate-100">
+              <span class="text-[11px] font-bold text-slate-700 block">Últimos Ferramentais Concluídos:</span>
+              <div class="space-y-1.5">
+                {% for p in member.recent_posts %}
+                <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
+                  <span class="font-medium text-slate-800 truncate pr-2">{{ p.title }}</span>
+                  <span class="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded whitespace-nowrap">{{ p.tool_type }}</span>
+                </div>
+                {% else %}
+                <p class="text-[11px] text-slate-400 italic">Nenhum ferramental concluído até ao momento.</p>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <!-- ================= ABA 4: DELEGAR TAREFA ================= -->
+      <section id="content-new-task" class="hidden max-w-xl mx-auto">
+        <div class="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-xs">
+          <div class="mb-6 pb-4 border-b border-slate-100">
+            <h2 class="text-base font-bold text-slate-900 tracking-tight">Delegar Pedido de Ferramental</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Preencha as especificações para o colaborador emitir o pedido técnico</p>
+          </div>
+
+          <form action="/tasks/create" method="post" enctype="multipart/form-data" class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Tipo de Ferramental</label>
+              <select required name="tool_type" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 bg-slate-50 font-bold text-slate-800">
+                <option value="Faca Corte e Vinco">🔪 Faca Corte e Vinco</option>
+                <option value="Clichê de Relevo / Braille">📐 Clichê de Relevo / Braille</option>
+                <option value="Fitas de Braille">🏷️ Fitas de Braille</option>
+                <option value="Hot Stamping">✨ Matriz de Hot Stamping</option>
+              </select>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Nº da OP</label>
+                <input type="text" name="op_number" placeholder="Ex: OP-1042" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 font-mono">
+              </div>
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Trabalho / Embalagem</label>
+                <input required type="text" name="title" placeholder="Ex: Cartucho 150ml Medicamento" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Colaborador da Equipa</label>
+                <select required name="assigned_to" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 bg-slate-50 font-bold text-slate-800">
+                  {% for u in users %}
+                  <option value="{{ u.full_name }}">{{ u.full_name }} ({{ u.role }})</option>
+                  {% else %}
+                  <option value="Colaborador">Nenhum colaborador registado</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Fornecedor Destinatário</label>
+                <input required type="text" name="supplier" placeholder="Ex: Facas Precision / Clicheria Alfa" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Prazo Limite de Entrega</label>
+              <input required type="date" name="due_date" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 font-mono">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Instruções Técnicas</label>
+              <textarea name="instructions" rows="3" placeholder="Ex: Lâmina 23,80mm, vinco 2pt canaleta 0,4x1,3mm, confirmar altura de pontos braille..." class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500"></textarea>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Desenho / Prova Técnica (Para o Feed):</label>
+              <div class="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:bg-slate-50 transition cursor-pointer">
+                <input type="file" name="image" accept="image/*" class="text-xs text-slate-500 w-full cursor-pointer">
+              </div>
+            </div>
+
+            <div class="pt-2 flex gap-3">
+              <button type="button" onclick="switchTab('my-profile')" class="w-1/3 py-2.5 border border-slate-200 text-slate-600 font-semibold rounded-xl text-xs hover:bg-slate-50 transition">
+                Cancelar
+              </button>
+              <button type="submit" class="w-2/3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl text-xs transition shadow-xs flex items-center justify-center gap-2">
+                <i data-lucide="send" class="w-3.5 h-3.5"></i> Delegar Tarefa
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    function switchTab(tab) {
+      const myProfileSec = document.getElementById('content-my-profile');
+      const feedSec = document.getElementById('content-feed');
+      const kanbanSec = document.getElementById('content-kanban');
+      const profilesSec = document.getElementById('content-profiles');
+      const newSec = document.getElementById('content-new-task');
+
+      const btnMyProfile = document.getElementById('tab-btn-my-profile');
+      const btnFeed = document.getElementById('tab-btn-feed');
+      const btnKanban = document.getElementById('tab-btn-kanban');
+      const btnProfiles = document.getElementById('tab-btn-profiles');
+      const btnNew = document.getElementById('tab-btn-new-task');
+
+      [myProfileSec, feedSec, kanbanSec, profilesSec, newSec].forEach(s => s.classList.add('hidden'));
+
+      [btnMyProfile, btnFeed, btnKanban, btnProfiles, btnNew].forEach(btn => {
+        btn.className = "w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-50 hover:text-slate-900";
+      });
+
+      if (tab === 'my-profile') {
+        myProfileSec.classList.remove('hidden');
+        btnMyProfile.className = "w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-bold rounded-xl transition text-indigo-600 bg-indigo-50/80";
+      } else if (tab === 'feed') {
+        feedSec.classList.remove('hidden');
+        btnFeed.className = "w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold rounded-xl transition text-indigo-600 bg-indigo-50/80";
+      } else if (tab === 'kanban') {
+        kanbanSec.classList.remove('hidden');
+        btnKanban.className = "w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-bold rounded-xl transition text-indigo-600 bg-indigo-50/80";
+      } else if (tab === 'profiles') {
+        profilesSec.classList.remove('hidden');
+        btnProfiles.className = "w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-bold rounded-xl transition text-indigo-600 bg-indigo-50/80";
+      } else if (tab === 'new-task') {
+        newSec.classList.remove('hidden');
+        btnNew.className = "w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold rounded-xl transition text-indigo-600 bg-indigo-50/80";
+      }
+
+      lucide.createIcons();
+    }
+
+    // Ação rápida dentro do perfil
+    async function updateTaskStatusFast(taskId, newStatus) {
+      try {
+        const response = await fetch(`/api/tasks/${taskId}/status`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus })
+        });
+        const data = await response.json();
+        if (data.published_to_feed) {
+          alert('🎉 Ferramental Aprovado e publicado no Feed!');
+        }
+        window.location.reload();
+      } catch (err) {
+        console.error('Erro ao atualizar estado:', err);
+      }
+    }
+
+    function copyOrderText(op, tool, title, supplier, due, instructions) {
+      const text = `*SOLICITAÇÃO DE FERRAMENTAL*\n` +
+                   `• OP: ${op || 'S/N'}\n` +
+                   `• Ferramental: ${tool}\n` +
+                   `• Trabalho: ${title}\n` +
+                   `• Fornecedor: ${supplier}\n` +
+                   `• Prazo Desejado: ${due}\n` +
+                   `• Instruções Técnicas: ${instructions || 'Conforme ficheiro técnico'}`;
+      
+      navigator.clipboard.writeText(text).then(() => {
+        alert('📋 Pedido copiado! Pode colar na conversa ou e-mail com o fornecedor.');
+      });
+    }
+
+    let draggedTaskId = null;
+
+    function handleDragStart(e, taskId) {
+      draggedTaskId = taskId;
+      e.dataTransfer.setData('text/plain', taskId);
+      e.target.style.opacity = '0.5';
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.currentTarget.classList.add('dragover');
+    }
+
+    function handleDragLeave(e) {
+      e.currentTarget.classList.remove('dragover');
+    }
+
+    async function handleDrop(e, newStatus) {
+      e.preventDefault();
+      const dropzone = e.currentTarget;
+      dropzone.classList.remove('dragover');
+
+      const card = document.getElementById(`task-${draggedTaskId}`);
+      if (!card) return;
+
+      card.style.opacity = '1';
+      dropzone.appendChild(card);
+
+      try {
+        const response = await fetch(`/api/tasks/${draggedTaskId}/status`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus })
+        });
+
+        const data = await response.json();
+        
+        if (data.published_to_feed) {
+          alert('🎉 Ferramental Aprovado! Ficha técnica publicada no Feed.');
+          window.location.reload();
+        }
+      } catch (err) {
+        console.error('Erro ao atualizar status:', err);
+      }
+    }
+
+    document.addEventListener('dragend', (e) => {
+      if (e.target && e.target.classList.contains('kanban-card')) {
+        e.target.style.opacity = '1';
+      }
+    });
+  </script>
+  <!-- Modal Adicionar Colaborador -->
+<div id="modalCollaborator" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
+    <div class="flex justify-between items-center mb-4 border-b pb-3">
+      <h3 class="text-lg font-bold text-gray-800">Cadastrar Novo Colaborador</h3>
+      <button type="button" onclick="document.getElementById('modalCollaborator').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 font-bold text-xl">&times;</button>
+    </div>
+
+    <form id="formAddCollaborator" onsubmit="submitCollaborator(event)" class="space-y-4">
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Nome Completo</label>
+        <input type="text" name="full_name" required placeholder="Ex: João Silva" class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Nome de Utilizador</label>
+        <input type="text" name="username" required placeholder="Ex: joaosilva" class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Função / Cargo</label>
+        <select name="role" class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+          <option value="Colaborador">Colaborador / Operador</option>
+          <option value="Gestor">Gestor / Supervisor</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Palavra-passe Provisória</label>
+        <input type="password" name="password" required placeholder="••••••••" class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t">
+        <button type="button" onclick="document.getElementById('modalCollaborator').classList.add('hidden')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-xl">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl">Guardar Colaborador</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+async function submitCollaborator(e) {
+  e.preventDefault();
+  const form = e.target;
+  const formData = new FormData(form);
+
+  try {
+    const res = await fetch('/api/users/add-collaborator', {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      alert("Colaborador cadastrado com sucesso!");
+      form.reset();
+      document.getElementById('modalCollaborator').classList.add('hidden');
+      window.location.reload();
+    } else {
+      alert(data.message || "Erro ao adicionar colaborador.");
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Erro de comunicação com o servidor.");
+  }
+}
+</script>
+</body>
+</html>
