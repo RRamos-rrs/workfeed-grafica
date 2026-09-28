@@ -121,6 +121,43 @@ def register(
     redirect.set_cookie(key="user_session", value=username, httponly=True)
     return redirect
 
+@app.post("/api/users/add-collaborator")
+def add_collaborator(
+    full_name: str = Form(...),
+    username: str = Form(...),
+    role: str = Form("Colaborador"),
+    password: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    existing = db.query(models.User).filter(models.User.username == username).first()
+    if existing:
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "message": "Este nome de utilizador já existe!"}
+        )
+    )
+
+    new_user = models.User(
+        full_name=full_name,
+        username=username,
+        role=role,
+        password=password
+    )
+    db.add(new_user)
+    db.commit()
+
+    return JSONResponse(content={"success": True, "message": "Colaborador adicionado com sucesso!"})
+    
+    new_user = models.User(
+        full_name=full_name,
+        username=username,
+        role=role,
+        password=password
+    )
+    db.add(new_user)
+    db.commit()
+    
+    return JSONResponse(content={"success": true, "message": "Colaborador adicionado com sucesso!"})
 @app.get("/logout")
 def logout():
     response = RedirectResponse(url="/login", status_code=303)
