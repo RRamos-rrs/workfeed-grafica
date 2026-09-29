@@ -873,42 +873,54 @@ async function submitCollaborator(e) {
     alert("Erro de comunicação com o servidor.");
   }
 }
-// CONEXÃO EM TEMPO REAL VIA WEBSOCKET
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const socket = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
-
-    socket.onmessage = function(event) {
-      const data = JSON.parse(event.data);
-      if (data.type === "REFRESH") {
-        const modalAberto = !document.getElementById('modalCollaborator')?.classList.contains('hidden');
-        const digitando = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
-
-        if (!modalAberto && !digitando) {
-          const abas = ['my-profile', 'feed', 'kanban', 'profiles', 'new-task'];
-          for (let i = 0; i < abas.length; i++) {
-            const sec = document.getElementById('content-' + abas[i]);
-            if (sec && !sec.classList.contains('hidden')) {
-              sessionStorage.setItem('aba_ativa', abas[i]);
-              break;
-            }
-          }
-          window.location.reload();
+// Grava a aba sempre que você clica nela
+    const originalSwitchTab = window.switchTab;
+    window.switchTab = function(tab) {
+        sessionStorage.setItem('aba_ativa', tab);
+        if (typeof originalSwitchTab === 'function') {
+            originalSwitchTab(tab);
         }
-      }
     };
 
+    // CONEXÃO EM TEMPO REAL VIA WEBSOCKET
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    let socket;
+
+    function conectarWebSocket() {
+        socket = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
+
+        socket.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === "REFRESH") {
+                    const modalAberto = !document.getElementById('modalCollaborator')?.classList.contains('hidden');
+                    const digitando = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+
+                    // Só atualiza se ninguém estiver digitando
+                    if (!modalAberto && !digitando) {
+                        window.location.reload();
+                    }
+                }
+            } catch (err) {
+                console.error("Erro ao processar mensagem do socket:", err);
+            }
+        };
+
+        // SE A CONEXÃO CAIR: apenas tenta reconectar em silêncio SEM dar reload na página!
+        socket.onclose = function() {
+            setTimeout(conectarWebSocket, 5000);
+        };
+    }
+
+    conectarWebSocket();
+
+    // Quando a página abre ou recarrega, abre imediatamente na aba que você estava
     window.addEventListener('DOMContentLoaded', function() {
-      const abaSalva = sessionStorage.getItem('aba_ativa');
-      if (abaSalva && typeof switchTab === 'function') {
-        switchTab(abaSalva);
-      }
+        const abaSalva = sessionStorage.getItem('aba_ativa');
+        if (abaSalva && typeof switchTab === 'function') {
+            switchTab(abaSalva);
+        }
     });
-
-    socket.onclose = function() {
-      setTimeout(function() {
-        window.location.reload();
-      }, 3000);
-    };
   </script>
 </body>
 </html>
