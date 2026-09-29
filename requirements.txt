@@ -4,4 +4,5 @@ jinja2
 python-multipart
 sqlalchemy
 pydantic
+psycopg[binary]
 psycopg2-binary
