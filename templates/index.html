@@ -36,7 +36,7 @@
 
       <!-- Perfil Logado -->
       <div class="flex items-center gap-3 pl-4 border-l border-slate-200">
-      {% if current_user.role == 'Gestor' or current_user.role == 'manager' %}
+     {% if current_user.role == 'Gestor' or current_user.role == 'manager' %}
       <button 
         type="button"
         onclick="document.getElementById('modalCollaborator').classList.remove('hidden')" 
@@ -681,47 +681,6 @@
     </main>
   </div>
 
-  <!-- Modal Adicionar Colaborador -->
-  <div id="modalCollaborator" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
-    <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
-      <div class="flex justify-between items-center mb-4 border-b pb-3">
-        <h3 class="text-lg font-bold text-gray-800">Cadastrar Novo Colaborador</h3>
-        <button type="button" onclick="document.getElementById('modalCollaborator').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 font-bold text-xl">&times;</button>
-      </div>
-
-      <form id="formAddCollaborator" onsubmit="submitCollaborator(event)" class="space-y-4">
-        <div>
-          <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Nome Completo</label>
-          <input type="text" name="full_name" required placeholder="Ex: João Silva" class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Nome de Utilizador</label>
-          <input type="text" name="username" required placeholder="Ex: joaosilva" class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Função / Cargo</label>
-          <select name="role" class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
-            <option value="Colaborador">Colaborador / Operador</option>
-            <option value="Gestor">Gestor / Supervisor</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Palavra-passe Provisória</label>
-          <input type="password" name="password" required placeholder="••••••••" class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
-        </div>
-
-        <div class="flex justify-end gap-2 pt-3 border-t">
-          <button type="button" onclick="document.getElementById('modalCollaborator').classList.add('hidden')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-xl">Cancelar</button>
-          <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl">Guardar Colaborador</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- SCRIPTS PRINCIPAIS -->
   <script>
     lucide.createIcons();
 
@@ -847,48 +806,106 @@
         e.target.style.opacity = '1';
       }
     });
+  </script>
+  <!-- Modal Adicionar Colaborador -->
+<div id="modalCollaborator" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
+    <div class="flex justify-between items-center mb-4 border-b pb-3">
+      <h3 class="text-lg font-bold text-gray-800">Cadastrar Novo Colaborador</h3>
+      <button type="button" onclick="document.getElementById('modalCollaborator').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 font-bold text-xl">&times;</button>
+    </div>
 
-    // Submissão do modal de novo colaborador
-    async function submitCollaborator(e) {
-      e.preventDefault();
-      const form = e.target;
-      const formData = new FormData(form);
+    <form id="formAddCollaborator" onsubmit="submitCollaborator(event)" class="space-y-4">
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Nome Completo</label>
+        <input type="text" name="full_name" required placeholder="Ex: João Silva" class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+      </div>
 
-      try {
-        const res = await fetch('/api/users/add-collaborator', {
-          method: 'POST',
-          body: formData
-        });
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Nome de Utilizador</label>
+        <input type="text" name="username" required placeholder="Ex: joaosilva" class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+      </div>
 
-        const data = await res.json();
-        if (res.ok && data.success) {
-          alert("Colaborador cadastrado com sucesso!");
-          form.reset();
-          document.getElementById('modalCollaborator').classList.add('hidden');
-          window.location.reload();
-        } else {
-          alert(data.message || "Erro ao adicionar colaborador.");
-        }
-      } catch (err) {
-        console.error(err);
-        alert("Erro de comunicação com o servidor.");
-      }
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Função / Cargo</label>
+        <select name="role" class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+          <option value="Colaborador">Colaborador / Operador</option>
+          <option value="Gestor">Gestor / Supervisor</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Palavra-passe Provisória</label>
+        <input type="password" name="password" required placeholder="••••••••" class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t">
+        <button type="button" onclick="document.getElementById('modalCollaborator').classList.add('hidden')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-xl">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl">Guardar Colaborador</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+async function submitCollaborator(e) {
+  e.preventDefault();
+  const form = e.target;
+  const formData = new FormData(form);
+
+  try {
+    const res = await fetch('/api/users/add-collaborator', {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      alert("Colaborador cadastrado com sucesso!");
+      form.reset();
+      document.getElementById('modalCollaborator').classList.add('hidden');
+      window.location.reload();
+    } else {
+      alert(data.message || "Erro ao adicionar colaborador.");
     }
-
-    // CONEXÃO EM TEMPO REAL VIA WEBSOCKET
+  } catch (err) {
+    console.error(err);
+    alert("Erro de comunicação com o servidor.");
+  }
+}
+// CONEXÃO EM TEMPO REAL VIA WEBSOCKET
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const socket = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
 
-    socket.onmessage = (event) => {
+    socket.onmessage = function(event) {
       const data = JSON.parse(event.data);
       if (data.type === "REFRESH") {
-        // Atualiza a tela de todos automaticamente assim que qualquer alteração ocorrer
-        window.location.reload();
+        const modalAberto = !document.getElementById('modalCollaborator')?.classList.contains('hidden');
+        const digitando = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+
+        if (!modalAberto && !digitando) {
+          const abas = ['my-profile', 'feed', 'kanban', 'profiles', 'new-task'];
+          for (let i = 0; i < abas.length; i++) {
+            const sec = document.getElementById('content-' + abas[i]);
+            if (sec && !sec.classList.contains('hidden')) {
+              sessionStorage.setItem('aba_ativa', abas[i]);
+              break;
+            }
+          }
+          window.location.reload();
+        }
       }
     };
 
-    socket.onclose = () => {
-      setTimeout(() => {
+    window.addEventListener('DOMContentLoaded', function() {
+      const abaSalva = sessionStorage.getItem('aba_ativa');
+      if (abaSalva && typeof switchTab === 'function') {
+        switchTab(abaSalva);
+      }
+    });
+
+    socket.onclose = function() {
+      setTimeout(function() {
         window.location.reload();
       }, 3000);
     };
