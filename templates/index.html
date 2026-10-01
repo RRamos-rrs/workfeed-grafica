@@ -30,7 +30,7 @@
         </div>
         <div>
           <span class="text-base font-bold tracking-tight text-slate-900 block leading-tight">WorkFeed <span class="text-indigo-600">Gráfica</span></span>
-          <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Controlo de Ferramentais</p>
+          <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Controle de Ferramentais</p>
         </div>
       </div>
 
@@ -47,7 +47,7 @@
         + Colaborador
       </button>
       {% endif %}
-        <button onclick="switchTab('my-profile')" class="flex items-center gap-2.5 text-left group">
+        <button onclick="openUserProfileModal('{{ current_user.full_name }}')" class="flex items-center gap-2.5 text-left group">
           <div class="w-9 h-9 rounded-xl bg-slate-900 group-hover:bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-sm transition">
             {{ current_user.full_name[:2]|upper }}
           </div>
@@ -56,7 +56,7 @@
             <span class="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">{{ current_user.role }}</span>
           </div>
         </button>
-        <a href="/logout" title="Terminar Sessão" class="text-slate-400 hover:text-rose-600 transition ml-2">
+        <a href="/logout" title="Sair da Conta" class="text-slate-400 hover:text-rose-600 transition ml-2">
           <i data-lucide="log-out" class="w-4 h-4"></i>
         </a>
       </div>
@@ -70,7 +70,6 @@
     <aside class="lg:col-span-3 space-y-4">
       <nav class="bg-white rounded-2xl border border-slate-200/80 p-2 shadow-xs space-y-1">
         
-        <!-- Botão Meu Perfil -->
         <button onclick="switchTab('my-profile')" id="tab-btn-my-profile" class="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-bold rounded-xl transition text-indigo-600 bg-indigo-50/80">
           <div class="flex items-center gap-3">
             <i data-lucide="user-check" class="w-4 h-4"></i>
@@ -102,7 +101,7 @@
         <button onclick="switchTab('profiles')" id="tab-btn-profiles" class="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-50 hover:text-slate-900">
           <div class="flex items-center gap-3">
             <i data-lucide="users" class="w-4 h-4"></i>
-            <span>Equipa & Métricas</span>
+            <span>Equipe & Métricas</span>
           </div>
           <span class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
             {{ collaborators|length }}
@@ -117,7 +116,7 @@
 
       <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3">
         <h4 class="font-bold text-slate-900 text-xs tracking-tight flex items-center gap-2">
-          <i data-lucide="boxes" class="w-4 h-4 text-slate-400"></i> Ferramentais Aceites
+          <i data-lucide="boxes" class="w-4 h-4 text-slate-400"></i> Ferramentais Aceitos
         </h4>
         <div class="space-y-1.5 text-xs text-slate-700">
           <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 font-medium">🔪 Faca Corte e Vinco</div>
@@ -134,15 +133,19 @@
       <!-- ================= ABA 0: MEU PERFIL & MINHAS TAREFAS ================= -->
       <section id="content-my-profile" class="space-y-6">
         
-        <!-- Cartão Superior do Perfil -->
-        <div class="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <!-- Cartão Superior do Perfil (Clicável para ver detalhes completos) -->
+        <div onclick="openUserProfileModal('{{ current_user.full_name }}')" class="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:border-indigo-300 transition group">
           <div class="flex items-center gap-4">
-            <div class="w-16 h-16 rounded-2xl bg-indigo-600 text-white font-black text-2xl flex items-center justify-center shadow-md shadow-indigo-100">
+            <div class="w-16 h-16 rounded-2xl bg-indigo-600 group-hover:bg-indigo-700 text-white font-black text-2xl flex items-center justify-center shadow-md shadow-indigo-100 transition">
               {{ current_user.full_name[:2]|upper }}
             </div>
             <div>
-              <h2 class="text-lg font-bold text-slate-900 leading-snug">{{ current_user.full_name }}</h2>
-              <p class="text-xs text-slate-500">Utilizador: <span class="font-mono font-semibold text-slate-700">@{{ current_user.username }}</span> • Função: <span class="font-semibold text-indigo-600">{{ current_user.role }}</span></p>
+              <div class="flex items-center gap-2">
+                <h2 class="text-lg font-bold text-slate-900 leading-snug group-hover:text-indigo-600 transition">{{ current_user.full_name }}</h2>
+                <i data-lucide="info" class="w-4 h-4 text-slate-400 group-hover:text-indigo-600 transition"></i>
+              </div>
+              <p class="text-xs text-slate-500">Usuário: <span class="font-mono font-semibold text-slate-700">@{{ current_user.username }}</span> • Função: <span class="font-semibold text-indigo-600">{{ current_user.role }}</span></p>
+              <p class="text-[11px] text-slate-400 font-medium mt-0.5">Setor: <span class="text-slate-600 font-semibold">{{ current_user.department or 'Produção / Pré-Impressão' }}</span></p>
             </div>
           </div>
           
@@ -208,7 +211,7 @@
             {% else %}
             <div class="col-span-2 p-6 bg-white rounded-xl border border-slate-200/80 text-center text-xs text-slate-400">
               <i data-lucide="check-circle" class="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80"></i>
-              Não tem nenhuma nova tarefa pendente neste momento.
+              Você não tem nenhuma nova tarefa pendente neste momento.
             </div>
             {% endfor %}
           </div>
@@ -222,7 +225,7 @@
               Em Preparação / Aguardando Fornecedor
             </h3>
             <span class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
-              {{ my_in_progress_tasks|length }} em curso
+              {{ my_in_progress_tasks|length }} em andamento
             </span>
           </div>
 
@@ -264,7 +267,7 @@
           </div>
         </div>
 
-        <!-- Bloco 3: Meu Histórico Concluído -->
+        <!-- Bloco 3: Histórico Concluído -->
         <div class="space-y-3 pt-2">
           <div class="flex items-center justify-between">
             <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -297,7 +300,7 @@
             </div>
             {% else %}
             <div class="p-6 bg-white rounded-xl border border-slate-200/80 text-center text-xs text-slate-400">
-              Ainda não tem ferramentais homologados no histórico.
+              Você ainda não tem ferramentais homologados no histórico.
             </div>
             {% endfor %}
           </div>
@@ -310,10 +313,10 @@
         <div class="flex items-center justify-between px-1">
           <div>
             <h2 class="text-base font-bold text-slate-900 tracking-tight">Feed de Ferramentais Homologados</h2>
-            <p class="text-xs text-slate-500">Histórico de especificações concluídas e validadas pela equipa</p>
+            <p class="text-xs text-slate-500">Histórico de especificações concluídas e validadas pela equipe</p>
           </div>
           <span class="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
-            {{ posts|length }} registo(s)
+            {{ posts|length }} registro(s)
           </span>
         </div>
 
@@ -343,7 +346,7 @@
               <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 bg-slate-50/80 rounded-xl border border-slate-100 text-xs">
                 <div>
                   <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Solicitado por</p>
-                  <p class="font-bold text-slate-800 flex items-center gap-1.5 mt-0.5">
+                  <p onclick="openUserProfileModal('{{ post.author }}')" class="font-bold text-slate-800 flex items-center gap-1.5 mt-0.5 cursor-pointer hover:text-indigo-600 transition">
                     <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> {{ post.author }}
                   </p>
                 </div>
@@ -404,7 +407,7 @@
           {% else %}
           <div class="text-center py-16 bg-white rounded-2xl border border-slate-200/80 p-8 shadow-xs">
             <i data-lucide="inbox" class="w-10 h-10 text-slate-300 mx-auto mb-2"></i>
-            <h3 class="text-sm font-bold text-slate-800">Nenhum registo no feed</h3>
+            <h3 class="text-sm font-bold text-slate-800">Nenhum registro no feed</h3>
           </div>
           {% endfor %}
         </div>
@@ -457,7 +460,7 @@
                   {% endif %}
                 </div>
                 <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
-                  <span class="text-slate-600 flex items-center gap-1">
+                  <span onclick="openUserProfileModal('{{ task.assigned_to }}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-indigo-600 transition">
                     <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
                   </span>
                   <button type="button" onclick="copyOrderText('{{ task.op_number }}', '{{ task.tool_type }}', '{{ task.title }}', '{{ task.supplier }}', '{{ task.due_date }}', `{{ task.instructions }}`)" class="text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 text-[10px] bg-indigo-50 px-2 py-0.5 rounded transition">
@@ -500,7 +503,7 @@
                   <p class="text-amber-600 font-mono text-[10px]">📅 Prazo: {{ task.due_date }}</p>
                 </div>
                 <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
-                  <span class="text-slate-600 flex items-center gap-1">
+                  <span onclick="openUserProfileModal('{{ task.assigned_to }}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-indigo-600 transition">
                     <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
                   </span>
                   <span class="text-blue-600 font-semibold text-[10px] bg-blue-50 px-2 py-0.5 rounded">Em Andamento</span>
@@ -533,7 +536,7 @@
                 </div>
                 <h4 class="text-xs font-bold text-slate-900 leading-snug line-through opacity-70">{{ task.title }}</h4>
                 <p class="text-[10px] text-slate-500 pt-2 border-t border-emerald-100">
-                  Fornecedor: <b>{{ task.supplier }}</b> • Resp: <b>{{ task.assigned_to }}</b>
+                  Fornecedor: <b>{{ task.supplier }}</b> • Resp: <b onclick="openUserProfileModal('{{ task.assigned_to }}')" class="cursor-pointer hover:text-indigo-600 underline">{{ task.assigned_to }}</b>
                 </p>
               </div>
               {% endfor %}
@@ -543,11 +546,11 @@
         </div>
       </section>
 
-      <!-- ================= ABA 3: EQUIPA GERAL ================= -->
+      <!-- ================= ABA 3: EQUIPE GERAL ================= -->
       <section id="content-profiles" class="hidden space-y-6">
         <div class="flex items-center justify-between px-1">
           <div>
-            <h2 class="text-base font-bold text-slate-900 tracking-tight">Equipa Técnica & Perfis</h2>
+            <h2 class="text-base font-bold text-slate-900 tracking-tight">Equipe Técnica & Perfis</h2>
             <p class="text-xs text-slate-500">Métricas operacionais de todos os membros cadastrados</p>
           </div>
           <span class="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
@@ -557,7 +560,7 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
           {% for member in collaborators %}
-          <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex flex-col justify-between space-y-4">
+          <div onclick="openUserProfileModal('{{ member.name }}')" class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex flex-col justify-between space-y-4 cursor-pointer hover:border-indigo-300 hover:shadow-md transition">
             <div class="flex items-start justify-between">
               <div class="flex items-center gap-3">
                 <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-800 text-white font-black text-sm flex items-center justify-center shadow-sm">
@@ -565,7 +568,10 @@
                 </div>
                 <div>
                   <h3 class="text-sm font-bold text-slate-900 leading-snug">{{ member.name }}</h3>
-                  <span class="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">{{ member.role }}</span>
+                  <div class="flex items-center gap-1.5 mt-0.5">
+                    <span class="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">{{ member.role }}</span>
+                    <span class="text-[10px] font-medium text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">{{ member.department }}</span>
+                  </div>
                 </div>
               </div>
               <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
@@ -593,7 +599,7 @@
                   <span class="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded whitespace-nowrap">{{ p.tool_type }}</span>
                 </div>
                 {% else %}
-                <p class="text-[11px] text-slate-400 italic">Nenhum ferramental concluído até ao momento.</p>
+                <p class="text-[11px] text-slate-400 italic">Nenhum ferramental concluído até o momento.</p>
                 {% endfor %}
               </div>
             </div>
@@ -634,12 +640,12 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Colaborador da Equipa</label>
+                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Colaborador da Equipe</label>
                 <select required name="assigned_to" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 bg-slate-50 font-bold text-slate-800">
                   {% for u in users %}
                   <option value="{{ u.full_name }}">{{ u.full_name }} ({{ u.role }})</option>
                   {% else %}
-                  <option value="Colaborador">Nenhum colaborador registado</option>
+                  <option value="Colaborador">Nenhum colaborador registrado</option>
                   {% endfor %}
                 </select>
               </div>
@@ -696,28 +702,80 @@
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Nome de Utilizador</label>
+          <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Nome de Usuário</label>
           <input type="text" name="username" required placeholder="Ex: joaosilva" class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
         </div>
 
-        <div>
-          <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Função / Cargo</label>
-          <select name="role" class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option value="Colaborador">Colaborador / Operador</option>
-            <option value="Gestor">Gestor / Supervisor</option>
-          </select>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Função / Cargo</label>
+            <select name="role" class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="Colaborador">Colaborador / Operador</option>
+              <option value="Gestor">Gestor / Supervisor</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Setor / Departamento</label>
+            <input type="text" name="department" required placeholder="Ex: Acabamento" value="Produção / Pré-Impressão" class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Palavra-passe Provisória</label>
+          <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Senha Provisória</label>
           <input type="password" name="password" required placeholder="••••••••" class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
         </div>
 
         <div class="flex justify-end gap-2 pt-3 border-t">
           <button type="button" onclick="document.getElementById('modalCollaborator').classList.add('hidden')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-xl">Cancelar</button>
-          <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl">Guardar Colaborador</button>
+          <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl">Salvar Colaborador</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Modal Detalhes do Perfil do Colaborador -->
+  <div id="modalUserProfile" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl relative space-y-4">
+      <div class="flex justify-between items-start border-b pb-3">
+        <div class="flex items-center gap-3">
+          <div id="modalUserAvatar" class="w-12 h-12 rounded-xl bg-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-md">
+            --
+          </div>
+          <div>
+            <h3 id="modalUserName" class="text-sm font-bold text-slate-900 leading-snug">Nome</h3>
+            <p id="modalUserHandle" class="text-xs text-slate-400 font-mono">@usuario</p>
+          </div>
+        </div>
+        <button type="button" onclick="document.getElementById('modalUserProfile').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+      </div>
+
+      <div class="space-y-2.5 text-xs">
+        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center">
+          <span class="text-slate-500 font-medium">Função / Cargo:</span>
+          <span id="modalUserRole" class="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">--</span>
+        </div>
+        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center">
+          <span class="text-slate-500 font-medium">Setor de Atuação:</span>
+          <span id="modalUserDepartment" class="font-bold text-slate-800">--</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 text-center pt-1">
+        <div class="p-2.5 bg-amber-50 rounded-xl border border-amber-200">
+          <p class="text-[10px] uppercase font-bold text-amber-700">Tarefas Ativas</p>
+          <p id="modalUserPending" class="text-base font-bold text-amber-900 font-mono">0</p>
+        </div>
+        <div class="p-2.5 bg-emerald-50 rounded-xl border border-emerald-200">
+          <p class="text-[10px] uppercase font-bold text-emerald-700">Homologados</p>
+          <p id="modalUserCompleted" class="text-base font-bold text-emerald-900 font-mono">0</p>
+        </div>
+      </div>
+
+      <div class="pt-2">
+        <button type="button" onclick="document.getElementById('modalUserProfile').classList.add('hidden')" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition">
+          Fechar
+        </button>
+      </div>
     </div>
   </div>
 
@@ -768,6 +826,31 @@
       lucide.createIcons();
     }
 
+    async function openUserProfileModal(fullName) {
+      if (!fullName) return;
+      try {
+        const res = await fetch(`/api/users/profile/${encodeURIComponent(fullName)}`);
+        if (!res.ok) {
+          alert("Não foi possível carregar as informações deste colaborador.");
+          return;
+        }
+        const data = await res.json();
+
+        document.getElementById('modalUserName').textContent = data.full_name;
+        document.getElementById('modalUserHandle').textContent = `@${data.username}`;
+        document.getElementById('modalUserAvatar').textContent = data.full_name.substring(0, 2).toUpperCase();
+        document.getElementById('modalUserRole').textContent = data.role;
+        document.getElementById('modalUserDepartment').textContent = data.department;
+        document.getElementById('modalUserPending').textContent = data.pending_tasks;
+        document.getElementById('modalUserCompleted').textContent = data.completed_tasks;
+
+        document.getElementById('modalUserProfile').classList.remove('hidden');
+        lucide.createIcons();
+      } catch (err) {
+        console.error("Erro ao abrir perfil:", err);
+      }
+    }
+
     async function updateTaskStatusFast(taskId, newStatus) {
       try {
         const response = await fetch(`/api/tasks/${taskId}/status`, {
@@ -780,7 +863,7 @@
           alert('🎉 Ferramental Aprovado e publicado no Feed!');
         }
       } catch (err) {
-        console.error('Erro ao atualizar estado:', err);
+        console.error('Erro ao atualizar status:', err);
       }
     }
 
@@ -791,7 +874,7 @@
                    `• Trabalho: ${title}\n` +
                    `• Fornecedor: ${supplier}\n` +
                    `• Prazo Desejado: ${due}\n` +
-                   `• Instruções Técnicas: ${instructions || 'Conforme ficheiro técnico'}`;
+                   `• Instruções Técnicas: ${instructions || 'Conforme arquivo técnico'}`;
       
       navigator.clipboard.writeText(text).then(() => {
         alert('📋 Pedido copiado! Pode colar na conversa ou e-mail com o fornecedor.');
@@ -891,10 +974,11 @@
           const data = JSON.parse(event.data);
           if (data.type === "REFRESH") {
             const modalCollaborator = document.getElementById('modalCollaborator');
-            const isModalOpen = modalCollaborator && !modalCollaborator.classList.contains('hidden');
+            const modalUserProfile = document.getElementById('modalUserProfile');
+            const isCollaboratorOpen = modalCollaborator && !modalCollaborator.classList.contains('hidden');
+            const isProfileOpen = modalUserProfile && !modalUserProfile.classList.contains('hidden');
 
-            // Só não atualiza se estiver preenchendo o formulário de novo colaborador
-            if (!isModalOpen) {
+            if (!isCollaboratorOpen && !isProfileOpen) {
               window.location.reload();
             }
           }
@@ -904,7 +988,6 @@
       };
 
       socket.onclose = function() {
-        console.warn("WebSocket fechado. Reconectando em 3s...");
         setTimeout(conectarWebSocket, 3000);
       };
 
@@ -916,24 +999,23 @@
 
     conectarWebSocket();
 
-    // Restaura a aba ativa após o recarregamento automático
     window.addEventListener('DOMContentLoaded', function() {
       const abaSalva = sessionStorage.getItem('aba_ativa') || 'my-profile';
       switchTab(abaSalva);
     });
-    // Reconecta se a página sair do Back-Forward Cache ou voltar a ficar visível
+
     window.addEventListener('pageshow', function(event) {
-        if (event.persisted || !socket || socket.readyState === WebSocket.CLOSED) {
-            conectarWebSocket();
-        }
+      if (event.persisted || !socket || socket.readyState === WebSocket.CLOSED) {
+        conectarWebSocket();
+      }
     });
 
     document.addEventListener('visibilitychange', function() {
-        if (document.visibilityState === 'visible') {
-            if (!socket || socket.readyState === WebSocket.CLOSED) {
-                conectarWebSocket();
-            }
+      if (document.visibilityState === 'visible') {
+        if (!socket || socket.readyState === WebSocket.CLOSED) {
+          conectarWebSocket();
         }
+      }
     });
   </script>
 </body>
