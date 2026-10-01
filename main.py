@@ -86,7 +86,7 @@ def home(request: Request, db: Session = Depends(get_db)):
         collaborators.append({
             "name": u.full_name,
             "role": u.role,
-            "department": getattr(u, 'department', 'Produção / Pré-Impressão') or "Produção / Pré-Impressão",
+            "department": getattr(u, 'department', 'Produção / Pré-Impressão'),
             "active_tasks": active_count,
             "approved_tasks": approved_count,
             "recent_posts": user_posts[:3]
@@ -107,7 +107,6 @@ def home(request: Request, db: Session = Depends(get_db)):
             "collaborators": collaborators
         }
     )
-    # Impede cache no navegador
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
@@ -127,7 +126,7 @@ def get_user_profile(full_name: str, db: Session = Depends(get_db)):
         "full_name": user.full_name,
         "username": user.username,
         "role": user.role,
-        "department": getattr(user, 'department', 'Produção / Pré-Impressão') or "Produção / Pré-Impressão",
+        "department": getattr(user, 'department', 'Produção / Pré-Impressão'),
         "pending_tasks": len([t for t in tasks if t.status != "Aprovado"]),
         "completed_tasks": len(posts)
     }
@@ -173,7 +172,8 @@ async def register(
             context={"error": "Este nome de usuário já existe"}
         )
 
-    new_user = models.User(full_name=full_name, username=username, role=role, department=department, password=password)
+    # Criação segura sem exigir department como coluna física
+    new_user = models.User(full_name=full_name, username=username, role=role, password=password)
     db.add(new_user)
     db.commit()
 
@@ -199,11 +199,11 @@ async def add_collaborator(
             content={"success": False, "message": "Este nome de usuário já existe!"}
         )
 
+    # Criação segura sem exigir department como coluna física
     new_user = models.User(
         full_name=full_name,
         username=username,
         role=role,
-        department=department,
         password=password
     )
     db.add(new_user)
