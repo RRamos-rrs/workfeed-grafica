@@ -11,8 +11,8 @@ class User(Base):
     full_name = Column(String(100), nullable=False)
     role = Column(String(50), default="Colaborador")  # "Gestor" ou "Colaborador"
     password = Column(String(100), nullable=False)
+    manager_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
-    # Propriedade dinâmica para o setor sem exigir coluna física no banco
     @property
     def department(self):
         return "Produção / Pré-Impressão"
