@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from pydantic import BaseModel
 
 import models
@@ -18,7 +19,6 @@ app = FastAPI()
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 templates = Jinja2Templates(directory="templates")
 
-# Gestor de conexões WebSocket para tempo real
 class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
@@ -51,33 +51,43 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception:
         manager.disconnect(websocket)
 
-# Obter usuário com sessão ativa via cookie
 def get_current_user(request: Request, db: Session):
     username = request.cookies.get("user_session")
     if not username:
         return None
     return db.query(models.User).filter(models.User.username == username).first()
 
-# ROTA PRINCIPAL (Protegida)
+# ROTA PRINCIPAL (Isolamento por equipe)
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request, db: Session = Depends(get_db)):
     current_user = get_current_user(request, db)
     if not current_user:
         return RedirectResponse(url="/login")
 
-    all_tasks = db.query(models.Task).all()
-    posts = db.query(models.Post).order_by(models.Post.created_at.desc()).all()
-    all_users = db.query(models.User).all()
+    is_manager = current_user.role in ["Gestor", "manager"]
+    manager_id = current_user.id if is_manager else current_user.manager_id
 
-    # Tarefas específicas do colaborador autenticado
+    # Busca apenas os membros da equipe correspondente
+    if manager_id:
+        team_users = db.query(models.User).filter(
+            or_(models.User.id == manager_id, models.User.manager_id == manager_id)
+        ).all()
+    else:
+        team_users = [current_user]
+
+    team_user_names = [u.full_name for u in team_users]
+
+    # Filtra tarefas e publicações apenas da equipe
+    all_tasks = db.query(models.Task).filter(models.Task.assigned_to.in_(team_user_names)).all()
+    posts = db.query(models.Post).filter(models.Post.author.in_(team_user_names)).order_by(models.Post.created_at.desc()).all()
+
     my_tasks = [t for t in all_tasks if t.assigned_to == current_user.full_name]
     my_pending_tasks = [t for t in my_tasks if t.status == "Atribuído"]
     my_in_progress_tasks = [t for t in my_tasks if t.status == "Em Produção"]
     my_completed_posts = [p for p in posts if p.author == current_user.full_name]
 
-    # Métricas para a seção da equipe
     collaborators = []
-    for u in all_users:
+    for u in team_users:
         user_tasks = [t for t in all_tasks if t.assigned_to == u.full_name]
         user_posts = [p for p in posts if p.author == u.full_name]
         active_count = len([t for t in user_tasks if t.status != "Aprovado"])
@@ -103,7 +113,7 @@ def home(request: Request, db: Session = Depends(get_db)):
             "my_in_progress_tasks": my_in_progress_tasks,
             "my_completed_posts": my_completed_posts,
             "posts": posts,
-            "users": all_users,
+            "users": team_users,
             "collaborators": collaborators
         }
     )
@@ -112,7 +122,6 @@ def home(request: Request, db: Session = Depends(get_db)):
     response.headers["Expires"] = "0"
     return response
 
-# ROTA PARA DETALHES DO PERFIL (MODAL)
 @app.get("/api/users/profile/{full_name}")
 def get_user_profile(full_name: str, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.full_name == full_name).first()
@@ -131,7 +140,6 @@ def get_user_profile(full_name: str, db: Session = Depends(get_db)):
         "completed_tasks": len(posts)
     }
 
-# ROTAS DE AUTENTICAÇÃO
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
     return templates.TemplateResponse(
@@ -159,7 +167,7 @@ async def register(
     request: Request,
     full_name: str = Form(...),
     username: str = Form(...),
-    role: str = Form("Colaborador"),
+    role: str = Form("Gestor"),
     department: str = Form("Produção / Pré-Impressão"),
     password: str = Form(...),
     db: Session = Depends(get_db)
@@ -172,8 +180,14 @@ async def register(
             context={"error": "Este nome de usuário já existe"}
         )
 
-    # Criação segura sem exigir department como coluna física
-    new_user = models.User(full_name=full_name, username=username, role=role, password=password)
+    # Novos cadastros pela tela inicial viram Gestores da sua própria equipe
+    new_user = models.User(
+        full_name=full_name,
+        username=username,
+        role=role,
+        password=password,
+        manager_id=None
+    )
     db.add(new_user)
     db.commit()
 
@@ -183,8 +197,10 @@ async def register(
     redirect.set_cookie(key="user_session", value=username, httponly=True)
     return redirect
 
+# CADASTRO VINCULADO À EQUIPE DO GESTOR
 @app.post("/api/users/add-collaborator")
 async def add_collaborator(
+    request: Request,
     full_name: str = Form(...),
     username: str = Form(...),
     role: str = Form("Colaborador"),
@@ -192,6 +208,10 @@ async def add_collaborator(
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Sessão expirada."})
+
     existing = db.query(models.User).filter(models.User.username == username).first()
     if existing:
         return JSONResponse(
@@ -199,19 +219,21 @@ async def add_collaborator(
             content={"success": False, "message": "Este nome de usuário já existe!"}
         )
 
-    # Criação segura sem exigir department como coluna física
+    manager_ref_id = current_user.id if current_user.role in ["Gestor", "manager"] else current_user.manager_id
+
     new_user = models.User(
         full_name=full_name,
         username=username,
         role=role,
-        password=password
+        password=password,
+        manager_id=manager_ref_id
     )
     db.add(new_user)
     db.commit()
 
     await manager.broadcast({"type": "REFRESH"})
 
-    return JSONResponse(content={"success": True, "message": "Colaborador adicionado com sucesso!"})
+    return JSONResponse(content={"success": True, "message": "Colaborador adicionado à sua equipe com sucesso!"})
 
 @app.get("/logout")
 def logout():
@@ -219,7 +241,6 @@ def logout():
     response.delete_cookie("user_session")
     return response
 
-# ROTA DE CRIAÇÃO DE TAREFA (DELEGAÇÃO)
 @app.post("/tasks/create")
 async def create_task(
     request: Request,
