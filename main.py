@@ -51,7 +51,7 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception:
         manager.disconnect(websocket)
 
-# Obter utilizador com sessão ativa via cookie
+# Obter usuário com sessão ativa via cookie
 def get_current_user(request: Request, db: Session):
     username = request.cookies.get("user_session")
     if not username:
@@ -75,7 +75,7 @@ def home(request: Request, db: Session = Depends(get_db)):
     my_in_progress_tasks = [t for t in my_tasks if t.status == "Em Produção"]
     my_completed_posts = [p for p in posts if p.author == current_user.full_name]
 
-    # Métricas para a secção de equipa
+    # Métricas para a seção da equipe
     collaborators = []
     for u in all_users:
         user_tasks = [t for t in all_tasks if t.assigned_to == u.full_name]
@@ -86,12 +86,13 @@ def home(request: Request, db: Session = Depends(get_db)):
         collaborators.append({
             "name": u.full_name,
             "role": u.role,
+            "department": getattr(u, 'department', 'Produção / Pré-Impressão') or "Produção / Pré-Impressão",
             "active_tasks": active_count,
             "approved_tasks": approved_count,
             "recent_posts": user_posts[:3]
         })
 
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request=request,
         name="index.html",
         context={
@@ -106,6 +107,30 @@ def home(request: Request, db: Session = Depends(get_db)):
             "collaborators": collaborators
         }
     )
+    # Impede cache no navegador
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+# ROTA PARA DETALHES DO PERFIL (MODAL)
+@app.get("/api/users/profile/{full_name}")
+def get_user_profile(full_name: str, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.full_name == full_name).first()
+    if not user:
+        return JSONResponse(status_code=404, content={"message": "Colaborador não encontrado"})
+    
+    tasks = db.query(models.Task).filter(models.Task.assigned_to == full_name).all()
+    posts = db.query(models.Post).filter(models.Post.author == full_name).all()
+    
+    return {
+        "full_name": user.full_name,
+        "username": user.username,
+        "role": user.role,
+        "department": getattr(user, 'department', 'Produção / Pré-Impressão') or "Produção / Pré-Impressão",
+        "pending_tasks": len([t for t in tasks if t.status != "Aprovado"]),
+        "completed_tasks": len(posts)
+    }
 
 # ROTAS DE AUTENTICAÇÃO
 @app.get("/login", response_class=HTMLResponse)
@@ -123,7 +148,7 @@ def login(request: Request, response: Response, username: str = Form(...), passw
         return templates.TemplateResponse(
             request=request,
             name="login.html",
-            context={"error": "Utilizador ou palavra-passe incorretos"}
+            context={"error": "Usuário ou senha incorretos"}
         )
     
     redirect = RedirectResponse(url="/", status_code=303)
@@ -136,6 +161,7 @@ async def register(
     full_name: str = Form(...),
     username: str = Form(...),
     role: str = Form("Colaborador"),
+    department: str = Form("Produção / Pré-Impressão"),
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
@@ -144,10 +170,10 @@ async def register(
         return templates.TemplateResponse(
             request=request,
             name="login.html",
-            context={"error": "Este nome de utilizador já existe"}
+            context={"error": "Este nome de usuário já existe"}
         )
 
-    new_user = models.User(full_name=full_name, username=username, role=role, password=password)
+    new_user = models.User(full_name=full_name, username=username, role=role, department=department, password=password)
     db.add(new_user)
     db.commit()
 
@@ -162,6 +188,7 @@ async def add_collaborator(
     full_name: str = Form(...),
     username: str = Form(...),
     role: str = Form("Colaborador"),
+    department: str = Form("Produção / Pré-Impressão"),
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
@@ -169,13 +196,14 @@ async def add_collaborator(
     if existing:
         return JSONResponse(
             status_code=400,
-            content={"success": False, "message": "Este nome de utilizador já existe!"}
+            content={"success": False, "message": "Este nome de usuário já existe!"}
         )
 
     new_user = models.User(
         full_name=full_name,
         username=username,
         role=role,
+        department=department,
         password=password
     )
     db.add(new_user)
@@ -230,7 +258,6 @@ async def create_task(
     db.add(new_task)
     db.commit()
 
-    # Emite sinal para atualizar os ecrãs
     await manager.broadcast({"type": "REFRESH"})
 
     return RedirectResponse(url="/", status_code=303)
@@ -266,7 +293,6 @@ async def update_task_status_api(task_id: int, payload: StatusUpdate, db: Sessio
 
     db.commit()
 
-    # Emite sinal para atualizar os ecrãs
     await manager.broadcast({"type": "REFRESH"})
 
     return {"success": True, "published_to_feed": published}
@@ -290,7 +316,6 @@ async def add_comment(request: Request, post_id: int, text: str = Form(...), db:
     db.add(comment)
     db.commit()
 
-    # Emite sinal para atualizar os ecrãs
     await manager.broadcast({"type": "REFRESH"})
 
     return RedirectResponse(url="/", status_code=303)
