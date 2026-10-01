@@ -6,11 +6,18 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, text
 from pydantic import BaseModel
 
 import models
 from database import engine, get_db
+
+# Garante que a coluna manager_id exista na tabela users ativa antes de qualquer consulta
+try:
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS manager_id INTEGER REFERENCES users(id);"))
+except Exception as e:
+    print(f"Aviso de migração automática: {e}")
 
 models.Base.metadata.create_all(bind=engine)
 os.makedirs("uploads", exist_ok=True)
