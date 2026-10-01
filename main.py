@@ -48,6 +48,8 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+    except Exception:
+        manager.disconnect(websocket)
 
 # Obter utilizador com sessão ativa via cookie
 def get_current_user(request: Request, db: Session):
@@ -129,7 +131,7 @@ def login(request: Request, response: Response, username: str = Form(...), passw
     return redirect
 
 @app.post("/register")
-def register(
+async def register(
     request: Request,
     full_name: str = Form(...),
     username: str = Form(...),
@@ -149,12 +151,14 @@ def register(
     db.add(new_user)
     db.commit()
 
+    await manager.broadcast({"type": "REFRESH"})
+
     redirect = RedirectResponse(url="/", status_code=303)
     redirect.set_cookie(key="user_session", value=username, httponly=True)
     return redirect
 
 @app.post("/api/users/add-collaborator")
-def add_collaborator(
+async def add_collaborator(
     full_name: str = Form(...),
     username: str = Form(...),
     role: str = Form("Colaborador"),
@@ -176,6 +180,8 @@ def add_collaborator(
     )
     db.add(new_user)
     db.commit()
+
+    await manager.broadcast({"type": "REFRESH"})
 
     return JSONResponse(content={"success": True, "message": "Colaborador adicionado com sucesso!"})
 
