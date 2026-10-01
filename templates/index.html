@@ -921,6 +921,20 @@
       const abaSalva = sessionStorage.getItem('aba_ativa') || 'my-profile';
       switchTab(abaSalva);
     });
+    // Reconecta se a página sair do Back-Forward Cache ou voltar a ficar visível
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted || !socket || socket.readyState === WebSocket.CLOSED) {
+            conectarWebSocket();
+        }
+    });
+
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+            if (!socket || socket.readyState === WebSocket.CLOSED) {
+                conectarWebSocket();
+            }
+        }
+    });
   </script>
 </body>
 </html>
