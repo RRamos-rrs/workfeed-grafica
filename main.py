@@ -187,10 +187,10 @@ async def register(
             context={"error": "Este nome de usuário já existe"}
         )
 
-    # Novos cadastros pela tela inicial viram Gestores da sua própria equipe
+    # Novos cadastros viram Gestores da sua própria equipe
     new_user = models.User(
         full_name=full_name,
-        username=username,
+        username=username.strip(),
         role=role,
         password=password,
         manager_id=None
@@ -201,10 +201,10 @@ async def register(
     await manager.broadcast({"type": "REFRESH"})
 
     redirect = RedirectResponse(url="/", status_code=303)
-    redirect.set_cookie(key="user_session", value=username, httponly=True)
+    redirect.set_cookie(key="user_session", value=username.strip(), httponly=True)
     return redirect
 
-# CADASTRO VINCULADO À EQUIPE DO GESTOR
+# CADASTRO VINCULADO À EQUIPE DO GESTOR (Com atualização se já existir)
 @app.post("/api/users/add-collaborator")
 async def add_collaborator(
     request: Request,
@@ -219,18 +219,27 @@ async def add_collaborator(
     if not current_user:
         return JSONResponse(status_code=401, content={"success": False, "message": "Sessão expirada."})
 
-    existing = db.query(models.User).filter(models.User.username == username).first()
-    if existing:
-        return JSONResponse(
-            status_code=400,
-            content={"success": False, "message": "Este nome de usuário já existe!"}
-        )
-
     manager_ref_id = current_user.id if current_user.role in ["Gestor", "manager"] else current_user.manager_id
+    clean_username = username.strip()
 
+    # Verifica se já existe um usuário com esse username
+    existing = db.query(models.User).filter(models.User.username.ilike(clean_username)).first()
+    
+    if existing:
+        # Se já existe, atualiza os dados e vincula à sua equipe
+        existing.full_name = full_name
+        existing.role = role
+        existing.password = password
+        existing.manager_id = manager_ref_id
+        db.commit()
+
+        await manager.broadcast({"type": "REFRESH"})
+        return JSONResponse(content={"success": True, "message": "Colaborador vinculado à sua equipe com sucesso!"})
+
+    # Caso não exista, cria normalmente
     new_user = models.User(
         full_name=full_name,
-        username=username,
+        username=clean_username,
         role=role,
         password=password,
         manager_id=manager_ref_id
