@@ -3,15 +3,15 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
 
-# ESTA É A CLASSE QUE ESTÁ FALTANDO E CAUSANDO O ERRO
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True, nullable=False)
     full_name = Column(String(100), nullable=False)
-    role = Column(String(50), default="Colaborador") # "Gestor" ou "Colaborador"
-    password = Column(String(100), nullable=False) # Em produção, use hash!
+    role = Column(String(50), default="Colaborador")  # "Gestor" ou "Colaborador"
+    department = Column(String(100), default="Produção / Pré-Impressão")  # Setor na gráfica
+    password = Column(String(100), nullable=False)
 
 class Task(Base):
     __tablename__ = "tasks"
