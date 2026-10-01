@@ -10,8 +10,12 @@ class User(Base):
     username = Column(String(50), unique=True, index=True, nullable=False)
     full_name = Column(String(100), nullable=False)
     role = Column(String(50), default="Colaborador")  # "Gestor" ou "Colaborador"
-    department = Column(String(100), default="Produção / Pré-Impressão")  # Setor na gráfica
     password = Column(String(100), nullable=False)
+
+    # Propriedade dinâmica para o setor sem exigir coluna física no banco
+    @property
+    def department(self):
+        return "Produção / Pré-Impressão"
 
 class Task(Base):
     __tablename__ = "tasks"
