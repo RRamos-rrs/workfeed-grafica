@@ -71,7 +71,8 @@ def home(request: Request, db: Session = Depends(get_db)):
     if not current_user:
         return RedirectResponse(url="/login")
 
-    is_manager = current_user.role in ["Gestor", "manager"]
+    role_normalized = (current_user.role or "").strip().lower()
+    is_manager = role_normalized in ["gestor", "manager", "admin"]
     manager_id = current_user.id if is_manager else current_user.manager_id
 
     # Busca apenas os membros da equipe correspondente
@@ -179,7 +180,8 @@ async def register(
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    existing = db.query(models.User).filter(models.User.username == username).first()
+    clean_username = username.strip()
+    existing = db.query(models.User).filter(models.User.username.ilike(clean_username)).first()
     if existing:
         return templates.TemplateResponse(
             request=request,
@@ -190,7 +192,7 @@ async def register(
     # Novos cadastros viram Gestores da sua própria equipe
     new_user = models.User(
         full_name=full_name,
-        username=username.strip(),
+        username=clean_username,
         role=role,
         password=password,
         manager_id=None
@@ -201,7 +203,7 @@ async def register(
     await manager.broadcast({"type": "REFRESH"})
 
     redirect = RedirectResponse(url="/", status_code=303)
-    redirect.set_cookie(key="user_session", value=username.strip(), httponly=True)
+    redirect.set_cookie(key="user_session", value=clean_username, httponly=True)
     return redirect
 
 # CADASTRO VINCULADO À EQUIPE DO GESTOR (Com atualização se já existir)
@@ -219,7 +221,9 @@ async def add_collaborator(
     if not current_user:
         return JSONResponse(status_code=401, content={"success": False, "message": "Sessão expirada."})
 
-    manager_ref_id = current_user.id if current_user.role in ["Gestor", "manager"] else current_user.manager_id
+    role_normalized = (current_user.role or "").strip().lower()
+    is_manager = role_normalized in ["gestor", "manager", "admin"]
+    manager_ref_id = current_user.id if is_manager else current_user.manager_id
     clean_username = username.strip()
 
     # Verifica se já existe um usuário com esse username
@@ -250,6 +254,35 @@ async def add_collaborator(
     await manager.broadcast({"type": "REFRESH"})
 
     return JSONResponse(content={"success": True, "message": "Colaborador adicionado à sua equipe com sucesso!"})
+
+# EXCLUIR COLABORADOR DA EQUIPE DIRETAMENTE PELO SITE
+@app.delete("/api/users/{username}")
+async def delete_user(request: Request, username: str, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Sessão expirada."})
+
+    role_normalized = (current_user.role or "").strip().lower()
+    if role_normalized not in ["gestor", "manager", "admin"]:
+        return JSONResponse(status_code=403, content={"success": False, "message": "Apenas gestores podem remover colaboradores."})
+
+    clean_username = username.strip()
+    if current_user.username.lower() == clean_username.lower():
+        return JSONResponse(status_code=400, content={"success": False, "message": "Não pode remover a sua própria conta."})
+
+    user_to_delete = db.query(models.User).filter(models.User.username.ilike(clean_username)).first()
+    if not user_to_delete:
+        return JSONResponse(status_code=404, content={"success": False, "message": "Colaborador não encontrado."})
+
+    # Verifica se pertence à equipa deste gestor
+    if user_to_delete.manager_id != current_user.id:
+        return JSONResponse(status_code=403, content={"success": False, "message": "Este colaborador não pertence à sua equipe."})
+
+    db.delete(user_to_delete)
+    db.commit()
+
+    await manager.broadcast({"type": "REFRESH"})
+    return JSONResponse(content={"success": True, "message": "Colaborador removido com sucesso!"})
 
 @app.get("/logout")
 def logout():
