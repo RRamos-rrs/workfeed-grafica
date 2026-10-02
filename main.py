@@ -52,7 +52,10 @@ async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
         while True:
-            await websocket.receive_text()
+            data = await websocket.receive_text()
+            # Responde a pings para manter o canal ativo contra timeouts do Render
+            if data == "ping":
+                await websocket.send_text("pong")
     except WebSocketDisconnect:
         manager.disconnect(websocket)
     except Exception:
@@ -64,7 +67,7 @@ def get_current_user(request: Request, db: Session):
         return None
     return db.query(models.User).filter(models.User.username == username).first()
 
-# ROTA PRINCIPAL (Isolamento por equipe)
+# ROTA PRINCIPAL (Isolamento por equipe e Feed unificado)
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request, db: Session = Depends(get_db)):
     current_user = get_current_user(request, db)
@@ -73,21 +76,35 @@ def home(request: Request, db: Session = Depends(get_db)):
 
     role_normalized = (current_user.role or "").strip().lower()
     is_manager = role_normalized in ["gestor", "manager", "admin"]
-    manager_id = current_user.id if is_manager else current_user.manager_id
+    
+    # Identifica o ID do Gestor da equipe
+    manager_ref_id = current_user.id if is_manager else current_user.manager_id
 
-    # Busca apenas os membros da equipe correspondente
-    if manager_id:
+    # Busca todos os membros da mesma equipe (gestor + colaboradores)
+    if manager_ref_id:
         team_users = db.query(models.User).filter(
-            or_(models.User.id == manager_id, models.User.manager_id == manager_id)
+            or_(models.User.id == manager_ref_id, models.User.manager_id == manager_ref_id)
         ).all()
     else:
         team_users = [current_user]
 
     team_user_names = [u.full_name for u in team_users]
 
-    # Filtra tarefas e publicações apenas da equipe
-    all_tasks = db.query(models.Task).filter(models.Task.assigned_to.in_(team_user_names)).all()
-    posts = db.query(models.Post).filter(models.Post.author.in_(team_user_names)).order_by(models.Post.created_at.desc()).all()
+    # Tarefas da equipe inteira (atribuídas ou delegadas por membros da equipe)
+    all_tasks = db.query(models.Task).filter(
+        or_(
+            models.Task.assigned_to.in_(team_user_names),
+            models.Task.delegated_by.in_(team_user_names)
+        )
+    ).all()
+
+    # Feed unificado: qualquer post produzido ou delegado por alguém da equipe
+    posts = db.query(models.Post).filter(
+        or_(
+            models.Post.author.in_(team_user_names),
+            models.Post.delegated_by.in_(team_user_names)
+        )
+    ).order_by(models.Post.created_at.desc()).all()
 
     my_tasks = [t for t in all_tasks if t.assigned_to == current_user.full_name]
     my_pending_tasks = [t for t in my_tasks if t.status == "Atribuído"]
@@ -189,7 +206,6 @@ async def register(
             context={"error": "Este nome de usuário já existe"}
         )
 
-    # Novos cadastros viram Gestores da sua própria equipe
     new_user = models.User(
         full_name=full_name,
         username=clean_username,
@@ -226,11 +242,9 @@ async def add_collaborator(
     manager_ref_id = current_user.id if is_manager else current_user.manager_id
     clean_username = username.strip()
 
-    # Verifica se já existe um usuário com esse username
     existing = db.query(models.User).filter(models.User.username.ilike(clean_username)).first()
     
     if existing:
-        # Se já existe, atualiza os dados e vincula à sua equipe
         existing.full_name = full_name
         existing.role = role
         existing.password = password
@@ -240,7 +254,6 @@ async def add_collaborator(
         await manager.broadcast({"type": "REFRESH"})
         return JSONResponse(content={"success": True, "message": "Colaborador vinculado à sua equipe com sucesso!"})
 
-    # Caso não exista, cria normalmente
     new_user = models.User(
         full_name=full_name,
         username=clean_username,
@@ -274,7 +287,6 @@ async def delete_user(request: Request, username: str, db: Session = Depends(get
     if not user_to_delete:
         return JSONResponse(status_code=404, content={"success": False, "message": "Colaborador não encontrado."})
 
-    # Verifica se pertence à equipa deste gestor
     if user_to_delete.manager_id != current_user.id:
         return JSONResponse(status_code=403, content={"success": False, "message": "Este colaborador não pertence à sua equipe."})
 
@@ -363,6 +375,7 @@ async def update_task_status_api(task_id: int, payload: StatusUpdate, db: Sessio
 
     db.commit()
 
+    # Dispara o evento de atualização em tempo real para todos os clientes conectados
     await manager.broadcast({"type": "REFRESH"})
 
     return {"success": True, "published_to_feed": published}
