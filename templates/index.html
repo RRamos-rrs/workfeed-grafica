@@ -452,7 +452,7 @@
                 <h4 class="text-xs font-bold text-slate-900 leading-snug">{{ task.title }}</h4>
                 <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 space-y-1">
                   <p class="flex items-center gap-1.5 font-semibold text-indigo-700">
-                    <i data-lucide="truck" class="w-3 h-3 text-indigo-500"></i> {{ task.supplier }}
+                    <i data-lucide="truck" class="w-3.5 h-3.5 text-indigo-500"></i> {{ task.supplier }}
                   </p>
                   {% if task.instructions %}
                   <p class="text-slate-500 line-clamp-2 text-[10px]">{{ task.instructions }}</p>
@@ -460,10 +460,10 @@
                 </div>
                 <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
                   <span onclick="openUserProfileModal('{{ task.assigned_to }}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-indigo-600 transition">
-                    <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
+                    <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
                   </span>
                   <button type="button" onclick="copyOrderText('{{ task.op_number }}', '{{ task.tool_type }}', '{{ task.title }}', '{{ task.supplier }}', '{{ task.due_date }}', `{{ task.instructions }}`)" class="text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 text-[10px] bg-indigo-50 px-2 py-0.5 rounded transition">
-                    <i data-lucide="copy" class="w-3 h-3"></i> Copiar Pedido
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Pedido
                   </button>
                 </div>
               </div>
@@ -497,13 +497,13 @@
                 <h4 class="text-xs font-bold text-slate-900 leading-snug">{{ task.title }}</h4>
                 <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 space-y-1">
                   <p class="flex items-center gap-1.5 font-semibold text-blue-700">
-                    <i data-lucide="truck" class="w-3 h-3 text-blue-500"></i> {{ task.supplier }}
+                    <i data-lucide="truck" class="w-3.5 h-3.5 text-blue-500"></i> No Fabricante: {{ task.supplier }}
                   </p>
                   <p class="text-amber-600 font-mono text-[10px]">📅 Prazo: {{ task.due_date }}</p>
                 </div>
                 <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
                   <span onclick="openUserProfileModal('{{ task.assigned_to }}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-indigo-600 transition">
-                    <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
+                    <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
                   </span>
                   <span class="text-blue-600 font-semibold text-[10px] bg-blue-50 px-2 py-0.5 rounded">Em Andamento</span>
                 </div>
@@ -559,26 +559,41 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
           {% for member in collaborators %}
-          <div onclick="openUserProfileModal('{{ member.name }}')" class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex flex-col justify-between space-y-4 cursor-pointer hover:border-indigo-300 hover:shadow-md transition">
+          <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-indigo-300 hover:shadow-md transition relative">
+            
             <div class="flex items-start justify-between">
-              <div class="flex items-center gap-3">
+              <div onclick="openUserProfileModal('{{ member.name }}')" class="flex items-center gap-3 cursor-pointer flex-1">
                 <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-800 text-white font-black text-sm flex items-center justify-center shadow-sm">
                   {{ member.name[:2]|upper }}
                 </div>
                 <div>
-                  <h3 class="text-sm font-bold text-slate-900 leading-snug">{{ member.name }}</h3>
+                  <h3 class="text-sm font-bold text-slate-900 leading-snug hover:text-indigo-600 transition">{{ member.name }}</h3>
                   <div class="flex items-center gap-1.5 mt-0.5">
                     <span class="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">{{ member.role }}</span>
                     <span class="text-[10px] font-medium text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">{{ member.department }}</span>
                   </div>
                 </div>
               </div>
-              <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Ativo
-              </span>
+
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Ativo
+                </span>
+
+                <!-- BOTÃO EXCLUIR DIRETO NO CARTÃO -->
+                {% if (current_user.role == 'Gestor' or current_user.role == 'manager') and member.name != current_user.full_name %}
+                <button 
+                  type="button" 
+                  title="Excluir Colaborador" 
+                  onclick="event.stopPropagation(); deleteCollaboratorPrompt('{{ member.name }}')" 
+                  class="p-1.5 text-rose-500 hover:text-white hover:bg-rose-600 bg-rose-50 rounded-lg transition border border-rose-200 flex items-center justify-center">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+                {% endif %}
+              </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-2 text-center">
+            <div onclick="openUserProfileModal('{{ member.name }}')" class="grid grid-cols-2 gap-2 text-center cursor-pointer">
               <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
                 <p class="text-slate-400 font-semibold text-[10px] uppercase">Em Execução</p>
                 <p class="text-lg font-bold text-indigo-600 font-mono">{{ member.active_tasks }}</p>
@@ -589,7 +604,7 @@
               </div>
             </div>
 
-            <div class="space-y-2 pt-2 border-t border-slate-100">
+            <div onclick="openUserProfileModal('{{ member.name }}')" class="space-y-2 pt-2 border-t border-slate-100 cursor-pointer">
               <span class="text-[11px] font-bold text-slate-700 block">Últimos Ferramentais Concluídos:</span>
               <div class="space-y-1.5">
                 {% for p in member.recent_posts %}
@@ -770,10 +785,15 @@
         </div>
       </div>
 
-      <div class="pt-2">
-        <button type="button" onclick="document.getElementById('modalUserProfile').classList.add('hidden')" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition">
+      <div class="pt-2 flex gap-2">
+        <button type="button" onclick="document.getElementById('modalUserProfile').classList.add('hidden')" class="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition">
           Fechar
         </button>
+        {% if current_user.role == 'Gestor' or current_user.role == 'manager' %}
+        <button id="modalBtnDeleteUser" type="button" class="py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold rounded-xl text-xs transition flex items-center gap-1">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Excluir
+        </button>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -843,10 +863,54 @@
         document.getElementById('modalUserPending').textContent = data.pending_tasks;
         document.getElementById('modalUserCompleted').textContent = data.completed_tasks;
 
+        const btnDelete = document.getElementById('modalBtnDeleteUser');
+        if (btnDelete) {
+          if (data.username.toLowerCase() === '{{ current_user.username }}'.toLowerCase()) {
+            btnDelete.classList.add('hidden');
+          } else {
+            btnDelete.classList.remove('hidden');
+            btnDelete.onclick = () => deleteCollaborator(data.username, data.full_name);
+          }
+        }
+
         document.getElementById('modalUserProfile').classList.remove('hidden');
         lucide.createIcons();
       } catch (err) {
         console.error("Erro ao abrir perfil:", err);
+      }
+    }
+
+    async function deleteCollaboratorPrompt(fullName) {
+      try {
+        const res = await fetch(`/api/users/profile/${encodeURIComponent(fullName)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        deleteCollaborator(data.username, data.full_name);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function deleteCollaborator(username, fullName) {
+      if (!confirm(`Tem certeza de que deseja remover ${fullName} (@${username}) da sua equipe?`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/users/${encodeURIComponent(username)}`, {
+          method: 'DELETE'
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          sessionStorage.setItem('aba_ativa', 'profiles');
+          window.location.reload();
+        } else {
+          alert(data.message || "Erro ao remover colaborador.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Erro de comunicação com o servidor ao remover colaborador.");
       }
     }
 
@@ -951,9 +1015,7 @@
 
         const data = await res.json();
         if (res.ok && data.success) {
-          // Muda para a aba de equipe para ver o novo membro na hora
           sessionStorage.setItem('aba_ativa', 'profiles');
-          // Recarrega a tela instantaneamente
           window.location.reload();
         } else {
           alert(data.message || "Erro ao adicionar colaborador.");
