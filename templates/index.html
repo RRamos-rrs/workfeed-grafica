@@ -133,7 +133,6 @@
       <!-- ================= ABA 0: MEU PERFIL & MINHAS TAREFAS ================= -->
       <section id="content-my-profile" class="space-y-6">
         
-        <!-- Cartão Superior do Perfil (Clicável para ver detalhes completos) -->
         <div onclick="openUserProfileModal('{{ current_user.full_name }}')" class="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:border-indigo-300 transition group">
           <div class="flex items-center gap-4">
             <div class="w-16 h-16 rounded-2xl bg-indigo-600 group-hover:bg-indigo-700 text-white font-black text-2xl flex items-center justify-center shadow-md shadow-indigo-100 transition">
@@ -727,7 +726,7 @@
 
         <div class="flex justify-end gap-2 pt-3 border-t">
           <button type="button" onclick="document.getElementById('modalCollaborator').classList.add('hidden')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-xl">Cancelar</button>
-          <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl">Salvar Colaborador</button>
+          <button id="btnSubmitCollaborator" type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition">Salvar Colaborador</button>
         </div>
       </form>
     </div>
@@ -862,6 +861,7 @@
         if (data.published_to_feed) {
           alert('🎉 Ferramental Aprovado e publicado no Feed!');
         }
+        window.location.reload();
       } catch (err) {
         console.error('Erro ao atualizar status:', err);
       }
@@ -920,6 +920,7 @@
         if (data.published_to_feed) {
           alert('🎉 Ferramental Aprovado! Ficha técnica publicada no Feed.');
         }
+        window.location.reload();
       } catch (err) {
         console.error('Erro ao atualizar status:', err);
       }
@@ -934,6 +935,12 @@
     async function submitCollaborator(e) {
       e.preventDefault();
       const form = e.target;
+      const btn = document.getElementById('btnSubmitCollaborator');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Salvando...";
+      }
+
       const formData = new FormData(form);
 
       try {
@@ -944,15 +951,24 @@
 
         const data = await res.json();
         if (res.ok && data.success) {
-          alert("Colaborador cadastrado com sucesso!");
-          form.reset();
-          document.getElementById('modalCollaborator').classList.add('hidden');
+          // Muda para a aba de equipe para ver o novo membro na hora
+          sessionStorage.setItem('aba_ativa', 'profiles');
+          // Recarrega a tela instantaneamente
+          window.location.reload();
         } else {
           alert(data.message || "Erro ao adicionar colaborador.");
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = "Salvar Colaborador";
+          }
         }
       } catch (err) {
         console.error(err);
         alert("Erro de comunicação com o servidor.");
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "Salvar Colaborador";
+        }
       }
     }
 
@@ -973,14 +989,7 @@
         try {
           const data = JSON.parse(event.data);
           if (data.type === "REFRESH") {
-            const modalCollaborator = document.getElementById('modalCollaborator');
-            const modalUserProfile = document.getElementById('modalUserProfile');
-            const isCollaboratorOpen = modalCollaborator && !modalCollaborator.classList.contains('hidden');
-            const isProfileOpen = modalUserProfile && !modalUserProfile.classList.contains('hidden');
-
-            if (!isCollaboratorOpen && !isProfileOpen) {
-              window.location.reload();
-            }
+            window.location.reload();
           }
         } catch (err) {
           console.error("Erro ao ler dados do WebSocket:", err);
