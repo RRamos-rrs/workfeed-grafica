@@ -923,7 +923,7 @@
         });
         const data = await response.json();
         if (data.published_to_feed) {
-          alert('🎉 Ferramental Aprovado e publicado no Feed!');
+          sessionStorage.setItem('aba_ativa', 'feed');
         }
         window.location.reload();
       } catch (err) {
@@ -982,7 +982,7 @@
 
         const data = await response.json();
         if (data.published_to_feed) {
-          alert('🎉 Ferramental Aprovado! Ficha técnica publicada no Feed.');
+          sessionStorage.setItem('aba_ativa', 'feed');
         }
         window.location.reload();
       } catch (err) {
@@ -1035,16 +1035,27 @@
     }
 
     // ==========================================
-    // CONEXÃO EM TEMPO REAL VIA WEBSOCKET
+    // CONEXÃO EM TEMPO REAL VIA WEBSOCKET (COM KEEP-ALIVE)
     // ==========================================
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     let socket;
+    let keepAliveTimer;
 
     function conectarWebSocket() {
+      if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+        return;
+      }
+
       socket = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
 
       socket.onopen = function() {
         console.log("⚡ Ligação WebSocket ativa!");
+        clearInterval(keepAliveTimer);
+        keepAliveTimer = setInterval(() => {
+          if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send("ping");
+          }
+        }, 20000);
       };
 
       socket.onmessage = function(event) {
@@ -1054,16 +1065,16 @@
             window.location.reload();
           }
         } catch (err) {
-          console.error("Erro ao ler dados do WebSocket:", err);
+          // Mensagem de texto simples como "pong"
         }
       };
 
       socket.onclose = function() {
-        setTimeout(conectarWebSocket, 3000);
+        clearInterval(keepAliveTimer);
+        setTimeout(conectarWebSocket, 2000);
       };
 
-      socket.onerror = function(err) {
-        console.error("Erro WebSocket:", err);
+      socket.onerror = function() {
         socket.close();
       };
     }
