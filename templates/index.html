@@ -88,7 +88,7 @@
             <i data-lucide="kanban" class="w-4 h-4"></i>
             <span>Quadro Geral (Kanban)</span>
           </div>
-          <span class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+          <span id="badge-kanban-total" class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
             {{ tasks|length }}
           </span>
         </button>
@@ -103,7 +103,7 @@
             <i data-lucide="users" class="w-4 h-4"></i>
             <span>Equipe & Métricas</span>
           </div>
-          <span class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+          <span id="badge-team-count" class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
             {{ collaborators|length }}
           </span>
         </button>
@@ -172,9 +172,9 @@
             </span>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div id="my-pending-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
             {% for task in my_pending_tasks %}
-            <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs space-y-3 hover:border-indigo-300 transition">
+            <div id="my-task-{{ task.id }}" class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs space-y-3 hover:border-indigo-300 transition">
               <div class="flex items-center justify-between gap-2">
                 <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
                   {{ task.tool_type }}
@@ -228,9 +228,9 @@
             </span>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div id="my-inprogress-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
             {% for task in my_in_progress_tasks %}
-            <div class="bg-white p-4 rounded-xl border border-blue-200 shadow-xs space-y-3 hover:border-blue-300 transition">
+            <div id="my-task-{{ task.id }}" class="bg-white p-4 rounded-xl border border-blue-200 shadow-xs space-y-3 hover:border-blue-300 transition">
               <div class="flex items-center justify-between gap-2">
                 <span class="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
                   {{ task.tool_type }}
@@ -314,14 +314,14 @@
             <h2 class="text-base font-bold text-slate-900 tracking-tight">Feed de Ferramentais Homologados</h2>
             <p class="text-xs text-slate-500">Histórico de especificações concluídas e validadas pela equipe</p>
           </div>
-          <span class="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
+          <span id="badge-feed-total" class="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
             {{ posts|length }} registro(s)
           </span>
         </div>
 
-        <div class="space-y-6">
+        <div id="feed-posts-container" class="space-y-6">
           {% for post in posts %}
-          <article class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <article id="feed-post-{{ post.id }}" class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
             <div class="p-5 border-b border-slate-100 bg-gradient-to-b from-slate-50/60 to-white flex items-start justify-between gap-4">
               <div class="space-y-1.5">
                 <div class="flex flex-wrap items-center gap-2">
@@ -379,23 +379,26 @@
             </div>
             {% endif %}
 
+            <!-- BOTÃO DE LIKE REATIVO -->
             <div class="px-5 py-2.5 flex items-center gap-3 bg-white border-b border-slate-100">
-              <form action="/posts/{{ post.id }}/like" method="post">
-                <button class="flex items-center gap-1.5 text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-lg hover:bg-rose-100 transition shadow-2xs">
-                  <i data-lucide="heart" class="w-3.5 h-3.5 fill-rose-600"></i> {{ post.likes }} Validações
-                </button>
-              </form>
+              <button type="button" onclick="likePostSmooth('{{ post.id }}')" class="flex items-center gap-1.5 text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-lg hover:bg-rose-100 active:scale-95 transition shadow-2xs">
+                <i data-lucide="heart" class="w-3.5 h-3.5 fill-rose-600"></i> 
+                <span id="post-likes-{{ post.id }}">{{ post.likes }}</span> Validações
+              </button>
             </div>
 
+            <!-- COMENTÁRIOS REATIVOS -->
             <div class="p-5 bg-slate-50/70 space-y-3">
               <span class="text-xs font-bold text-slate-700 block">Comentários e Inspeções Técnicas:</span>
-              {% for c in post.comments %}
-              <div class="bg-white p-3 rounded-xl border border-slate-200/80 text-xs shadow-2xs">
-                <span class="font-bold text-slate-900">{{ c.author }}:</span> 
-                <span class="text-slate-700 ml-1">{{ c.text }}</span>
+              <div id="comments-list-{{ post.id }}" class="space-y-2">
+                {% for c in post.comments %}
+                <div class="bg-white p-3 rounded-xl border border-slate-200/80 text-xs shadow-2xs">
+                  <span class="font-bold text-slate-900">{{ c.author }}:</span> 
+                  <span class="text-slate-700 ml-1">{{ c.text }}</span>
+                </div>
+                {% endfor %}
               </div>
-              {% endfor %}
-              <form action="/posts/{{ post.id }}/comment" method="post" class="flex gap-2 pt-1">
+              <form onsubmit="submitCommentSmooth(event, '{{ post.id }}')" class="flex gap-2 pt-1">
                 <input required type="text" name="text" placeholder="Adicionar parecer técnico..." class="flex-1 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                 <button type="submit" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-700 transition shadow-xs">
                   Publicar
@@ -433,12 +436,12 @@
                 <span class="w-2 h-2 rounded-full bg-amber-500 ring-4 ring-amber-100"></span>
                 <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">1. Atribuído</h3>
               </div>
-              <span class="text-xs font-mono font-bold bg-white text-slate-600 px-2 py-0.5 rounded-full shadow-2xs">
+              <span id="badge-kanban-atribuido" class="text-xs font-mono font-bold bg-white text-slate-600 px-2 py-0.5 rounded-full shadow-2xs">
                 {{ tasks|selectattr('status', 'equalto', 'Atribuído')|list|length }}
               </span>
             </div>
 
-            <div class="kanban-dropzone space-y-3 flex-1 p-1 rounded-xl" data-status="Atribuído" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Atribuído')">
+            <div id="dropzone-Atribuído" class="kanban-dropzone space-y-3 flex-1 p-1 rounded-xl" data-status="Atribuído" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Atribuído')">
               {% for task in tasks if task.status == 'Atribuído' %}
               <div id="task-{{ task.id }}" class="kanban-card bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md transition space-y-3" draggable="true" ondragstart="handleDragStart(event, '{{ task.id }}')">
                 <div class="flex items-center justify-between gap-2">
@@ -478,12 +481,12 @@
                 <span class="w-2 h-2 rounded-full bg-blue-500 ring-4 ring-blue-100"></span>
                 <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">2. Em Preparação</h3>
               </div>
-              <span class="text-xs font-mono font-bold bg-white text-slate-600 px-2 py-0.5 rounded-full shadow-2xs">
+              <span id="badge-kanban-producao" class="text-xs font-mono font-bold bg-white text-slate-600 px-2 py-0.5 rounded-full shadow-2xs">
                 {{ tasks|selectattr('status', 'equalto', 'Em Produção')|list|length }}
               </span>
             </div>
 
-            <div class="kanban-dropzone space-y-3 flex-1 p-1 rounded-xl" data-status="Em Produção" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Em Produção')">
+            <div id="dropzone-Em Produção" class="kanban-dropzone space-y-3 flex-1 p-1 rounded-xl" data-status="Em Produção" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Em Produção')">
               {% for task in tasks if task.status == 'Em Produção' %}
               <div id="task-{{ task.id }}" class="kanban-card bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md transition space-y-3" draggable="true" ondragstart="handleDragStart(event, '{{ task.id }}')">
                 <div class="flex items-center justify-between gap-2">
@@ -519,12 +522,12 @@
                 <span class="w-2 h-2 rounded-full bg-emerald-500 ring-4 ring-emerald-100"></span>
                 <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">3. Aprovado ✔</h3>
               </div>
-              <span class="text-xs font-mono font-bold bg-white text-emerald-700 px-2 py-0.5 rounded-full shadow-2xs">
+              <span id="badge-kanban-aprovado" class="text-xs font-mono font-bold bg-white text-emerald-700 px-2 py-0.5 rounded-full shadow-2xs">
                 {{ tasks|selectattr('status', 'equalto', 'Aprovado')|list|length }}
               </span>
             </div>
 
-            <div class="kanban-dropzone space-y-3 flex-1 p-1 rounded-xl" data-status="Aprovado" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Aprovado')">
+            <div id="dropzone-Aprovado" class="kanban-dropzone space-y-3 flex-1 p-1 rounded-xl" data-status="Aprovado" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Aprovado')">
               {% for task in tasks if task.status == 'Aprovado' %}
               <div id="task-{{ task.id }}" class="kanban-card bg-emerald-50/50 p-4 rounded-xl border border-emerald-200 shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md transition space-y-2.5" draggable="true" ondragstart="handleDragStart(event, '{{ task.id }}')">
                 <div class="flex items-center justify-between gap-2">
@@ -552,14 +555,14 @@
             <h2 class="text-base font-bold text-slate-900 tracking-tight">Equipe Técnica & Perfis</h2>
             <p class="text-xs text-slate-500">Métricas operacionais de todos os membros cadastrados</p>
           </div>
-          <span class="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
+          <span id="profiles-count-badge" class="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
             {{ collaborators|length }} colaborador(es)
           </span>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div id="collaborators-grid" class="grid grid-cols-1 md:grid-cols-2 gap-5">
           {% for member in collaborators %}
-          <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-indigo-300 hover:shadow-md transition relative">
+          <div id="user-card-{{ member.username }}" class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-indigo-300 hover:shadow-md transition relative">
             
             <div class="flex items-start justify-between">
               <div onclick="openUserProfileModal('{{ member.name }}')" class="flex items-center gap-3 cursor-pointer flex-1">
@@ -630,7 +633,7 @@
             <p class="text-xs text-slate-500 mt-0.5">Preencha as especificações para o colaborador emitir o pedido técnico</p>
           </div>
 
-          <form action="/tasks/create" method="post" enctype="multipart/form-data" class="space-y-4">
+          <form id="form-create-task" onsubmit="submitCreateTaskSmooth(event)" class="space-y-4">
             <div>
               <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Tipo de Ferramental</label>
               <select required name="tool_type" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 bg-slate-50 font-bold text-slate-800">
@@ -690,7 +693,7 @@
               <button type="button" onclick="switchTab('my-profile')" class="w-1/3 py-2.5 border border-slate-200 text-slate-600 font-semibold rounded-xl text-xs hover:bg-slate-50 transition">
                 Cancelar
               </button>
-              <button type="submit" class="w-2/3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl text-xs transition shadow-xs flex items-center justify-center gap-2">
+              <button id="btn-submit-task" type="submit" class="w-2/3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl text-xs transition shadow-xs flex items-center justify-center gap-2">
                 <i data-lucide="send" class="w-3.5 h-3.5"></i> Delegar Tarefa
               </button>
             </div>
@@ -798,7 +801,7 @@
     </div>
   </div>
 
-  <!-- SCRIPT COMPLETO E UNIFICADO -->
+  <!-- SCRIPT 100% REATIVO (ZERO PISCADAS / SEM RELOAD) -->
   <script>
     lucide.createIcons();
 
@@ -849,10 +852,7 @@
       if (!fullName) return;
       try {
         const res = await fetch(`/api/users/profile/${encodeURIComponent(fullName)}`);
-        if (!res.ok) {
-          alert("Não foi possível carregar as informações deste colaborador.");
-          return;
-        }
+        if (!res.ok) return;
         const data = await res.json();
 
         document.getElementById('modalUserName').textContent = data.full_name;
@@ -891,6 +891,7 @@
       }
     }
 
+    // EXCLUIR COLABORADOR DE FORMA REATIVA (SEM F5 / SEM PISCADA)
     async function deleteCollaborator(username, fullName) {
       if (!confirm(`Tem certeza de que deseja remover ${fullName} (@${username}) da sua equipe?`)) {
         return;
@@ -903,32 +904,123 @@
         const data = await res.json();
 
         if (res.ok && data.success) {
-          sessionStorage.setItem('aba_ativa', 'profiles');
-          window.location.reload();
+          document.getElementById('modalUserProfile').classList.add('hidden');
+          removeUserCardFromDOM(username);
         } else {
           alert(data.message || "Erro ao remover colaborador.");
         }
       } catch (err) {
         console.error(err);
-        alert("Erro de comunicação com o servidor ao remover colaborador.");
       }
     }
 
-    async function updateTaskStatusFast(taskId, newStatus) {
+    function removeUserCardFromDOM(username) {
+      const card = document.getElementById(`user-card-${username}`);
+      if (card) {
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.95)';
+        card.style.transition = 'all 0.3s ease';
+        setTimeout(() => card.remove(), 300);
+      }
+
+      const badge1 = document.getElementById('badge-team-count');
+      const badge2 = document.getElementById('profiles-count-badge');
+      if (badge1) {
+        const count = Math.max(0, parseInt(badge1.textContent || "1") - 1);
+        badge1.textContent = count;
+        if (badge2) badge2.textContent = `${count} colaborador(es)`;
+      }
+    }
+
+    // CURTIR POST DE FORMA REATIVA
+    async function likePostSmooth(postId) {
+      const likesElem = document.getElementById(`post-likes-${postId}`);
+      if (likesElem) {
+        likesElem.textContent = parseInt(likesElem.textContent || "0") + 1;
+      }
+
       try {
-        const response = await fetch(`/api/tasks/${taskId}/status`, {
+        await fetch(`/posts/${postId}/like`, { method: 'POST' });
+      } catch (err) {
+        console.error("Erro ao curtir:", err);
+      }
+    }
+
+    // COMENTAR DE FORMA REATIVA
+    async function submitCommentSmooth(e, postId) {
+      e.preventDefault();
+      const form = e.target;
+      const input = form.querySelector('input[name="text"]');
+      const text = input.value.trim();
+      if (!text) return;
+
+      input.value = '';
+      appendCommentToDOM(postId, '{{ current_user.full_name }}', text);
+
+      try {
+        const formData = new FormData();
+        formData.append('text', text);
+        await fetch(`/posts/${postId}/comment`, {
+          method: 'POST',
+          body: formData
+        });
+      } catch (err) {
+        console.error("Erro ao comentar:", err);
+      }
+    }
+
+    function appendCommentToDOM(postId, author, text) {
+      const list = document.getElementById(`comments-list-${postId}`);
+      if (!list) return;
+
+      const div = document.createElement('div');
+      div.className = "bg-white p-3 rounded-xl border border-slate-200/80 text-xs shadow-2xs transition-all";
+      div.innerHTML = `<span class="font-bold text-slate-900">${author}:</span> <span class="text-slate-700 ml-1">${text}</span>`;
+      list.appendChild(div);
+    }
+
+    // ATUALIZAR STATUS DE TAREFA DE FORMA REATIVA
+    async function updateTaskStatusFast(taskId, newStatus) {
+      moveTaskVisual(taskId, newStatus);
+
+      try {
+        await fetch(`/api/tasks/${taskId}/status`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: newStatus })
         });
-        const data = await response.json();
-        if (data.published_to_feed) {
-          sessionStorage.setItem('aba_ativa', 'feed');
-        }
-        window.location.reload();
       } catch (err) {
         console.error('Erro ao atualizar status:', err);
       }
+    }
+
+    function moveTaskVisual(taskId, newStatus) {
+      const card = document.getElementById(`task-${taskId}`);
+      const myCard = document.getElementById(`my-task-${taskId}`);
+      const targetDropzone = document.getElementById(`dropzone-${newStatus}`);
+
+      if (card && targetDropzone) {
+        targetDropzone.appendChild(card);
+      }
+      if (myCard && newStatus === 'Aprovado') {
+        myCard.remove();
+      }
+      recalculateKanbanBadges();
+      lucide.createIcons();
+    }
+
+    function recalculateKanbanBadges() {
+      const bAtrib = document.getElementById('badge-kanban-atribuido');
+      const bProd = document.getElementById('badge-kanban-producao');
+      const bAprov = document.getElementById('badge-kanban-aprovado');
+
+      const dAtrib = document.getElementById('dropzone-Atribuído');
+      const dProd = document.getElementById('dropzone-Em Produção');
+      const dAprov = document.getElementById('dropzone-Aprovado');
+
+      if (bAtrib && dAtrib) bAtrib.textContent = dAtrib.children.length;
+      if (bProd && dProd) bProd.textContent = dProd.children.length;
+      if (bAprov && dAprov) bAprov.textContent = dAprov.children.length;
     }
 
     function copyOrderText(op, tool, title, supplier, due, instructions) {
@@ -972,19 +1064,14 @@
 
       card.style.opacity = '1';
       dropzone.appendChild(card);
+      recalculateKanbanBadges();
 
       try {
-        const response = await fetch(`/api/tasks/${draggedTaskId}/status`, {
+        await fetch(`/api/tasks/${draggedTaskId}/status`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: newStatus })
         });
-
-        const data = await response.json();
-        if (data.published_to_feed) {
-          sessionStorage.setItem('aba_ativa', 'feed');
-        }
-        window.location.reload();
       } catch (err) {
         console.error('Erro ao atualizar status:', err);
       }
@@ -995,6 +1082,42 @@
         e.target.style.opacity = '1';
       }
     });
+
+    // CRIAÇÃO DE TAREFA ASSÍNCRONA E SILENCIOSA
+    async function submitCreateTaskSmooth(e) {
+      e.preventDefault();
+      const form = e.target;
+      const btn = document.getElementById('btn-submit-task');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="animate-spin inline-block mr-2">🌀</span> Enviando...`;
+      }
+
+      const formData = new FormData(form);
+
+      try {
+        const res = await fetch('/tasks/create', {
+          method: 'POST',
+          headers: { 'Accept': 'application/json' },
+          body: formData
+        });
+
+        if (res.ok) {
+          form.reset();
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i data-lucide="send" class="w-3.5 h-3.5"></i> Delegar Tarefa`;
+          }
+          switchTab('kanban');
+        }
+      } catch (err) {
+        console.error(err);
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<i data-lucide="send" class="w-3.5 h-3.5"></i> Delegar Tarefa`;
+        }
+      }
+    }
 
     async function submitCollaborator(e) {
       e.preventDefault();
@@ -1015,6 +1138,8 @@
 
         const data = await res.json();
         if (res.ok && data.success) {
+          form.reset();
+          document.getElementById('modalCollaborator').classList.add('hidden');
           sessionStorage.setItem('aba_ativa', 'profiles');
           window.location.reload();
         } else {
@@ -1026,7 +1151,6 @@
         }
       } catch (err) {
         console.error(err);
-        alert("Erro de comunicação com o servidor.");
         if (btn) {
           btn.disabled = false;
           btn.textContent = "Salvar Colaborador";
@@ -1035,7 +1159,7 @@
     }
 
     // ==========================================
-    // CONEXÃO EM TEMPO REAL VIA WEBSOCKET (COM KEEP-ALIVE)
+    // WEBSOCKET REATIVO EM TEMPO REAL
     // ==========================================
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     let socket;
@@ -1049,7 +1173,6 @@
       socket = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
 
       socket.onopen = function() {
-        console.log("⚡ Ligação WebSocket ativa!");
         clearInterval(keepAliveTimer);
         keepAliveTimer = setInterval(() => {
           if (socket && socket.readyState === WebSocket.OPEN) {
@@ -1061,11 +1184,37 @@
       socket.onmessage = function(event) {
         try {
           const data = JSON.parse(event.data);
-          if (data.type === "REFRESH") {
+
+          // 1. RECEBE NOVO COMENTÁRIO SILENCIOSAMENTE
+          if (data.type === "NEW_COMMENT") {
+            appendCommentToDOM(data.post_id, data.author, data.text);
+          }
+          // 2. RECEBE NOVO LIKE SILENCIOSAMENTE
+          else if (data.type === "POST_LIKED") {
+            const likesElem = document.getElementById(`post-likes-${data.post_id}`);
+            if (likesElem) likesElem.textContent = data.likes;
+          }
+          // 3. RECEBE MOVIMENTAÇÃO DE CARD NO KANBAN
+          else if (data.type === "TASK_STATUS_UPDATED") {
+            moveTaskVisual(data.task_id, data.new_status);
+            if (data.published_to_feed && data.post) {
+              insertPostToFeedDOM(data.post);
+            }
+          }
+          // 4. RECEBE NOVA TAREFA CRIADA
+          else if (data.type === "TASK_CREATED") {
+            insertTaskToKanbanDOM(data.task);
+          }
+          // 5. RECEBE EXCLUSÃO DE COLABORADOR
+          else if (data.type === "USER_DELETED") {
+            removeUserCardFromDOM(data.username);
+          }
+          // 6. CASO GERAL DE RECARGA (Apenas se for strictly necessário)
+          else if (data.type === "REFRESH") {
             window.location.reload();
           }
         } catch (err) {
-          // Mensagem de texto simples como "pong"
+          // Ignora mensagens de texto simples como "pong"
         }
       };
 
@@ -1077,6 +1226,119 @@
       socket.onerror = function() {
         socket.close();
       };
+    }
+
+    function insertTaskToKanbanDOM(task) {
+      if (document.getElementById(`task-${task.id}`)) return;
+
+      const dropzone = document.getElementById('dropzone-Atribuído');
+      if (!dropzone) return;
+
+      const card = document.createElement('div');
+      card.id = `task-${task.id}`;
+      card.className = "kanban-card bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md transition space-y-3";
+      card.draggable = true;
+      card.ondragstart = (e) => handleDragStart(e, task.id);
+
+      card.innerHTML = `
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+            ${task.tool_type}
+          </span>
+          <span class="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
+            OP: ${task.op_number || 'S/N'}
+          </span>
+        </div>
+        <h4 class="text-xs font-bold text-slate-900 leading-snug">${task.title}</h4>
+        <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 space-y-1">
+          <p class="flex items-center gap-1.5 font-semibold text-indigo-700">
+            <i data-lucide="truck" class="w-3.5 h-3.5 text-indigo-500"></i> ${task.supplier}
+          </p>
+          ${task.instructions ? `<p class="text-slate-500 line-clamp-2 text-[10px]">${task.instructions}</p>` : ''}
+        </div>
+        <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
+          <span onclick="openUserProfileModal('${task.assigned_to}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-indigo-600 transition">
+            <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> <b>${task.assigned_to}</b>
+          </span>
+          <button type="button" onclick="copyOrderText('${task.op_number}', '${task.tool_type}', '${task.title}', '${task.supplier}', '${task.due_date}', \`${task.instructions || ''}\`)" class="text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 text-[10px] bg-indigo-50 px-2 py-0.5 rounded transition">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Pedido
+          </button>
+        </div>
+      `;
+
+      dropzone.prepend(card);
+      recalculateKanbanBadges();
+      lucide.createIcons();
+    }
+
+    function insertPostToFeedDOM(post) {
+      if (document.getElementById(`feed-post-${post.id}`)) return;
+
+      const container = document.getElementById('feed-posts-container');
+      if (!container) return;
+
+      const article = document.createElement('article');
+      article.id = `feed-post-${post.id}`;
+      article.className = "bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden";
+      article.innerHTML = `
+        <div class="p-5 border-b border-slate-100 bg-gradient-to-b from-slate-50/60 to-white flex items-start justify-between gap-4">
+          <div class="space-y-1.5">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
+                ${post.tool_type}
+              </span>
+              ${post.op_number ? `<span class="text-[11px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">OP: ${post.op_number}</span>` : ''}
+            </div>
+            <h3 class="text-sm sm:text-base font-bold text-slate-900 leading-snug">${post.title}</h3>
+          </div>
+          <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 whitespace-nowrap shadow-2xs">
+            <i data-lucide="check-check" class="w-3.5 h-3.5 text-emerald-600"></i> Aprovado
+          </span>
+        </div>
+        <div class="p-5 space-y-4">
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 bg-slate-50/80 rounded-xl border border-slate-100 text-xs">
+            <div>
+              <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Solicitado por</p>
+              <p onclick="openUserProfileModal('${post.author}')" class="font-bold text-slate-800 flex items-center gap-1.5 mt-0.5 cursor-pointer hover:text-indigo-600 transition">
+                <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> ${post.author}
+              </p>
+            </div>
+            <div>
+              <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Fornecedor</p>
+              <p class="font-bold text-indigo-700 flex items-center gap-1.5 mt-0.5">
+                <i data-lucide="truck" class="w-3.5 h-3.5 text-indigo-500"></i> ${post.supplier}
+              </p>
+            </div>
+            <div>
+              <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Data de Limite</p>
+              <p class="font-semibold text-slate-700 flex items-center gap-1.5 mt-0.5 font-mono">
+                <i data-lucide="calendar" class="w-3.5 h-3.5 text-amber-500"></i> ${post.due_date}
+              </p>
+            </div>
+          </div>
+          ${post.instructions ? `<div class="p-3.5 bg-indigo-50/40 rounded-xl border border-indigo-100/70 text-xs space-y-1"><span class="font-bold text-indigo-900 flex items-center gap-1.5 text-[11px]"><i data-lucide="file-text" class="w-3.5 h-3.5 text-indigo-600"></i> Especificações Técnicas:</span><p class="text-slate-700 leading-relaxed">${post.instructions}</p></div>` : ''}
+        </div>
+        ${post.image_url ? `<div class="bg-slate-950 flex items-center justify-center border-y border-slate-200 overflow-hidden"><img src="${post.image_url}" alt="Ferramental Concluído" class="w-full object-cover max-h-[460px]"></div>` : ''}
+        <div class="px-5 py-2.5 flex items-center gap-3 bg-white border-b border-slate-100">
+          <button type="button" onclick="likePostSmooth('${post.id}')" class="flex items-center gap-1.5 text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-lg hover:bg-rose-100 active:scale-95 transition shadow-2xs">
+            <i data-lucide="heart" class="w-3.5 h-3.5 fill-rose-600"></i> 
+            <span id="post-likes-${post.id}">0</span> Validações
+          </button>
+        </div>
+        <div class="p-5 bg-slate-50/70 space-y-3">
+          <span class="text-xs font-bold text-slate-700 block">Comentários e Inspeções Técnicas:</span>
+          <div id="comments-list-${post.id}" class="space-y-2"></div>
+          <form onsubmit="submitCommentSmooth(event, '${post.id}')" class="flex gap-2 pt-1">
+            <input required type="text" name="text" placeholder="Adicionar parecer técnico..." class="flex-1 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+            <button type="submit" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-700 transition shadow-xs">
+              Publicar
+            </button>
+          </form>
+        </div>
+      `;
+
+      container.prepend(article);
+      lucide.createIcons();
     }
 
     conectarWebSocket();
