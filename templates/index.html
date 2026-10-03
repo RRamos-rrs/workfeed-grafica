@@ -76,11 +76,9 @@
             <span>Meu Perfil & Tarefas</span>
           </div>
           {% set pending_total = (my_pending_tasks|length) + (my_in_progress_tasks|length) %}
-          {% if pending_total > 0 %}
-          <span class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-indigo-600 text-white">
+          <span id="badge-my-tasks-total" class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-indigo-600 text-white {% if pending_total == 0 %}hidden{% endif %}">
             {{ pending_total }}
           </span>
-          {% endif %}
         </button>
 
         <button onclick="switchTab('kanban')" id="tab-btn-kanban" class="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-50 hover:text-slate-900">
@@ -151,11 +149,11 @@
           <div class="flex items-center gap-3">
             <div class="px-4 py-2 bg-amber-50 rounded-xl border border-amber-200 text-center">
               <p class="text-[10px] uppercase font-bold text-amber-700">Minhas Pendências</p>
-              <p class="text-lg font-bold text-amber-800 font-mono">{{ (my_pending_tasks|length) + (my_in_progress_tasks|length) }}</p>
+              <p id="my-profile-pending-counter" class="text-lg font-bold text-amber-800 font-mono">{{ (my_pending_tasks|length) + (my_in_progress_tasks|length) }}</p>
             </div>
             <div class="px-4 py-2 bg-emerald-50 rounded-xl border border-emerald-200 text-center">
               <p class="text-[10px] uppercase font-bold text-emerald-700">Concluídos</p>
-              <p class="text-lg font-bold text-emerald-800 font-mono">{{ my_completed_posts|length }}</p>
+              <p id="my-profile-completed-counter" class="text-lg font-bold text-emerald-800 font-mono">{{ my_completed_posts|length }}</p>
             </div>
           </div>
         </div>
@@ -167,7 +165,7 @@
               <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> 
               Tarefas Atribuídas a Mim (A Fazer / Solicitar)
             </h3>
-            <span class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+            <span id="badge-my-pending" class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
               {{ my_pending_tasks|length }} pendência(s)
             </span>
           </div>
@@ -208,7 +206,7 @@
               </div>
             </div>
             {% else %}
-            <div class="col-span-2 p-6 bg-white rounded-xl border border-slate-200/80 text-center text-xs text-slate-400">
+            <div id="no-pending-msg" class="col-span-2 p-6 bg-white rounded-xl border border-slate-200/80 text-center text-xs text-slate-400">
               <i data-lucide="check-circle" class="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80"></i>
               Você não tem nenhuma nova tarefa pendente neste momento.
             </div>
@@ -223,7 +221,7 @@
               <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> 
               Em Preparação / Aguardando Fornecedor
             </h3>
-            <span class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+            <span id="badge-my-inprogress" class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
               {{ my_in_progress_tasks|length }} em andamento
             </span>
           </div>
@@ -259,7 +257,7 @@
               </div>
             </div>
             {% else %}
-            <div class="col-span-2 p-6 bg-white rounded-xl border border-slate-200/80 text-center text-xs text-slate-400">
+            <div id="no-inprogress-msg" class="col-span-2 p-6 bg-white rounded-xl border border-slate-200/80 text-center text-xs text-slate-400">
               Nenhuma ferramenta em fase de preparação com fornecedor.
             </div>
             {% endfor %}
@@ -273,12 +271,12 @@
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> 
               Meus Ferramentais Homologados (Histórico Concluído)
             </h3>
-            <span class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+            <span id="badge-my-completed" class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
               {{ my_completed_posts|length }} concluído(s)
             </span>
           </div>
 
-          <div class="space-y-3">
+          <div id="my-completed-container" class="space-y-3">
             {% for post in my_completed_posts %}
             <div class="bg-white p-4 rounded-xl border border-slate-200/80 flex items-center justify-between gap-4">
               <div class="space-y-1">
@@ -298,7 +296,7 @@
               </span>
             </div>
             {% else %}
-            <div class="p-6 bg-white rounded-xl border border-slate-200/80 text-center text-xs text-slate-400">
+            <div id="no-completed-msg" class="p-6 bg-white rounded-xl border border-slate-200/80 text-center text-xs text-slate-400">
               Você ainda não tem ferramentais homologados no histórico.
             </div>
             {% endfor %}
@@ -407,7 +405,7 @@
             </div>
           </article>
           {% else %}
-          <div class="text-center py-16 bg-white rounded-2xl border border-slate-200/80 p-8 shadow-xs">
+          <div id="no-feed-msg" class="text-center py-16 bg-white rounded-2xl border border-slate-200/80 p-8 shadow-xs">
             <i data-lucide="inbox" class="w-10 h-10 text-slate-300 mx-auto mb-2"></i>
             <h3 class="text-sm font-bold text-slate-800">Nenhum registro no feed</h3>
           </div>
@@ -436,12 +434,12 @@
                 <span class="w-2 h-2 rounded-full bg-amber-500 ring-4 ring-amber-100"></span>
                 <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">1. Atribuído</h3>
               </div>
-              <span id="badge-kanban-atribuido" class="text-xs font-mono font-bold bg-white text-slate-600 px-2 py-0.5 rounded-full shadow-2xs">
+              <span id="badge-kanban-Atribuído" class="text-xs font-mono font-bold bg-white text-slate-600 px-2 py-0.5 rounded-full shadow-2xs">
                 {{ tasks|selectattr('status', 'equalto', 'Atribuído')|list|length }}
               </span>
             </div>
 
-            <div id="dropzone-Atribuído" class="kanban-dropzone space-y-3 flex-1 p-1 rounded-xl" data-status="Atribuído" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Atribuído')">
+            <div id="kanban-col-Atribuído" class="kanban-dropzone space-y-3 flex-1 p-1 rounded-xl" data-status="Atribuído" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Atribuído')">
               {% for task in tasks if task.status == 'Atribuído' %}
               <div id="task-{{ task.id }}" class="kanban-card bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md transition space-y-3" draggable="true" ondragstart="handleDragStart(event, '{{ task.id }}')">
                 <div class="flex items-center justify-between gap-2">
@@ -481,12 +479,12 @@
                 <span class="w-2 h-2 rounded-full bg-blue-500 ring-4 ring-blue-100"></span>
                 <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">2. Em Preparação</h3>
               </div>
-              <span id="badge-kanban-producao" class="text-xs font-mono font-bold bg-white text-slate-600 px-2 py-0.5 rounded-full shadow-2xs">
+              <span id="badge-kanban-Em Produção" class="text-xs font-mono font-bold bg-white text-slate-600 px-2 py-0.5 rounded-full shadow-2xs">
                 {{ tasks|selectattr('status', 'equalto', 'Em Produção')|list|length }}
               </span>
             </div>
 
-            <div id="dropzone-Em Produção" class="kanban-dropzone space-y-3 flex-1 p-1 rounded-xl" data-status="Em Produção" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Em Produção')">
+            <div id="kanban-col-Em Produção" class="kanban-dropzone space-y-3 flex-1 p-1 rounded-xl" data-status="Em Produção" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Em Produção')">
               {% for task in tasks if task.status == 'Em Produção' %}
               <div id="task-{{ task.id }}" class="kanban-card bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md transition space-y-3" draggable="true" ondragstart="handleDragStart(event, '{{ task.id }}')">
                 <div class="flex items-center justify-between gap-2">
@@ -522,12 +520,12 @@
                 <span class="w-2 h-2 rounded-full bg-emerald-500 ring-4 ring-emerald-100"></span>
                 <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">3. Aprovado ✔</h3>
               </div>
-              <span id="badge-kanban-aprovado" class="text-xs font-mono font-bold bg-white text-emerald-700 px-2 py-0.5 rounded-full shadow-2xs">
+              <span id="badge-kanban-Aprovado" class="text-xs font-mono font-bold bg-white text-emerald-700 px-2 py-0.5 rounded-full shadow-2xs">
                 {{ tasks|selectattr('status', 'equalto', 'Aprovado')|list|length }}
               </span>
             </div>
 
-            <div id="dropzone-Aprovado" class="kanban-dropzone space-y-3 flex-1 p-1 rounded-xl" data-status="Aprovado" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Aprovado')">
+            <div id="kanban-col-Aprovado" class="kanban-dropzone space-y-3 flex-1 p-1 rounded-xl" data-status="Aprovado" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Aprovado')">
               {% for task in tasks if task.status == 'Aprovado' %}
               <div id="task-{{ task.id }}" class="kanban-card bg-emerald-50/50 p-4 rounded-xl border border-emerald-200 shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md transition space-y-2.5" draggable="true" ondragstart="handleDragStart(event, '{{ task.id }}')">
                 <div class="flex items-center justify-between gap-2">
@@ -583,7 +581,6 @@
                   <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Ativo
                 </span>
 
-                <!-- BOTÃO EXCLUIR DIRETO NO CARTÃO -->
                 {% if (current_user.role == 'Gestor' or current_user.role == 'manager') and member.name != current_user.full_name %}
                 <button 
                   type="button" 
@@ -804,6 +801,7 @@
   <!-- SCRIPT 100% REATIVO (ZERO PISCADAS / SEM RELOAD) -->
   <script>
     lucide.createIcons();
+    const CURRENT_USER_NAME = "{{ current_user.full_name }}";
 
     function switchTab(tab) {
       sessionStorage.setItem('aba_ativa', tab);
@@ -891,7 +889,6 @@
       }
     }
 
-    // EXCLUIR COLABORADOR DE FORMA REATIVA (SEM F5 / SEM PISCADA)
     async function deleteCollaborator(username, fullName) {
       if (!confirm(`Tem certeza de que deseja remover ${fullName} (@${username}) da sua equipe?`)) {
         return;
@@ -932,7 +929,6 @@
       }
     }
 
-    // CURTIR POST DE FORMA REATIVA
     async function likePostSmooth(postId) {
       const likesElem = document.getElementById(`post-likes-${postId}`);
       if (likesElem) {
@@ -946,7 +942,6 @@
       }
     }
 
-    // COMENTAR DE FORMA REATIVA
     async function submitCommentSmooth(e, postId) {
       e.preventDefault();
       const form = e.target;
@@ -955,7 +950,7 @@
       if (!text) return;
 
       input.value = '';
-      appendCommentToDOM(postId, '{{ current_user.full_name }}', text);
+      appendCommentToDOM(postId, CURRENT_USER_NAME, text);
 
       try {
         const formData = new FormData();
@@ -979,9 +974,9 @@
       list.appendChild(div);
     }
 
-    // ATUALIZAR STATUS DE TAREFA DE FORMA REATIVA
+    // ATUALIZAR STATUS DE TAREFA (SEM TRAVAR)
     async function updateTaskStatusFast(taskId, newStatus) {
-      moveTaskVisual(taskId, newStatus);
+      moveTaskVisual(taskId, newStatus, CURRENT_USER_NAME);
 
       try {
         await fetch(`/api/tasks/${taskId}/status`, {
@@ -994,33 +989,86 @@
       }
     }
 
-    function moveTaskVisual(taskId, newStatus) {
-      const card = document.getElementById(`task-${taskId}`);
-      const myCard = document.getElementById(`my-task-${taskId}`);
-      const targetDropzone = document.getElementById(`dropzone-${newStatus}`);
+    function moveTaskVisual(taskId, newStatus, assignedTo) {
+      // 1. Move no Quadro Geral Kanban
+      const kanbanCard = document.getElementById(`task-${taskId}`);
+      const targetKanbanCol = document.getElementById(`kanban-col-${newStatus}`);
 
-      if (card && targetDropzone) {
-        targetDropzone.appendChild(card);
+      if (kanbanCard && targetKanbanCol) {
+        targetKanbanCol.prepend(kanbanCard);
       }
-      if (myCard && newStatus === 'Aprovado') {
-        myCard.remove();
+
+      // 2. Se for uma tarefa atribuída a mim, atualiza na aba "Meu Perfil"
+      const myCard = document.getElementById(`my-task-${taskId}`);
+      if (myCard) {
+        if (newStatus === "Em Produção") {
+          const inProgressCont = document.getElementById('my-inprogress-container');
+          const noInpMsg = document.getElementById('no-inprogress-msg');
+          if (noInpMsg) noInpMsg.remove();
+
+          if (inProgressCont) {
+            // Atualiza botões e estilo para o visual de "Em Produção"
+            myCard.className = "bg-white p-4 rounded-xl border border-blue-200 shadow-xs space-y-3 hover:border-blue-300 transition";
+            const btnArea = myCard.querySelector('.border-t');
+            if (btnArea) {
+              btnArea.innerHTML = `
+                <span class="text-[11px] text-slate-400 font-medium">Chegou do fornecedor?</span>
+                <button onclick="updateTaskStatusFast('${taskId}', 'Aprovado')" class="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-1.5 rounded-lg transition shadow-xs flex items-center gap-1">
+                  <i data-lucide="check" class="w-3.5 h-3.5"></i> Homologar & Publicar
+                </button>
+              `;
+            }
+            inProgressCont.prepend(myCard);
+          }
+        } else if (newStatus === "Aprovado") {
+          myCard.remove();
+        }
       }
+
       recalculateKanbanBadges();
+      recalculateMyProfileCounters();
       lucide.createIcons();
     }
 
     function recalculateKanbanBadges() {
-      const bAtrib = document.getElementById('badge-kanban-atribuido');
-      const bProd = document.getElementById('badge-kanban-producao');
-      const bAprov = document.getElementById('badge-kanban-aprovado');
+      ['Atribuído', 'Em Produção', 'Aprovado'].forEach(status => {
+        const badge = document.getElementById(`badge-kanban-${status}`);
+        const col = document.getElementById(`kanban-col-${status}`);
+        if (badge && col) {
+          badge.textContent = col.children.length;
+        }
+      });
 
-      const dAtrib = document.getElementById('dropzone-Atribuído');
-      const dProd = document.getElementById('dropzone-Em Produção');
-      const dAprov = document.getElementById('dropzone-Aprovado');
+      const totalBadge = document.getElementById('badge-kanban-total');
+      const c1 = document.getElementById('kanban-col-Atribuído')?.children.length || 0;
+      const c2 = document.getElementById('kanban-col-Em Produção')?.children.length || 0;
+      const c3 = document.getElementById('kanban-col-Aprovado')?.children.length || 0;
+      if (totalBadge) totalBadge.textContent = c1 + c2 + c3;
+    }
 
-      if (bAtrib && dAtrib) bAtrib.textContent = dAtrib.children.length;
-      if (bProd && dProd) bProd.textContent = dProd.children.length;
-      if (bAprov && dAprov) bAprov.textContent = dAprov.children.length;
+    function recalculateMyProfileCounters() {
+      const pCont = document.getElementById('my-pending-container');
+      const inpCont = document.getElementById('my-inprogress-container');
+
+      const pCount = pCont ? pCont.querySelectorAll('[id^="my-task-"]').length : 0;
+      const inpCount = inpCont ? inpCont.querySelectorAll('[id^="my-task-"]').length : 0;
+      const total = pCount + inpCount;
+
+      const badgeNav = document.getElementById('badge-my-tasks-total');
+      if (badgeNav) {
+        badgeNav.textContent = total;
+        if (total === 0) badgeNav.classList.add('hidden');
+        else badgeNav.classList.remove('hidden');
+      }
+
+      const counterHeader = document.getElementById('my-profile-pending-counter');
+      if (counterHeader) counterHeader.textContent = total;
+
+      const badgeP = document.getElementById('badge-my-pending');
+      if (badgeP) badgeP.textContent = `${pCount} pendência(s)`;
+
+      const badgeInp = document.getElementById('badge-my-inprogress');
+      if (badgeInp) badgeInp.textContent = `${inpCount} em andamento`;
     }
 
     function copyOrderText(op, tool, title, supplier, due, instructions) {
@@ -1063,18 +1111,7 @@
       if (!card) return;
 
       card.style.opacity = '1';
-      dropzone.appendChild(card);
-      recalculateKanbanBadges();
-
-      try {
-        await fetch(`/api/tasks/${draggedTaskId}/status`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: newStatus })
-        });
-      } catch (err) {
-        console.error('Erro ao atualizar status:', err);
-      }
+      updateTaskStatusFast(draggedTaskId, newStatus);
     }
 
     document.addEventListener('dragend', (e) => {
@@ -1098,7 +1135,6 @@
       try {
         const res = await fetch('/tasks/create', {
           method: 'POST',
-          headers: { 'Accept': 'application/json' },
           body: formData
         });
 
@@ -1185,31 +1221,39 @@
         try {
           const data = JSON.parse(event.data);
 
-          // 1. RECEBE NOVO COMENTÁRIO SILENCIOSAMENTE
+          // 1. RECEBE NOVO COMENTÁRIO
           if (data.type === "NEW_COMMENT") {
             appendCommentToDOM(data.post_id, data.author, data.text);
           }
-          // 2. RECEBE NOVO LIKE SILENCIOSAMENTE
+          // 2. RECEBE NOVO LIKE
           else if (data.type === "POST_LIKED") {
             const likesElem = document.getElementById(`post-likes-${data.post_id}`);
             if (likesElem) likesElem.textContent = data.likes;
           }
           // 3. RECEBE MOVIMENTAÇÃO DE CARD NO KANBAN
           else if (data.type === "TASK_STATUS_UPDATED") {
-            moveTaskVisual(data.task_id, data.new_status);
+            moveTaskVisual(data.task_id, data.new_status, data.assigned_to);
             if (data.published_to_feed && data.post) {
               insertPostToFeedDOM(data.post);
+              // Se foi o próprio usuário que homologou, adiciona ao bloco de concluídos dele
+              if (data.assigned_to === CURRENT_USER_NAME) {
+                insertMyCompletedDOM(data.post);
+              }
             }
           }
           // 4. RECEBE NOVA TAREFA CRIADA
           else if (data.type === "TASK_CREATED") {
             insertTaskToKanbanDOM(data.task);
+            // Se a tarefa for delegada para mim, insere na minha aba de perfil instantaneamente!
+            if (data.task.assigned_to === CURRENT_USER_NAME) {
+              insertTaskToMyProfileDOM(data.task);
+            }
           }
           // 5. RECEBE EXCLUSÃO DE COLABORADOR
           else if (data.type === "USER_DELETED") {
             removeUserCardFromDOM(data.username);
           }
-          // 6. CASO GERAL DE RECARGA (Apenas se for strictly necessário)
+          // 6. CASO GERAL DE RECARGA
           else if (data.type === "REFRESH") {
             window.location.reload();
           }
@@ -1231,8 +1275,8 @@
     function insertTaskToKanbanDOM(task) {
       if (document.getElementById(`task-${task.id}`)) return;
 
-      const dropzone = document.getElementById('dropzone-Atribuído');
-      if (!dropzone) return;
+      const col = document.getElementById('kanban-col-Atribuído');
+      if (!col) return;
 
       const card = document.createElement('div');
       card.id = `task-${task.id}`;
@@ -1266,15 +1310,94 @@
         </div>
       `;
 
-      dropzone.prepend(card);
+      col.prepend(card);
       recalculateKanbanBadges();
       lucide.createIcons();
+    }
+
+    function insertTaskToMyProfileDOM(task) {
+      if (document.getElementById(`my-task-${task.id}`)) return;
+
+      const pCont = document.getElementById('my-pending-container');
+      const noMsg = document.getElementById('no-pending-msg');
+      if (noMsg) noMsg.remove();
+      if (!pCont) return;
+
+      const div = document.createElement('div');
+      div.id = `my-task-${task.id}`;
+      div.className = "bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs space-y-3 hover:border-indigo-300 transition";
+      div.innerHTML = `
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+            ${task.tool_type}
+          </span>
+          <span class="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+            OP: ${task.op_number || 'S/N'}
+          </span>
+        </div>
+        <h4 class="text-xs font-bold text-slate-900 leading-snug">${task.title}</h4>
+        <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 space-y-1">
+          <p class="flex items-center gap-1.5 font-semibold text-indigo-700">
+            <i data-lucide="truck" class="w-3.5 h-3.5 text-indigo-500"></i> Fornecedor: ${task.supplier}
+          </p>
+          <p class="text-amber-700 font-semibold font-mono text-[10px]">
+            📅 Prazo Limite: ${task.due_date}
+          </p>
+          ${task.instructions ? `<p class="text-slate-500 text-[10px] pt-1 border-t border-slate-200/60 leading-relaxed">${task.instructions}</p>` : ''}
+        </div>
+        <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+          <button type="button" onclick="copyOrderText('${task.op_number}', '${task.tool_type}', '${task.title}', '${task.supplier}', '${task.due_date}', \`${task.instructions || ''}\`)" class="text-slate-600 hover:text-indigo-600 font-semibold flex items-center gap-1 text-[11px] transition">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Pedido
+          </button>
+          <button onclick="updateTaskStatusFast('${task.id}', 'Em Produção')" class="text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition border border-blue-200 flex items-center gap-1">
+            Iniciar Preparação <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      `;
+
+      pCont.prepend(div);
+      recalculateMyProfileCounters();
+      lucide.createIcons();
+    }
+
+    function insertMyCompletedDOM(post) {
+      const compCont = document.getElementById('my-completed-container');
+      const noMsg = document.getElementById('no-completed-msg');
+      if (noMsg) noMsg.remove();
+      if (!compCont) return;
+
+      const div = document.createElement('div');
+      div.className = "bg-white p-4 rounded-xl border border-slate-200/80 flex items-center justify-between gap-4";
+      div.innerHTML = `
+        <div class="space-y-1">
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+              ${post.tool_type}
+            </span>
+            ${post.op_number ? `<span class="text-[10px] font-mono font-bold text-slate-600">OP: ${post.op_number}</span>` : ''}
+          </div>
+          <h4 class="text-xs font-bold text-slate-900">${post.title}</h4>
+          <p class="text-[10px] text-slate-400">Fornecedor: <b>${post.supplier}</b> • Concluído em: Agora</p>
+        </div>
+        <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200 whitespace-nowrap">
+          ✔ No Feed
+        </span>
+      `;
+      compCont.prepend(div);
+
+      const compCounter = document.getElementById('my-profile-completed-counter');
+      if (compCounter) compCounter.textContent = parseInt(compCounter.textContent || "0") + 1;
+
+      const badgeC = document.getElementById('badge-my-completed');
+      if (badgeC) badgeC.textContent = `${compCont.children.length} concluído(s)`;
     }
 
     function insertPostToFeedDOM(post) {
       if (document.getElementById(`feed-post-${post.id}`)) return;
 
       const container = document.getElementById('feed-posts-container');
+      const noFeedMsg = document.getElementById('no-feed-msg');
+      if (noFeedMsg) noFeedMsg.remove();
       if (!container) return;
 
       const article = document.createElement('article');
@@ -1338,6 +1461,10 @@
       `;
 
       container.prepend(article);
+
+      const fBadge = document.getElementById('badge-feed-total');
+      if (fBadge) fBadge.textContent = `${container.children.length} registro(s)`;
+
       lucide.createIcons();
     }
 
