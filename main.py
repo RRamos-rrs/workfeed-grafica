@@ -12,9 +12,11 @@ from pydantic import BaseModel
 import models
 from database import engine, get_db
 
+# Garante migração de colunas necessárias
 try:
     with engine.begin() as conn:
         conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS manager_id INTEGER REFERENCES users(id);"))
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS department VARCHAR(100) DEFAULT 'Produção / Pré-Impressão';"))
 except Exception as e:
     print(f"Aviso de migração automática: {e}")
 
@@ -65,11 +67,73 @@ def get_current_user(request: Request, db: Session):
         return None
     return db.query(models.User).filter(models.User.username == username).first()
 
+# Inicializador automático dos setores da empresa
+def ensure_default_sectors(db: Session):
+    if db.query(models.SectorConfig).count() == 0:
+        default_sectors = [
+            models.SectorConfig(
+                name="Ferramentais & Pré-Impressão",
+                icon="🔪",
+                tool_types_csv="Faca Corte e Vinco,Clichê de Relevo / Braille,Fitas de Braille,Matriz Hot Stamping,Gravação de Chapas Offset",
+                ref_label="Nº da OP",
+                ref_placeholder="Ex: OP-1042",
+                title_label="Trabalho / Embalagem",
+                title_placeholder="Ex: Cartucho 150ml Medicamento",
+                entity_label="Fornecedor Destinatário",
+                entity_placeholder="Ex: Facas Precision / Clicheria Alfa",
+                instructions_label="Instruções Técnicas",
+                instructions_placeholder="Lâmina 23,80mm, vinco 2pt canaleta 0,4x1,3mm, conferir braille..."
+            ),
+            models.SectorConfig(
+                name="Comercial & Vendas",
+                icon="💼",
+                tool_types_csv="Orçamento de Embalagens,Amostra para Cliente,Aprovação de Prova,Faturamento e Pedido",
+                ref_label="Nº do Pedido / Orçamento",
+                ref_placeholder="Ex: ORC-5580",
+                title_label="Nome do Cliente / Projeto",
+                title_placeholder="Ex: Laboratório Vital / Linha Cosmética",
+                entity_label="Cliente Solicitante",
+                entity_placeholder="Ex: Farmacêutica Nacional",
+                instructions_label="Escopo Comercial & Requisitos",
+                instructions_placeholder="Quantidade de tiragem, acabamentos solicitados, prazo de faturamento..."
+            ),
+            models.SectorConfig(
+                name="Expedição & Compras",
+                icon="📦",
+                tool_types_csv="Cotação de Matéria-Prima,Despacho de Cargas,Entrada de Materiais,Conferência de Paletes",
+                ref_label="Nº da NF / Pedido de Compra",
+                ref_placeholder="Ex: NF-44912 / PC-890",
+                title_label="Material / Lote de Carga",
+                title_placeholder="Ex: Cartão Duplex 300g / 50 Paletes",
+                entity_label="Transportadora / Fornecedor",
+                entity_placeholder="Ex: Papirus / Transportadora Rápida",
+                instructions_label="Instruções de Logística",
+                instructions_placeholder="Horário de coleta, doca de entrega, especificações de empilhamento..."
+            ),
+            models.SectorConfig(
+                name="Manutenção Operacional",
+                icon="🔧",
+                tool_types_csv="Manutenção Preventiva,Troca de Peça Corretiva,Ajuste de Impressora,Inspeção de Corte e Vinco",
+                ref_label="Cód. da Máquina / Tag",
+                ref_placeholder="Ex: OFFSET-02 / CORTE-BOBST-01",
+                title_label="Descrição da Intervenção",
+                title_placeholder="Ex: Substituição de rolos de borracha",
+                entity_label="Técnico / Fornecedor de Peça",
+                entity_placeholder="Ex: Manutenção Interna / Peças Gráficas",
+                instructions_label="Procedimento Técnico",
+                instructions_placeholder="Parada programada, verificação de sensores, teste de pressão..."
+            )
+        ]
+        db.add_all(default_sectors)
+        db.commit()
+
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request, db: Session = Depends(get_db)):
     current_user = get_current_user(request, db)
     if not current_user:
         return RedirectResponse(url="/login")
+
+    ensure_default_sectors(db)
 
     role_normalized = (current_user.role or "").strip().lower()
     is_manager = role_normalized in ["gestor", "manager", "admin"]
@@ -98,15 +162,17 @@ def home(request: Request, db: Session = Depends(get_db)):
         )
     ).order_by(models.Post.created_at.desc()).all()
 
-    my_tasks = [t for t in all_tasks if (t.assigned_to or "").strip() == current_user.full_name.strip()]
+    sectors = db.query(models.SectorConfig).all()
+
+    my_tasks = [t for t in all_tasks if (t.assigned_to or "").strip().lower() == current_user.full_name.strip().lower()]
     my_pending_tasks = [t for t in my_tasks if t.status == "Atribuído"]
     my_in_progress_tasks = [t for t in my_tasks if t.status == "Em Produção"]
-    my_completed_posts = [p for p in posts if (p.author or "").strip() == current_user.full_name.strip()]
+    my_completed_posts = [p for p in posts if (p.author or "").strip().lower() == current_user.full_name.strip().lower()]
 
     collaborators = []
     for u in team_users:
-        user_tasks = [t for t in all_tasks if (t.assigned_to or "").strip() == u.full_name.strip()]
-        user_posts = [p for p in posts if (p.author or "").strip() == u.full_name.strip()]
+        user_tasks = [t for t in all_tasks if (t.assigned_to or "").strip().lower() == u.full_name.strip().lower()]
+        user_posts = [p for p in posts if (p.author or "").strip().lower() == u.full_name.strip().lower()]
         active_count = len([t for t in user_tasks if t.status != "Aprovado"])
         approved_count = len(user_posts)
 
@@ -114,7 +180,7 @@ def home(request: Request, db: Session = Depends(get_db)):
             "name": u.full_name,
             "username": u.username,
             "role": u.role,
-            "department": getattr(u, 'department', 'Produção / Pré-Impressão'),
+            "department": getattr(u, 'department', 'Geral / Operacional'),
             "active_tasks": active_count,
             "approved_tasks": approved_count,
             "recent_posts": user_posts[:3]
@@ -132,13 +198,71 @@ def home(request: Request, db: Session = Depends(get_db)):
             "my_completed_posts": my_completed_posts,
             "posts": posts,
             "users": team_users,
-            "collaborators": collaborators
+            "collaborators": collaborators,
+            "sectors": sectors
         }
     )
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     return response
+
+# Rota para cadastrar ou atualizar um Setor com seus campos customizados
+@app.post("/api/sectors/save")
+async def save_sector(
+    request: Request,
+    sector_id: int = Form(0),
+    name: str = Form(...),
+    icon: str = Form("📁"),
+    tool_types_csv: str = Form(...),
+    ref_label: str = Form("Nº da OP / Ref."),
+    ref_placeholder: str = Form("Ex: OP-1042"),
+    title_label: str = Form("Trabalho / Descrição"),
+    title_placeholder: str = Form("Ex: Cartucho 150ml"),
+    entity_label: str = Form("Fornecedor / Destinatário"),
+    entity_placeholder: str = Form("Ex: Fornecedor X"),
+    instructions_label: str = Form("Instruções Técnicas / Escopo"),
+    instructions_placeholder: str = Form("Descreva os detalhes..."),
+    db: Session = Depends(get_db)
+):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Sessão expirada."})
+
+    clean_name = name.strip()
+    sector = db.query(models.SectorConfig).filter(models.SectorConfig.id == sector_id).first() if sector_id > 0 else None
+
+    if not sector:
+        sector = models.SectorConfig(
+            name=clean_name,
+            icon=icon.strip() or "📁",
+            tool_types_csv=tool_types_csv.strip(),
+            ref_label=ref_label.strip(),
+            ref_placeholder=ref_placeholder.strip(),
+            title_label=title_label.strip(),
+            title_placeholder=title_placeholder.strip(),
+            entity_label=entity_label.strip(),
+            entity_placeholder=entity_placeholder.strip(),
+            instructions_label=instructions_label.strip(),
+            instructions_placeholder=instructions_placeholder.strip()
+        )
+        db.add(sector)
+    else:
+        sector.name = clean_name
+        sector.icon = icon.strip() or "📁"
+        sector.tool_types_csv = tool_types_csv.strip()
+        sector.ref_label = ref_label.strip()
+        sector.ref_placeholder = ref_placeholder.strip()
+        sector.title_label = title_label.strip()
+        sector.title_placeholder = title_placeholder.strip()
+        sector.entity_label = entity_label.strip()
+        sector.entity_placeholder = entity_placeholder.strip()
+        sector.instructions_label = instructions_label.strip()
+        sector.instructions_placeholder = instructions_placeholder.strip()
+
+    db.commit()
+    await manager.broadcast({"type": "REFRESH"})
+    return JSONResponse(content={"success": True, "message": "Modelo de setor salvo com sucesso!"})
 
 @app.get("/api/users/profile/{full_name}")
 def get_user_profile(full_name: str, db: Session = Depends(get_db)):
@@ -154,7 +278,7 @@ def get_user_profile(full_name: str, db: Session = Depends(get_db)):
         "full_name": user.full_name,
         "username": user.username,
         "role": user.role,
-        "department": getattr(user, 'department', 'Produção / Pré-Impressão'),
+        "department": getattr(user, 'department', 'Geral / Operacional'),
         "pending_tasks": len([t for t in tasks if t.status != "Aprovado"]),
         "completed_tasks": len(posts)
     }
@@ -204,6 +328,7 @@ async def register(
         full_name=full_name.strip(),
         username=clean_username,
         role=role,
+        department=department.strip(),
         password=password,
         manager_id=None
     )
@@ -241,6 +366,7 @@ async def add_collaborator(
     if existing:
         existing.full_name = clean_full_name
         existing.role = role
+        existing.department = department.strip()
         existing.password = password
         existing.manager_id = manager_ref_id
         db.commit()
@@ -252,6 +378,7 @@ async def add_collaborator(
         full_name=clean_full_name,
         username=clean_username,
         role=role,
+        department=department.strip(),
         password=password,
         manager_id=manager_ref_id
     )
