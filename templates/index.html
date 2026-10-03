@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WorkFeed Gráfica - Gestão Técnica de Ferramentais</title>
+  <title>WorkFeed Gráfica - Controle de Ferramentais</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,74 +14,96 @@
     body { font-family: 'Plus Jakarta Sans', sans-serif; }
     .font-mono { font-family: 'JetBrains Mono', monospace; }
     .kanban-dropzone.dragover {
-      background-color: #e0e7ff;
-      border: 2px dashed #4f46e5;
+      background-color: #f1f5f9;
+      border: 2px dashed #f97316;
     }
   </style>
 </head>
-<body class="bg-[#f8fafc] text-slate-800 min-h-screen flex flex-col antialiased">
+<body class="bg-[#eef2f6] text-slate-800 min-h-screen flex flex-col antialiased">
 
-  <!-- NAVBAR SUPERIOR -->
-  <header class="bg-white/80 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-      <div class="flex items-center gap-3 cursor-pointer" onclick="switchTab('my-profile')">
-        <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-extrabold text-lg shadow-sm shadow-indigo-200">
+  <!-- ================= TOPBAR ESCURA ================= -->
+  <header class="bg-[#0b1e36] text-white sticky top-0 z-50 shadow-md">
+    <div class="max-w-[1440px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      
+      <!-- LOGO -->
+      <div class="flex items-center gap-3 cursor-pointer select-none" onclick="switchTab('my-profile')">
+        <div class="w-9 h-9 bg-[#173a67] border border-blue-900/60 rounded-xl flex items-center justify-center font-black text-lg text-white shadow-inner">
           W
         </div>
         <div>
-          <span class="text-base font-bold tracking-tight text-slate-900 block leading-tight">WorkFeed <span class="text-indigo-600">Gráfica</span></span>
-          <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Controle de Ferramentais</p>
+          <span class="text-base font-extrabold tracking-tight block leading-tight text-white">
+            WorkFeed <span class="text-amber-500 font-extrabold">Gráfica</span>
+          </span>
+          <p class="text-[9px] uppercase font-bold tracking-widest text-slate-400">Controle de Ferramentais</p>
         </div>
       </div>
 
-      <!-- Perfil Logado -->
-      <div class="flex items-center gap-3 pl-4 border-l border-slate-200">
-      {% if current_user.role == 'Gestor' or current_user.role == 'manager' %}
-      <button 
-        type="button" 
-        onclick="document.getElementById('modalCollaborator').classList.remove('hidden')" 
-        class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-1.5 px-3 rounded-xl shadow-sm flex items-center gap-1.5 text-xs transition-all">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-        </svg>
-        + Colaborador
-      </button>
-      {% endif %}
-        <button onclick="openUserProfileModal('{{ current_user.full_name }}')" class="flex items-center gap-2.5 text-left group">
-          <div class="w-9 h-9 rounded-xl bg-slate-900 group-hover:bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-sm transition">
-            {{ current_user.full_name[:2]|upper }}
-          </div>
-          <div class="hidden sm:block">
-            <p class="text-xs font-bold text-slate-800 leading-snug group-hover:text-indigo-600 transition">{{ current_user.full_name }}</p>
-            <span class="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">{{ current_user.role }}</span>
-          </div>
-        </button>
-        <a href="/logout" title="Sair da Conta" class="text-slate-400 hover:text-rose-600 transition ml-2">
-          <i data-lucide="log-out" class="w-4 h-4"></i>
-        </a>
+      <!-- BARRA DE BUSCA -->
+      <div class="hidden md:flex flex-1 max-w-md mx-6">
+        <div class="relative w-full">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+          <input 
+            id="global-search-input"
+            type="text" 
+            oninput="handleGlobalSearch(this.value)"
+            placeholder="Buscar ferramentas, OP, fornecedor..." 
+            class="w-full bg-[#122846] text-xs text-white placeholder-slate-400 pl-9 pr-4 py-2 rounded-xl border border-slate-700/60 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition"
+          >
+        </div>
       </div>
+
+      <!-- AÇÕES / PERFIL -->
+      <div class="flex items-center gap-3">
+        {% if current_user.role in ['Gestor', 'manager', 'admin'] %}
+        <button 
+          type="button" 
+          onclick="document.getElementById('modalCollaborator').classList.remove('hidden')" 
+          class="bg-amber-600 hover:bg-amber-700 text-white font-bold py-1.5 px-3.5 rounded-xl shadow-sm flex items-center gap-1.5 text-xs transition active:scale-95">
+          <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+          <span>+ Colaborador</span>
+        </button>
+        {% endif %}
+
+        <div class="flex items-center gap-2.5 pl-2 border-l border-slate-700/60">
+          <button onclick="openUserProfileModal('{{ current_user.full_name }}')" class="flex items-center gap-2.5 text-left group">
+            <div class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black text-xs shadow-sm">
+              {{ current_user.full_name[:2]|upper }}
+            </div>
+            <div class="hidden sm:block leading-tight">
+              <p class="text-xs font-bold text-white group-hover:text-amber-400 transition">{{ current_user.full_name }}</p>
+              <span class="text-[10px] text-slate-400">{{ current_user.role }}</span>
+            </div>
+          </button>
+          <a href="/logout" title="Sair da Conta" class="text-slate-400 hover:text-rose-400 transition p-1.5 rounded-lg hover:bg-slate-800/60 ml-1">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+          </a>
+        </div>
+      </div>
+
     </div>
   </header>
 
-  <!-- ÁREA DE TRABALHO -->
-  <div class="max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
+  <!-- ================= LAYOUT PRINCIPAL ================= -->
+  <div class="max-w-[1440px] mx-auto w-full px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
 
-    <!-- BARRA LATERAL (MENU) -->
+    <!-- ================= BARRA LATERAL ================= -->
     <aside class="lg:col-span-3 space-y-4">
-      <nav class="bg-white rounded-2xl border border-slate-200/80 p-2 shadow-xs space-y-1">
+      
+      <!-- MENU DE NAVEGAÇÃO -->
+      <nav class="bg-white rounded-2xl border border-slate-200/90 p-2 shadow-xs space-y-1">
         
-        <button onclick="switchTab('my-profile')" id="tab-btn-my-profile" class="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-bold rounded-xl transition text-indigo-600 bg-indigo-50/80">
+        <button onclick="switchTab('my-profile')" id="tab-btn-my-profile" class="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-bold rounded-xl transition bg-[#0b1e36] text-white">
           <div class="flex items-center gap-3">
-            <i data-lucide="user-check" class="w-4 h-4"></i>
+            <i data-lucide="user" class="w-4 h-4"></i>
             <span>Meu Perfil & Tarefas</span>
           </div>
           {% set pending_total = (my_pending_tasks|length) + (my_in_progress_tasks|length) %}
-          <span id="badge-my-tasks-total" class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-indigo-600 text-white {% if pending_total == 0 %}hidden{% endif %}">
+          <span id="badge-my-tasks-total" class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white {% if pending_total == 0 %}hidden{% endif %}">
             {{ pending_total }}
           </span>
         </button>
 
-        <button onclick="switchTab('kanban')" id="tab-btn-kanban" class="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-50 hover:text-slate-900">
+        <button onclick="switchTab('kanban')" id="tab-btn-kanban" class="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-100 hover:text-slate-900">
           <div class="flex items-center gap-3">
             <i data-lucide="kanban" class="w-4 h-4"></i>
             <span>Quadro Geral (Kanban)</span>
@@ -91,12 +113,12 @@
           </span>
         </button>
 
-        <button onclick="switchTab('feed')" id="tab-btn-feed" class="w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-50 hover:text-slate-900">
-          <i data-lucide="layout-list" class="w-4 h-4"></i>
+        <button onclick="switchTab('feed')" id="tab-btn-feed" class="w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+          <i data-lucide="layout-grid" class="w-4 h-4"></i>
           <span>Feed de Homologação</span>
         </button>
 
-        <button onclick="switchTab('profiles')" id="tab-btn-profiles" class="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-50 hover:text-slate-900">
+        <button onclick="switchTab('profiles')" id="tab-btn-profiles" class="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-100 hover:text-slate-900">
           <div class="flex items-center gap-3">
             <i data-lucide="users" class="w-4 h-4"></i>
             <span>Equipe & Métricas</span>
@@ -106,87 +128,112 @@
           </span>
         </button>
 
-        <button onclick="switchTab('new-task')" id="tab-btn-new-task" class="w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-50 hover:text-slate-900">
-          <i data-lucide="plus-circle" class="w-4 h-4 text-indigo-500"></i>
+        <button onclick="switchTab('new-task')" id="tab-btn-new-task" class="w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+          <i data-lucide="plus-circle" class="w-4 h-4 text-amber-500"></i>
           <span>Delegar Tarefa</span>
         </button>
       </nav>
 
-      <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3">
-        <h4 class="font-bold text-slate-900 text-xs tracking-tight flex items-center gap-2">
-          <i data-lucide="boxes" class="w-4 h-4 text-slate-400"></i> Ferramentais Aceitos
+      <!-- CARD FERRAMENTAIS ACEITOS -->
+      <div class="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-3">
+        <h4 class="font-bold text-slate-800 text-xs tracking-tight flex items-center gap-2">
+          <i data-lucide="wrench" class="w-4 h-4 text-slate-400"></i> Ferramentais Aceitos
         </h4>
-        <div class="space-y-1.5 text-xs text-slate-700">
-          <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 font-medium">🔪 Faca Corte e Vinco</div>
-          <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 font-medium">📐 Clichê Relevo/Braille</div>
-          <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 font-medium">🏷️ Fitas de Braille</div>
-          <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 font-medium">✨ Matriz Hot Stamping</div>
+        <div class="space-y-1.5 text-xs text-slate-600">
+          <div class="p-2 rounded-xl bg-slate-50 border border-slate-100 font-medium flex items-center gap-2">
+            <span>🔪</span> Faca Corte e Vinco
+          </div>
+          <div class="p-2 rounded-xl bg-slate-50 border border-slate-100 font-medium flex items-center gap-2">
+            <span>📐</span> Clichê Relevo/Braille
+          </div>
+          <div class="p-2 rounded-xl bg-slate-50 border border-slate-100 font-medium flex items-center gap-2">
+            <span>🏷️</span> Fitas de Braille
+          </div>
+          <div class="p-2 rounded-xl bg-slate-50 border border-slate-100 font-medium flex items-center gap-2">
+            <span>✨</span> Matriz Hot Stamping
+          </div>
+        </div>
+      </div>
+
+      <!-- CARD DESTAQUE INDUSTRIAL -->
+      <div class="bg-gradient-to-br from-[#0c2340] to-[#123158] rounded-2xl p-5 text-white shadow-sm space-y-2 relative overflow-hidden">
+        <div class="w-10 h-1 bg-amber-500 rounded-full mb-3"></div>
+        <h3 class="text-sm font-black leading-snug">Mais produção com organização.</h3>
+        <p class="text-[11px] text-slate-300 leading-relaxed">Ferramentais no lugar certo, no tempo certo.</p>
+        <div class="pt-4 border-t border-slate-700/60 flex items-center justify-between text-[10px] text-slate-400">
+          <span>WorkFeed Gráfica v1.0.0</span>
+          <span>Imprimindo grandes resultados.</span>
         </div>
       </div>
     </aside>
 
-    <!-- ÁREA PRINCIPAL -->
+    <!-- ================= CONTEÚDO PRINCIPAL ================= -->
     <main class="lg:col-span-9 space-y-6">
 
       <!-- ================= ABA 0: MEU PERFIL & MINHAS TAREFAS ================= -->
       <section id="content-my-profile" class="space-y-6">
         
-        <div onclick="openUserProfileModal('{{ current_user.full_name }}')" class="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:border-indigo-300 transition group">
+        <!-- CARD CABEÇALHO DO PERFIL -->
+        <div class="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div class="flex items-center gap-4">
-            <div class="w-16 h-16 rounded-2xl bg-indigo-600 group-hover:bg-indigo-700 text-white font-black text-2xl flex items-center justify-center shadow-md shadow-indigo-100 transition">
+            <div class="w-16 h-16 rounded-2xl bg-amber-500 text-white font-black text-2xl flex items-center justify-center shadow-sm">
               {{ current_user.full_name[:2]|upper }}
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <h2 class="text-lg font-bold text-slate-900 leading-snug group-hover:text-indigo-600 transition">{{ current_user.full_name }}</h2>
-                <i data-lucide="info" class="w-4 h-4 text-slate-400 group-hover:text-indigo-600 transition"></i>
+                <h2 class="text-base font-bold text-slate-900 leading-snug">{{ current_user.full_name }}</h2>
+                <i data-lucide="info" onclick="openUserProfileModal('{{ current_user.full_name }}')" class="w-4 h-4 text-slate-400 hover:text-amber-500 transition cursor-pointer"></i>
               </div>
-              <p class="text-xs text-slate-500">Usuário: <span class="font-mono font-semibold text-slate-700">@{{ current_user.username }}</span> • Função: <span class="font-semibold text-indigo-600">{{ current_user.role }}</span></p>
-              <p class="text-[11px] text-slate-400 font-medium mt-0.5">Setor: <span class="text-slate-600 font-semibold">{{ current_user.department or 'Produção / Pré-Impressão' }}</span></p>
+              <p class="text-xs text-slate-500 mt-0.5">
+                Usuário: <span class="font-mono font-medium text-slate-700">@{{ current_user.username }}</span> • Função: <span class="font-semibold text-amber-600">{{ current_user.role }}</span>
+              </p>
+              <p class="text-[11px] text-slate-400 mt-0.5">Setor: <span class="text-slate-600 font-medium">{{ current_user.department or 'Produção / Pré-Impressão' }}</span></p>
             </div>
           </div>
           
           <div class="flex items-center gap-3">
-            <div class="px-4 py-2 bg-amber-50 rounded-xl border border-amber-200 text-center">
-              <p class="text-[10px] uppercase font-bold text-amber-700">Minhas Pendências</p>
-              <p id="my-profile-pending-counter" class="text-lg font-bold text-amber-800 font-mono">{{ (my_pending_tasks|length) + (my_in_progress_tasks|length) }}</p>
+            <div class="px-5 py-2.5 bg-orange-50/70 rounded-2xl border border-orange-200/80 text-center min-w-[130px]">
+              <p class="text-[10px] uppercase font-bold text-orange-600 tracking-wider flex items-center justify-center gap-1">
+                <i data-lucide="clock" class="w-3.5 h-3.5"></i> Minhas Pendências
+              </p>
+              <p id="my-profile-pending-counter" class="text-xl font-bold text-orange-600 font-mono mt-0.5">{{ (my_pending_tasks|length) + (my_in_progress_tasks|length) }}</p>
             </div>
-            <div class="px-4 py-2 bg-emerald-50 rounded-xl border border-emerald-200 text-center">
-              <p class="text-[10px] uppercase font-bold text-emerald-700">Concluídos</p>
-              <p id="my-profile-completed-counter" class="text-lg font-bold text-emerald-800 font-mono">{{ my_completed_posts|length }}</p>
+            <div class="px-5 py-2.5 bg-emerald-50/70 rounded-2xl border border-emerald-200/80 text-center min-w-[130px]">
+              <p class="text-[10px] uppercase font-bold text-emerald-600 tracking-wider flex items-center justify-center gap-1">
+                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Concluídos
+              </p>
+              <p id="my-profile-completed-counter" class="text-xl font-bold text-emerald-600 font-mono mt-0.5">{{ my_completed_posts|length }}</p>
             </div>
           </div>
         </div>
 
-        <!-- Bloco 1: Tarefas Atribuídas a Fazer -->
+        <!-- BLOCO 1: ATRIBUÍDAS A MIM -->
         <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+          <div class="flex items-center justify-between px-1">
+            <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> 
               Tarefas Atribuídas a Mim (A Fazer / Solicitar)
             </h3>
-            <span id="badge-my-pending" class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+            <span id="badge-my-pending" class="text-xs font-mono font-medium text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
               {{ my_pending_tasks|length }} pendência(s)
             </span>
           </div>
 
-          <div id="my-pending-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div id="my-pending-container" class="space-y-3">
             {% for task in my_pending_tasks %}
-            <div id="my-task-{{ task.id }}" class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs space-y-3 hover:border-indigo-300 transition">
+            <div id="my-task-{{ task.id }}" class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3 hover:border-amber-300 transition">
               <div class="flex items-center justify-between gap-2">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
                   {{ task.tool_type }}
                 </span>
-                <span class="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                <span class="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
                   OP: {{ task.op_number }}
                 </span>
               </div>
-              
-              <h4 class="text-xs font-bold text-slate-900 leading-snug">{{ task.title }}</h4>
-              
-              <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 space-y-1">
-                <p class="flex items-center gap-1.5 font-semibold text-indigo-700">
-                  <i data-lucide="truck" class="w-3.5 h-3.5 text-indigo-500"></i> Fornecedor: {{ task.supplier }}
+              <h4 class="text-sm font-bold text-slate-900 leading-snug">{{ task.title }}</h4>
+              <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1">
+                <p class="flex items-center gap-1.5 font-semibold text-slate-700">
+                  <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-600"></i> Fornecedor: {{ task.supplier }}
                 </p>
                 <p class="text-amber-700 font-semibold font-mono text-[10px]">
                   📅 Prazo Limite: {{ task.due_date }}
@@ -195,52 +242,52 @@
                 <p class="text-slate-500 text-[10px] pt-1 border-t border-slate-200/60 leading-relaxed">{{ task.instructions }}</p>
                 {% endif %}
               </div>
-
               <div class="flex items-center justify-between pt-2 border-t border-slate-100">
-                <button type="button" onclick="copyOrderText('{{ task.op_number }}', '{{ task.tool_type }}', '{{ task.title }}', '{{ task.supplier }}', '{{ task.due_date }}', `{{ task.instructions }}`)" class="text-slate-600 hover:text-indigo-600 font-semibold flex items-center gap-1 text-[11px] transition">
+                <button type="button" onclick="copyOrderText('{{ task.op_number }}', '{{ task.tool_type }}', '{{ task.title }}', '{{ task.supplier }}', '{{ task.due_date }}', `{{ task.instructions }}`)" class="text-slate-600 hover:text-amber-600 font-semibold flex items-center gap-1 text-[11px] transition">
                   <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Pedido
                 </button>
-                <button onclick="updateTaskStatusFast('{{ task.id }}', 'Em Produção')" class="text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition border border-blue-200 flex items-center gap-1">
+                <button onclick="updateTaskStatusFast('{{ task.id }}', 'Em Produção')" class="text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-xl transition border border-blue-200 flex items-center gap-1">
                   Iniciar Preparação <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
                 </button>
               </div>
             </div>
             {% else %}
-            <div id="no-pending-msg" class="col-span-2 p-6 bg-white rounded-xl border border-slate-200/80 text-center text-xs text-slate-400">
-              <i data-lucide="check-circle" class="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80"></i>
-              Você não tem nenhuma nova tarefa pendente neste momento.
+            <div id="no-pending-msg" class="p-8 bg-white rounded-2xl border border-slate-200/80 text-center space-y-2">
+              <div class="w-10 h-10 bg-orange-50 text-orange-500 rounded-xl flex items-center justify-center mx-auto">
+                <i data-lucide="clipboard-list" class="w-5 h-5"></i>
+              </div>
+              <h4 class="text-xs font-bold text-slate-700">Você não tem nenhuma nova tarefa pendente neste momento.</h4>
+              <p class="text-[11px] text-slate-400">Quando houver novas tarefas, elas aparecerão aqui.</p>
             </div>
             {% endfor %}
           </div>
         </div>
 
-        <!-- Bloco 2: Tarefas em Preparação -->
+        <!-- BLOCO 2: EM PREPARAÇÃO -->
         <div class="space-y-3 pt-2">
-          <div class="flex items-center justify-between">
-            <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+          <div class="flex items-center justify-between px-1">
+            <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> 
               Em Preparação / Aguardando Fornecedor
             </h3>
-            <span id="badge-my-inprogress" class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+            <span id="badge-my-inprogress" class="text-xs font-mono font-medium text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
               {{ my_in_progress_tasks|length }} em andamento
             </span>
           </div>
 
-          <div id="my-inprogress-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div id="my-inprogress-container" class="space-y-3">
             {% for task in my_in_progress_tasks %}
-            <div id="my-task-{{ task.id }}" class="bg-white p-4 rounded-xl border border-blue-200 shadow-xs space-y-3 hover:border-blue-300 transition">
+            <div id="my-task-{{ task.id }}" class="bg-white p-4 rounded-2xl border border-blue-200 shadow-xs space-y-3 hover:border-blue-300 transition">
               <div class="flex items-center justify-between gap-2">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
                   {{ task.tool_type }}
                 </span>
-                <span class="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                <span class="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
                   OP: {{ task.op_number }}
                 </span>
               </div>
-              
-              <h4 class="text-xs font-bold text-slate-900 leading-snug">{{ task.title }}</h4>
-              
-              <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 space-y-1">
+              <h4 class="text-sm font-bold text-slate-900 leading-snug">{{ task.title }}</h4>
+              <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1">
                 <p class="flex items-center gap-1.5 font-semibold text-blue-700">
                   <i data-lucide="truck" class="w-3.5 h-3.5 text-blue-500"></i> No Fabricante: {{ task.supplier }}
                 </p>
@@ -248,55 +295,63 @@
                   📅 Previsão: {{ task.due_date }}
                 </p>
               </div>
-
               <div class="flex items-center justify-between pt-2 border-t border-slate-100">
                 <span class="text-[11px] text-slate-400 font-medium">Chegou do fornecedor?</span>
-                <button onclick="updateTaskStatusFast('{{ task.id }}', 'Aprovado')" class="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-1.5 rounded-lg transition shadow-xs flex items-center gap-1">
+                <button onclick="updateTaskStatusFast('{{ task.id }}', 'Aprovado')" class="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 px-3.5 py-1.5 rounded-xl transition shadow-xs flex items-center gap-1">
                   <i data-lucide="check" class="w-3.5 h-3.5"></i> Homologar & Publicar
                 </button>
               </div>
             </div>
             {% else %}
-            <div id="no-inprogress-msg" class="col-span-2 p-6 bg-white rounded-xl border border-slate-200/80 text-center text-xs text-slate-400">
-              Nenhuma ferramenta em fase de preparação com fornecedor.
+            <div id="no-inprogress-msg" class="p-8 bg-white rounded-2xl border border-slate-200/80 text-center space-y-2">
+              <div class="w-10 h-10 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center mx-auto">
+                <i data-lucide="settings" class="w-5 h-5"></i>
+              </div>
+              <h4 class="text-xs font-bold text-slate-700">Nenhuma ferramenta em fase de preparação com fornecedor.</h4>
+              <p class="text-[11px] text-slate-400">Assim que houver movimentações, você verá os itens aqui.</p>
             </div>
             {% endfor %}
           </div>
         </div>
 
-        <!-- Bloco 3: Histórico Concluído -->
+        <!-- BLOCO 3: HISTÓRICO CONCLUÍDO -->
         <div class="space-y-3 pt-2">
-          <div class="flex items-center justify-between">
-            <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+          <div class="flex items-center justify-between px-1">
+            <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> 
               Meus Ferramentais Homologados (Histórico Concluído)
             </h3>
-            <span id="badge-my-completed" class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+            <span id="badge-my-completed" class="text-xs font-mono font-medium text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
               {{ my_completed_posts|length }} concluído(s)
             </span>
           </div>
 
-          <div id="my-completed-container" class="space-y-3">
+          <div id="my-completed-container" class="space-y-2.5">
             {% for post in my_completed_posts %}
-            <div class="bg-white p-4 rounded-xl border border-slate-200/80 flex items-center justify-between gap-4">
+            <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 flex items-center justify-between gap-4 hover:border-slate-300 transition">
               <div class="space-y-1">
                 <div class="flex items-center gap-2">
-                  <span class="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+                  <span class="text-[10px] font-bold text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-md">
                     {{ post.tool_type }}
                   </span>
                   {% if post.op_number %}
-                  <span class="text-[10px] font-mono font-bold text-slate-600">OP: {{ post.op_number }}</span>
+                  <span class="text-[10px] font-mono font-medium text-slate-500">OP: {{ post.op_number }}</span>
                   {% endif %}
                 </div>
                 <h4 class="text-xs font-bold text-slate-900">{{ post.title }}</h4>
-                <p class="text-[10px] text-slate-400">Fornecedor: <b>{{ post.supplier }}</b> • Concluído em: {{ post.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                <p class="text-[10px] text-slate-400">Fornecedor: <b class="text-slate-600">{{ post.supplier }}</b> • Concluído em: {{ post.created_at.strftime('%d/%m/%Y %H:%M') if post.created_at else '' }}</p>
               </div>
-              <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200 whitespace-nowrap">
-                ✔ No Feed
-              </span>
+              <div class="flex items-center gap-2">
+                <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-xl whitespace-nowrap">
+                  ✔ No Feed
+                </span>
+                <button type="button" class="text-slate-400 hover:text-slate-600 p-1">
+                  <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                </button>
+              </div>
             </div>
             {% else %}
-            <div id="no-completed-msg" class="p-6 bg-white rounded-xl border border-slate-200/80 text-center text-xs text-slate-400">
+            <div id="no-completed-msg" class="p-6 bg-white rounded-2xl border border-slate-200/80 text-center text-xs text-slate-400">
               Você ainda não tem ferramentais homologados no histórico.
             </div>
             {% endfor %}
@@ -312,7 +367,7 @@
             <h2 class="text-base font-bold text-slate-900 tracking-tight">Feed de Ferramentais Homologados</h2>
             <p class="text-xs text-slate-500">Histórico de especificações concluídas e validadas pela equipe</p>
           </div>
-          <span id="badge-feed-total" class="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
+          <span id="badge-feed-total" class="text-xs font-mono font-bold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
             {{ posts|length }} registro(s)
           </span>
         </div>
@@ -320,10 +375,10 @@
         <div id="feed-posts-container" class="space-y-6">
           {% for post in posts %}
           <article id="feed-post-{{ post.id }}" class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-            <div class="p-5 border-b border-slate-100 bg-gradient-to-b from-slate-50/60 to-white flex items-start justify-between gap-4">
+            <div class="p-5 border-b border-slate-100 flex items-start justify-between gap-4">
               <div class="space-y-1.5">
                 <div class="flex flex-wrap items-center gap-2">
-                  <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
+                  <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
                     {{ post.tool_type }}
                   </span>
                   {% if post.op_number %}
@@ -343,14 +398,14 @@
               <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 bg-slate-50/80 rounded-xl border border-slate-100 text-xs">
                 <div>
                   <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Solicitado por</p>
-                  <p onclick="openUserProfileModal('{{ post.author }}')" class="font-bold text-slate-800 flex items-center gap-1.5 mt-0.5 cursor-pointer hover:text-indigo-600 transition">
+                  <p onclick="openUserProfileModal('{{ post.author }}')" class="font-bold text-slate-800 flex items-center gap-1.5 mt-0.5 cursor-pointer hover:text-amber-600 transition">
                     <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> {{ post.author }}
                   </p>
                 </div>
                 <div>
                   <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Fornecedor</p>
-                  <p class="font-bold text-indigo-700 flex items-center gap-1.5 mt-0.5">
-                    <i data-lucide="truck" class="w-3.5 h-3.5 text-indigo-500"></i> {{ post.supplier }}
+                  <p class="font-bold text-amber-700 flex items-center gap-1.5 mt-0.5">
+                    <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-500"></i> {{ post.supplier }}
                   </p>
                 </div>
                 <div>
@@ -362,9 +417,9 @@
               </div>
 
               {% if post.instructions %}
-              <div class="p-3.5 bg-indigo-50/40 rounded-xl border border-indigo-100/70 text-xs space-y-1">
-                <span class="font-bold text-indigo-900 flex items-center gap-1.5 text-[11px]">
-                  <i data-lucide="file-text" class="w-3.5 h-3.5 text-indigo-600"></i> Especificações Técnicas:
+              <div class="p-3.5 bg-amber-50/30 rounded-xl border border-amber-100/70 text-xs space-y-1">
+                <span class="font-bold text-amber-900 flex items-center gap-1.5 text-[11px]">
+                  <i data-lucide="file-text" class="w-3.5 h-3.5 text-amber-600"></i> Especificações Técnicas:
                 </span>
                 <p class="text-slate-700 leading-relaxed">{{ post.instructions }}</p>
               </div>
@@ -381,7 +436,7 @@
             <div class="px-5 py-2.5 flex items-center gap-3 bg-white border-b border-slate-100">
               <button type="button" onclick="likePostSmooth('{{ post.id }}')" class="flex items-center gap-1.5 text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-lg hover:bg-rose-100 active:scale-95 transition shadow-2xs">
                 <i data-lucide="heart" class="w-3.5 h-3.5 fill-rose-600"></i> 
-                <span id="post-likes-{{ post.id }}">{{ post.likes }}</span> Validações
+                <span id="post-likes-${post.id}">{{ post.likes }}</span> Validações
               </button>
             </div>
 
@@ -397,8 +452,8 @@
                 {% endfor %}
               </div>
               <form onsubmit="submitCommentSmooth(event, '{{ post.id }}')" class="flex gap-2 pt-1">
-                <input required type="text" name="text" placeholder="Adicionar parecer técnico..." class="flex-1 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                <button type="submit" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-700 transition shadow-xs">
+                <input required type="text" name="text" placeholder="Adicionar parecer técnico..." class="flex-1 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
+                <button type="submit" class="bg-amber-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-amber-700 transition shadow-xs">
                   Publicar
                 </button>
               </form>
@@ -415,12 +470,12 @@
 
       <!-- ================= ABA 2: QUADRO KANBAN GERAL ================= -->
       <section id="content-kanban" class="hidden space-y-4">
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between px-1">
           <div>
             <h2 class="text-base font-bold text-slate-900 tracking-tight">Quadro Geral de Acompanhamento</h2>
             <p class="text-xs text-slate-500">Mova os cartões para atualizar as fases da preparação técnica</p>
           </div>
-          <button onclick="switchTab('new-task')" class="text-xs font-semibold bg-indigo-600 text-white px-3.5 py-2 rounded-xl hover:bg-indigo-700 transition flex items-center gap-1.5 shadow-xs">
+          <button onclick="switchTab('new-task')" class="text-xs font-bold bg-[#0b1e36] text-white px-3.5 py-2 rounded-xl hover:bg-slate-800 transition flex items-center gap-1.5 shadow-xs">
             <i data-lucide="plus" class="w-3.5 h-3.5"></i> Delegar Tarefa
           </button>
         </div>
@@ -428,7 +483,7 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
           
           <!-- COLUNA 1 -->
-          <div class="bg-slate-100/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col min-h-[520px]">
+          <div class="bg-slate-100/90 rounded-2xl p-3 border border-slate-200/80 flex flex-col min-h-[520px]">
             <div class="flex items-center justify-between px-2 mb-3">
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-amber-500 ring-4 ring-amber-100"></span>
@@ -443,7 +498,7 @@
               {% for task in tasks if task.status == 'Atribuído' %}
               <div id="task-{{ task.id }}" class="kanban-card bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md transition space-y-3" draggable="true" ondragstart="handleDragStart(event, '{{ task.id }}')">
                 <div class="flex items-center justify-between gap-2">
-                  <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
                     {{ task.tool_type }}
                   </span>
                   <span class="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
@@ -452,18 +507,18 @@
                 </div>
                 <h4 class="text-xs font-bold text-slate-900 leading-snug">{{ task.title }}</h4>
                 <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 space-y-1">
-                  <p class="flex items-center gap-1.5 font-semibold text-indigo-700">
-                    <i data-lucide="truck" class="w-3.5 h-3.5 text-indigo-500"></i> {{ task.supplier }}
+                  <p class="flex items-center gap-1.5 font-semibold text-slate-700">
+                    <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-500"></i> {{ task.supplier }}
                   </p>
                   {% if task.instructions %}
                   <p class="text-slate-500 line-clamp-2 text-[10px]">{{ task.instructions }}</p>
                   {% endif %}
                 </div>
                 <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
-                  <span onclick="openUserProfileModal('{{ task.assigned_to }}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-indigo-600 transition">
+                  <span onclick="openUserProfileModal('{{ task.assigned_to }}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition">
                     <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
                   </span>
-                  <button type="button" onclick="copyOrderText('{{ task.op_number }}', '{{ task.tool_type }}', '{{ task.title }}', '{{ task.supplier }}', '{{ task.due_date }}', `{{ task.instructions }}`)" class="text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 text-[10px] bg-indigo-50 px-2 py-0.5 rounded transition">
+                  <button type="button" onclick="copyOrderText('{{ task.op_number }}', '{{ task.tool_type }}', '{{ task.title }}', '{{ task.supplier }}', '{{ task.due_date }}', `{{ task.instructions }}`)" class="text-amber-600 hover:text-amber-800 font-semibold flex items-center gap-1 text-[10px] bg-amber-50 px-2 py-0.5 rounded transition">
                     <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Pedido
                   </button>
                 </div>
@@ -473,7 +528,7 @@
           </div>
 
           <!-- COLUNA 2 -->
-          <div class="bg-slate-100/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col min-h-[520px]">
+          <div class="bg-slate-100/90 rounded-2xl p-3 border border-slate-200/80 flex flex-col min-h-[520px]">
             <div class="flex items-center justify-between px-2 mb-3">
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-blue-500 ring-4 ring-blue-100"></span>
@@ -488,7 +543,7 @@
               {% for task in tasks if task.status == 'Em Produção' %}
               <div id="task-{{ task.id }}" class="kanban-card bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md transition space-y-3" draggable="true" ondragstart="handleDragStart(event, '{{ task.id }}')">
                 <div class="flex items-center justify-between gap-2">
-                  <span class="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
                     {{ task.tool_type }}
                   </span>
                   <span class="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
@@ -503,7 +558,7 @@
                   <p class="text-amber-600 font-mono text-[10px]">📅 Prazo: {{ task.due_date }}</p>
                 </div>
                 <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
-                  <span onclick="openUserProfileModal('{{ task.assigned_to }}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-indigo-600 transition">
+                  <span onclick="openUserProfileModal('{{ task.assigned_to }}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition">
                     <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
                   </span>
                   <span class="text-blue-600 font-semibold text-[10px] bg-blue-50 px-2 py-0.5 rounded">Em Andamento</span>
@@ -514,7 +569,7 @@
           </div>
 
           <!-- COLUNA 3 -->
-          <div class="bg-slate-100/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col min-h-[520px]">
+          <div class="bg-slate-100/90 rounded-2xl p-3 border border-slate-200/80 flex flex-col min-h-[520px]">
             <div class="flex items-center justify-between px-2 mb-3">
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-emerald-500 ring-4 ring-emerald-100"></span>
@@ -536,7 +591,7 @@
                 </div>
                 <h4 class="text-xs font-bold text-slate-900 leading-snug line-through opacity-70">{{ task.title }}</h4>
                 <p class="text-[10px] text-slate-500 pt-2 border-t border-emerald-100">
-                  Fornecedor: <b>{{ task.supplier }}</b> • Resp: <b onclick="openUserProfileModal('{{ task.assigned_to }}')" class="cursor-pointer hover:text-indigo-600 underline">{{ task.assigned_to }}</b>
+                  Fornecedor: <b>{{ task.supplier }}</b> • Resp: <b onclick="openUserProfileModal('{{ task.assigned_to }}')" class="cursor-pointer hover:text-amber-600 underline">{{ task.assigned_to }}</b>
                 </p>
               </div>
               {% endfor %}
@@ -553,25 +608,25 @@
             <h2 class="text-base font-bold text-slate-900 tracking-tight">Equipe Técnica & Perfis</h2>
             <p class="text-xs text-slate-500">Métricas operacionais de todos os membros cadastrados</p>
           </div>
-          <span id="profiles-count-badge" class="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
+          <span id="profiles-count-badge" class="text-xs font-mono font-bold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
             {{ collaborators|length }} colaborador(es)
           </span>
         </div>
 
         <div id="collaborators-grid" class="grid grid-cols-1 md:grid-cols-2 gap-5">
           {% for member in collaborators %}
-          <div id="user-card-{{ member.username }}" class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-indigo-300 hover:shadow-md transition relative">
+          <div id="user-card-{{ member.username }}" class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-amber-300 hover:shadow-md transition relative">
             
             <div class="flex items-start justify-between">
               <div onclick="openUserProfileModal('{{ member.name }}')" class="flex items-center gap-3 cursor-pointer flex-1">
-                <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-800 text-white font-black text-sm flex items-center justify-center shadow-sm">
+                <div class="w-12 h-12 rounded-xl bg-amber-500 text-white font-black text-sm flex items-center justify-center shadow-sm">
                   {{ member.name[:2]|upper }}
                 </div>
                 <div>
-                  <h3 class="text-sm font-bold text-slate-900 leading-snug hover:text-indigo-600 transition">{{ member.name }}</h3>
+                  <h3 class="text-sm font-bold text-slate-900 leading-snug hover:text-amber-600 transition">{{ member.name }}</h3>
                   <div class="flex items-center gap-1.5 mt-0.5">
                     <span class="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">{{ member.role }}</span>
-                    <span class="text-[10px] font-medium text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">{{ member.department }}</span>
+                    <span class="text-[10px] font-medium text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md">{{ member.department }}</span>
                   </div>
                 </div>
               </div>
@@ -581,7 +636,7 @@
                   <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Ativo
                 </span>
 
-                {% if (current_user.role == 'Gestor' or current_user.role == 'manager') and member.name != current_user.full_name %}
+                {% if current_user.role in ['Gestor', 'manager', 'admin'] and member.name != current_user.full_name %}
                 <button 
                   type="button" 
                   title="Excluir Colaborador" 
@@ -596,7 +651,7 @@
             <div onclick="openUserProfileModal('{{ member.name }}')" class="grid grid-cols-2 gap-2 text-center cursor-pointer">
               <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
                 <p class="text-slate-400 font-semibold text-[10px] uppercase">Em Execução</p>
-                <p class="text-lg font-bold text-indigo-600 font-mono">{{ member.active_tasks }}</p>
+                <p class="text-lg font-bold text-amber-600 font-mono">{{ member.active_tasks }}</p>
               </div>
               <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
                 <p class="text-slate-400 font-semibold text-[10px] uppercase">Homologados</p>
@@ -610,7 +665,7 @@
                 {% for p in member.recent_posts %}
                 <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
                   <span class="font-medium text-slate-800 truncate pr-2">{{ p.title }}</span>
-                  <span class="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded whitespace-nowrap">{{ p.tool_type }}</span>
+                  <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded whitespace-nowrap">{{ p.tool_type }}</span>
                 </div>
                 {% else %}
                 <p class="text-[11px] text-slate-400 italic">Nenhum ferramental concluído até o momento.</p>
@@ -633,7 +688,7 @@
           <form id="form-create-task" onsubmit="submitCreateTaskSmooth(event)" class="space-y-4">
             <div>
               <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Tipo de Ferramental</label>
-              <select required name="tool_type" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 bg-slate-50 font-bold text-slate-800">
+              <select required name="tool_type" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500 bg-slate-50 font-bold text-slate-800">
                 <option value="Faca Corte e Vinco">🔪 Faca Corte e Vinco</option>
                 <option value="Clichê de Relevo / Braille">📐 Clichê de Relevo / Braille</option>
                 <option value="Fitas de Braille">🏷️ Fitas de Braille</option>
@@ -644,18 +699,18 @@
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Nº da OP</label>
-                <input type="text" name="op_number" placeholder="Ex: OP-1042" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 font-mono">
+                <input type="text" name="op_number" placeholder="Ex: OP-1042" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500 font-mono">
               </div>
               <div class="sm:col-span-2">
                 <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Trabalho / Embalagem</label>
-                <input required type="text" name="title" placeholder="Ex: Cartucho 150ml Medicamento" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500">
+                <input required type="text" name="title" placeholder="Ex: Cartucho 150ml Medicamento" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500">
               </div>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Colaborador da Equipe</label>
-                <select required name="assigned_to" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 bg-slate-50 font-bold text-slate-800">
+                <select required name="assigned_to" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500 bg-slate-50 font-bold text-slate-800">
                   {% for u in users %}
                   <option value="{{ u.full_name }}">{{ u.full_name }} ({{ u.role }})</option>
                   {% else %}
@@ -665,18 +720,18 @@
               </div>
               <div>
                 <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Fornecedor Destinatário</label>
-                <input required type="text" name="supplier" placeholder="Ex: Facas Precision / Clicheria Alfa" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500">
+                <input required type="text" name="supplier" placeholder="Ex: Facas Precision / Clicheria Alfa" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500">
               </div>
             </div>
 
             <div>
               <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Prazo Limite de Entrega</label>
-              <input required type="date" name="due_date" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 font-mono">
+              <input required type="date" name="due_date" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500 font-mono">
             </div>
 
             <div>
               <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Instruções Técnicas</label>
-              <textarea name="instructions" rows="3" placeholder="Ex: Lâmina 23,80mm, vinco 2pt canaleta 0,4x1,3mm, confirmar altura de pontos braille..." class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500"></textarea>
+              <textarea name="instructions" rows="3" placeholder="Ex: Lâmina 23,80mm, vinco 2pt canaleta 0,4x1,3mm, confirmar altura de pontos braille..." class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500"></textarea>
             </div>
 
             <div>
@@ -690,7 +745,7 @@
               <button type="button" onclick="switchTab('my-profile')" class="w-1/3 py-2.5 border border-slate-200 text-slate-600 font-semibold rounded-xl text-xs hover:bg-slate-50 transition">
                 Cancelar
               </button>
-              <button id="btn-submit-task" type="submit" class="w-2/3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl text-xs transition shadow-xs flex items-center justify-center gap-2">
+              <button id="btn-submit-task" type="submit" class="w-2/3 bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2.5 rounded-xl text-xs transition shadow-xs flex items-center justify-center gap-2">
                 <i data-lucide="send" class="w-3.5 h-3.5"></i> Delegar Tarefa
               </button>
             </div>
@@ -701,58 +756,59 @@
     </main>
   </div>
 
+  <!-- ================= MODAIS ================= -->
   <!-- Modal Adicionar Colaborador -->
   <div id="modalCollaborator" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
     <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
       <div class="flex justify-between items-center mb-4 border-b pb-3">
-        <h3 class="text-lg font-bold text-gray-800">Cadastrar Novo Colaborador</h3>
-        <button type="button" onclick="document.getElementById('modalCollaborator').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 font-bold text-xl">&times;</button>
+        <h3 class="text-base font-bold text-slate-900">Cadastrar Novo Colaborador</h3>
+        <button type="button" onclick="document.getElementById('modalCollaborator').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
       </div>
 
       <form id="formAddCollaborator" onsubmit="submitCollaborator(event)" class="space-y-4">
         <div>
-          <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Nome Completo</label>
-          <input type="text" name="full_name" required placeholder="Ex: João Silva" class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nome Completo</label>
+          <input type="text" name="full_name" required placeholder="Ex: João Silva" class="w-full px-3.5 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Nome de Usuário</label>
-          <input type="text" name="username" required placeholder="Ex: joaosilva" class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nome de Usuário</label>
+          <input type="text" name="username" required placeholder="Ex: joaosilva" class="w-full px-3.5 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Função / Cargo</label>
-            <select name="role" class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Função / Cargo</label>
+            <select name="role" class="w-full px-3.5 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
               <option value="Colaborador">Colaborador / Operador</option>
               <option value="Gestor">Gestor / Supervisor</option>
             </select>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Setor / Departamento</label>
-            <input type="text" name="department" required placeholder="Ex: Acabamento" value="Produção / Pré-Impressão" class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Setor / Departamento</label>
+            <input type="text" name="department" required placeholder="Ex: Acabamento" value="Produção / Pré-Impressão" class="w-full px-3.5 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
           </div>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Senha Provisória</label>
-          <input type="password" name="password" required placeholder="••••••••" class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Senha Provisória</label>
+          <input type="password" name="password" required placeholder="••••••••" class="w-full px-3.5 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
         </div>
 
         <div class="flex justify-end gap-2 pt-3 border-t">
-          <button type="button" onclick="document.getElementById('modalCollaborator').classList.add('hidden')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-xl">Cancelar</button>
-          <button id="btnSubmitCollaborator" type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition">Salvar Colaborador</button>
+          <button type="button" onclick="document.getElementById('modalCollaborator').classList.add('hidden')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl">Cancelar</button>
+          <button id="btnSubmitCollaborator" type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-xl transition">Salvar Colaborador</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Modal Detalhes do Perfil do Colaborador -->
+  <!-- Modal Detalhes do Perfil -->
   <div id="modalUserProfile" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl relative space-y-4">
       <div class="flex justify-between items-start border-b pb-3">
         <div class="flex items-center gap-3">
-          <div id="modalUserAvatar" class="w-12 h-12 rounded-xl bg-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-md">
+          <div id="modalUserAvatar" class="w-12 h-12 rounded-xl bg-amber-500 text-white font-black text-lg flex items-center justify-center shadow-md">
             --
           </div>
           <div>
@@ -766,7 +822,7 @@
       <div class="space-y-2.5 text-xs">
         <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center">
           <span class="text-slate-500 font-medium">Função / Cargo:</span>
-          <span id="modalUserRole" class="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">--</span>
+          <span id="modalUserRole" class="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">--</span>
         </div>
         <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center">
           <span class="text-slate-500 font-medium">Setor de Atuação:</span>
@@ -775,9 +831,9 @@
       </div>
 
       <div class="grid grid-cols-2 gap-2 text-center pt-1">
-        <div class="p-2.5 bg-amber-50 rounded-xl border border-amber-200">
-          <p class="text-[10px] uppercase font-bold text-amber-700">Tarefas Ativas</p>
-          <p id="modalUserPending" class="text-base font-bold text-amber-900 font-mono">0</p>
+        <div class="p-2.5 bg-orange-50 rounded-xl border border-orange-200">
+          <p class="text-[10px] uppercase font-bold text-orange-700">Tarefas Ativas</p>
+          <p id="modalUserPending" class="text-base font-bold text-orange-900 font-mono">0</p>
         </div>
         <div class="p-2.5 bg-emerald-50 rounded-xl border border-emerald-200">
           <p class="text-[10px] uppercase font-bold text-emerald-700">Homologados</p>
@@ -789,7 +845,7 @@
         <button type="button" onclick="document.getElementById('modalUserProfile').classList.add('hidden')" class="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition">
           Fechar
         </button>
-        {% if current_user.role == 'Gestor' or current_user.role == 'manager' %}
+        {% if current_user.role in ['Gestor', 'manager', 'admin'] %}
         <button id="modalBtnDeleteUser" type="button" class="py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold rounded-xl text-xs transition flex items-center gap-1">
           <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Excluir
         </button>
@@ -798,16 +854,50 @@
     </div>
   </div>
 
-  <!-- SCRIPT 100% REATIVO (ZERO PISCADAS / SEM RELOAD) -->
+  <!-- ================= JAVASCRIPT REATIVO ================= -->
   <script>
     lucide.createIcons();
     const CURRENT_USER_NAME = "{{ current_user.full_name }}".trim().toLowerCase();
 
-    // COMPARAÇÃO TOLERANTE A ESPAÇOS E CARGOS
     function isAssignedToMe(assignedTo) {
       if (!assignedTo) return false;
       const target = assignedTo.trim().toLowerCase();
       return target === CURRENT_USER_NAME || target.includes(CURRENT_USER_NAME) || CURRENT_USER_NAME.includes(target);
+    }
+
+    // BUSCA GLOBAL NO TOPO
+    function handleGlobalSearch(query) {
+      const q = query.trim().toLowerCase();
+      
+      // Filtra nos cards do perfil
+      document.querySelectorAll('#my-pending-container > div, #my-inprogress-container > div, #my-completed-container > div').forEach(el => {
+        if (!q) {
+          el.style.display = '';
+        } else {
+          const text = el.innerText.toLowerCase();
+          el.style.display = text.includes(q) ? '' : 'none';
+        }
+      });
+
+      // Filtra no Kanban
+      document.querySelectorAll('.kanban-card').forEach(el => {
+        if (!q) {
+          el.style.display = '';
+        } else {
+          const text = el.innerText.toLowerCase();
+          el.style.display = text.includes(q) ? '' : 'none';
+        }
+      });
+
+      // Filtra no Feed
+      document.querySelectorAll('#feed-posts-container > article').forEach(el => {
+        if (!q) {
+          el.style.display = '';
+        } else {
+          const text = el.innerText.toLowerCase();
+          el.style.display = text.includes(q) ? '' : 'none';
+        }
+      });
     }
 
     function switchTab(tab) {
@@ -830,24 +920,24 @@
       });
 
       [btnMyProfile, btnFeed, btnKanban, btnProfiles, btnNew].forEach(btn => {
-        if (btn) btn.className = "w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-50 hover:text-slate-900";
+        if (btn) btn.className = "w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-100 hover:text-slate-900";
       });
 
       if (tab === 'my-profile' && myProfileSec && btnMyProfile) {
         myProfileSec.classList.remove('hidden');
-        btnMyProfile.className = "w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-bold rounded-xl transition text-indigo-600 bg-indigo-50/80";
+        btnMyProfile.className = "w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-bold rounded-xl transition bg-[#0b1e36] text-white";
       } else if (tab === 'feed' && feedSec && btnFeed) {
         feedSec.classList.remove('hidden');
-        btnFeed.className = "w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold rounded-xl transition text-indigo-600 bg-indigo-50/80";
+        btnFeed.className = "w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold rounded-xl transition bg-[#0b1e36] text-white";
       } else if (tab === 'kanban' && kanbanSec && btnKanban) {
         kanbanSec.classList.remove('hidden');
-        btnKanban.className = "w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-bold rounded-xl transition text-indigo-600 bg-indigo-50/80";
+        btnKanban.className = "w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-bold rounded-xl transition bg-[#0b1e36] text-white";
       } else if (tab === 'profiles' && profilesSec && btnProfiles) {
         profilesSec.classList.remove('hidden');
-        btnProfiles.className = "w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-bold rounded-xl transition text-indigo-600 bg-indigo-50/80";
+        btnProfiles.className = "w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-bold rounded-xl transition bg-[#0b1e36] text-white";
       } else if (tab === 'new-task' && newSec && btnNew) {
         newSec.classList.remove('hidden');
-        btnNew.className = "w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold rounded-xl transition text-indigo-600 bg-indigo-50/80";
+        btnNew.className = "w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold rounded-xl transition bg-[#0b1e36] text-white";
       }
 
       lucide.createIcons();
@@ -981,7 +1071,6 @@
       list.appendChild(div);
     }
 
-    // ATUALIZAR STATUS DE TAREFA (PROTEGIDO CONTRA FALHAS E TRAVAMENTOS)
     async function updateTaskStatusFast(taskId, newStatus) {
       moveTaskVisual(taskId, newStatus, "{{ current_user.full_name }}");
 
@@ -998,14 +1087,12 @@
 
     function moveTaskVisual(taskId, newStatus, assignedTo) {
       try {
-        // 1. Move no Kanban Geral
         const kanbanCard = document.getElementById(`task-${taskId}`);
         const targetKanbanCol = document.getElementById(`kanban-col-${newStatus}`);
         if (kanbanCard && targetKanbanCol) {
           targetKanbanCol.prepend(kanbanCard);
         }
 
-        // 2. Se a tarefa é minha, atualiza na aba Meu Perfil
         const myCard = document.getElementById(`my-task-${taskId}`);
         if (myCard) {
           if (newStatus === "Em Produção") {
@@ -1014,16 +1101,15 @@
             if (noInpMsg) noInpMsg.remove();
 
             if (inProgressCont) {
-              myCard.className = "bg-white p-4 rounded-xl border border-blue-200 shadow-xs space-y-3 hover:border-blue-300 transition";
+              myCard.className = "bg-white p-4 rounded-2xl border border-blue-200 shadow-xs space-y-3 hover:border-blue-300 transition";
               
-              // Ajusta o botão com segurança
               const btnAreas = myCard.querySelectorAll('div');
               const lastDiv = btnAreas[btnAreas.length - 1];
               if (lastDiv) {
                 lastDiv.className = "flex items-center justify-between pt-2 border-t border-slate-100";
                 lastDiv.innerHTML = `
                   <span class="text-[11px] text-slate-400 font-medium">Chegou do fornecedor?</span>
-                  <button onclick="updateTaskStatusFast('${taskId}', 'Aprovado')" class="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-1.5 rounded-lg transition shadow-xs flex items-center gap-1">
+                  <button onclick="updateTaskStatusFast('${taskId}', 'Aprovado')" class="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 px-3.5 py-1.5 rounded-xl transition shadow-xs flex items-center gap-1">
                     <i data-lucide="check" class="w-3.5 h-3.5"></i> Homologar & Publicar
                   </button>
                 `;
@@ -1233,16 +1319,13 @@
         try {
           const data = JSON.parse(event.data);
 
-          // 1. RECEBE NOVO COMENTÁRIO
           if (data.type === "NEW_COMMENT") {
             appendCommentToDOM(data.post_id, data.author, data.text);
           }
-          // 2. RECEBE NOVO LIKE
           else if (data.type === "POST_LIKED") {
             const likesElem = document.getElementById(`post-likes-${data.post_id}`);
             if (likesElem) likesElem.textContent = data.likes;
           }
-          // 3. RECEBE MOVIMENTAÇÃO DE CARD NO KANBAN
           else if (data.type === "TASK_STATUS_UPDATED") {
             moveTaskVisual(data.task_id, data.new_status, data.assigned_to);
             if (data.published_to_feed && data.post) {
@@ -1252,18 +1335,15 @@
               }
             }
           }
-          // 4. RECEBE NOVA TAREFA CRIADA (COM COMPARAÇÃO BLINDADA)
           else if (data.type === "TASK_CREATED") {
             insertTaskToKanbanDOM(data.task);
             if (isAssignedToMe(data.task.assigned_to)) {
               insertTaskToMyProfileDOM(data.task);
             }
           }
-          // 5. RECEBE EXCLUSÃO DE COLABORADOR
           else if (data.type === "USER_DELETED") {
             removeUserCardFromDOM(data.username);
           }
-          // 6. CASO GERAL DE RECARGA
           else if (data.type === "REFRESH") {
             window.location.reload();
           }
@@ -1296,7 +1376,7 @@
 
       card.innerHTML = `
         <div class="flex items-center justify-between gap-2">
-          <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
             ${task.tool_type}
           </span>
           <span class="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
@@ -1305,16 +1385,16 @@
         </div>
         <h4 class="text-xs font-bold text-slate-900 leading-snug">${task.title}</h4>
         <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 space-y-1">
-          <p class="flex items-center gap-1.5 font-semibold text-indigo-700">
-            <i data-lucide="truck" class="w-3.5 h-3.5 text-indigo-500"></i> ${task.supplier}
+          <p class="flex items-center gap-1.5 font-semibold text-slate-700">
+            <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-500"></i> ${task.supplier}
           </p>
           ${task.instructions ? `<p class="text-slate-500 line-clamp-2 text-[10px]">${task.instructions}</p>` : ''}
         </div>
         <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
-          <span onclick="openUserProfileModal('${task.assigned_to}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-indigo-600 transition">
+          <span onclick="openUserProfileModal('${task.assigned_to}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition">
             <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> <b>${task.assigned_to}</b>
           </span>
-          <button type="button" onclick="copyOrderText('${task.op_number}', '${task.tool_type}', '${task.title}', '${task.supplier}', '${task.due_date}', \`${task.instructions || ''}\`)" class="text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 text-[10px] bg-indigo-50 px-2 py-0.5 rounded transition">
+          <button type="button" onclick="copyOrderText('${task.op_number}', '${task.tool_type}', '${task.title}', '${task.supplier}', '${task.due_date}', \`${task.instructions || ''}\`)" class="text-amber-600 hover:text-amber-800 font-semibold flex items-center gap-1 text-[10px] bg-amber-50 px-2 py-0.5 rounded transition">
             <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Pedido
           </button>
         </div>
@@ -1335,20 +1415,20 @@
 
       const div = document.createElement('div');
       div.id = `my-task-${task.id}`;
-      div.className = "bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs space-y-3 hover:border-indigo-300 transition";
+      div.className = "bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3 hover:border-amber-300 transition";
       div.innerHTML = `
         <div class="flex items-center justify-between gap-2">
-          <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
             ${task.tool_type}
           </span>
-          <span class="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+          <span class="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
             OP: ${task.op_number || 'S/N'}
           </span>
         </div>
-        <h4 class="text-xs font-bold text-slate-900 leading-snug">${task.title}</h4>
-        <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 space-y-1">
-          <p class="flex items-center gap-1.5 font-semibold text-indigo-700">
-            <i data-lucide="truck" class="w-3.5 h-3.5 text-indigo-500"></i> Fornecedor: ${task.supplier}
+        <h4 class="text-sm font-bold text-slate-900 leading-snug">${task.title}</h4>
+        <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1">
+          <p class="flex items-center gap-1.5 font-semibold text-slate-700">
+            <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-600"></i> Fornecedor: ${task.supplier}
           </p>
           <p class="text-amber-700 font-semibold font-mono text-[10px]">
             📅 Prazo Limite: ${task.due_date}
@@ -1356,10 +1436,10 @@
           ${task.instructions ? `<p class="text-slate-500 text-[10px] pt-1 border-t border-slate-200/60 leading-relaxed">${task.instructions}</p>` : ''}
         </div>
         <div class="flex items-center justify-between pt-2 border-t border-slate-100">
-          <button type="button" onclick="copyOrderText('${task.op_number}', '${task.tool_type}', '${task.title}', '${task.supplier}', '${task.due_date}', \`${task.instructions || ''}\`)" class="text-slate-600 hover:text-indigo-600 font-semibold flex items-center gap-1 text-[11px] transition">
+          <button type="button" onclick="copyOrderText('${task.op_number}', '${task.tool_type}', '${task.title}', '${task.supplier}', '${task.due_date}', \`${task.instructions || ''}\`)" class="text-slate-600 hover:text-amber-600 font-semibold flex items-center gap-1 text-[11px] transition">
             <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Pedido
           </button>
-          <button onclick="updateTaskStatusFast('${task.id}', 'Em Produção')" class="text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition border border-blue-200 flex items-center gap-1">
+          <button onclick="updateTaskStatusFast('${task.id}', 'Em Produção')" class="text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-xl transition border border-blue-200 flex items-center gap-1">
             Iniciar Preparação <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
           </button>
         </div>
@@ -1377,21 +1457,23 @@
       if (!compCont) return;
 
       const div = document.createElement('div');
-      div.className = "bg-white p-4 rounded-xl border border-slate-200/80 flex items-center justify-between gap-4";
+      div.className = "bg-white p-3.5 rounded-2xl border border-slate-200/80 flex items-center justify-between gap-4";
       div.innerHTML = `
         <div class="space-y-1">
           <div class="flex items-center gap-2">
-            <span class="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+            <span class="text-[10px] font-bold text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-md">
               ${post.tool_type}
             </span>
-            ${post.op_number ? `<span class="text-[10px] font-mono font-bold text-slate-600">OP: ${post.op_number}</span>` : ''}
+            ${post.op_number ? `<span class="text-[10px] font-mono font-medium text-slate-500">OP: ${post.op_number}</span>` : ''}
           </div>
           <h4 class="text-xs font-bold text-slate-900">${post.title}</h4>
-          <p class="text-[10px] text-slate-400">Fornecedor: <b>${post.supplier}</b> • Concluído em: Agora</p>
+          <p class="text-[10px] text-slate-400">Fornecedor: <b class="text-slate-600">${post.supplier}</b> • Concluído em: Agora</p>
         </div>
-        <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200 whitespace-nowrap">
-          ✔ No Feed
-        </span>
+        <div class="flex items-center gap-2">
+          <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-xl whitespace-nowrap">
+            ✔ No Feed
+          </span>
+        </div>
       `;
       compCont.prepend(div);
 
@@ -1414,10 +1496,10 @@
       article.id = `feed-post-${post.id}`;
       article.className = "bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden";
       article.innerHTML = `
-        <div class="p-5 border-b border-slate-100 bg-gradient-to-b from-slate-50/60 to-white flex items-start justify-between gap-4">
+        <div class="p-5 border-b border-slate-100 flex items-start justify-between gap-4">
           <div class="space-y-1.5">
             <div class="flex flex-wrap items-center gap-2">
-              <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
+              <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
                 ${post.tool_type}
               </span>
               ${post.op_number ? `<span class="text-[11px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">OP: ${post.op_number}</span>` : ''}
@@ -1432,14 +1514,14 @@
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 bg-slate-50/80 rounded-xl border border-slate-100 text-xs">
             <div>
               <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Solicitado por</p>
-              <p onclick="openUserProfileModal('${post.author}')" class="font-bold text-slate-800 flex items-center gap-1.5 mt-0.5 cursor-pointer hover:text-indigo-600 transition">
+              <p onclick="openUserProfileModal('${post.author}')" class="font-bold text-slate-800 flex items-center gap-1.5 mt-0.5 cursor-pointer hover:text-amber-600 transition">
                 <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> ${post.author}
               </p>
             </div>
             <div>
               <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Fornecedor</p>
-              <p class="font-bold text-indigo-700 flex items-center gap-1.5 mt-0.5">
-                <i data-lucide="truck" class="w-3.5 h-3.5 text-indigo-500"></i> ${post.supplier}
+              <p class="font-bold text-amber-700 flex items-center gap-1.5 mt-0.5">
+                <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-500"></i> ${post.supplier}
               </p>
             </div>
             <div>
@@ -1449,7 +1531,7 @@
               </p>
             </div>
           </div>
-          ${post.instructions ? `<div class="p-3.5 bg-indigo-50/40 rounded-xl border border-indigo-100/70 text-xs space-y-1"><span class="font-bold text-indigo-900 flex items-center gap-1.5 text-[11px]"><i data-lucide="file-text" class="w-3.5 h-3.5 text-indigo-600"></i> Especificações Técnicas:</span><p class="text-slate-700 leading-relaxed">${post.instructions}</p></div>` : ''}
+          ${post.instructions ? `<div class="p-3.5 bg-amber-50/30 rounded-xl border border-amber-100/70 text-xs space-y-1"><span class="font-bold text-amber-900 flex items-center gap-1.5 text-[11px]"><i data-lucide="file-text" class="w-3.5 h-3.5 text-amber-600"></i> Especificações Técnicas:</span><p class="text-slate-700 leading-relaxed">${post.instructions}</p></div>` : ''}
         </div>
         ${post.image_url ? `<div class="bg-slate-950 flex items-center justify-center border-y border-slate-200 overflow-hidden"><img src="${post.image_url}" alt="Ferramental Concluído" class="w-full object-cover max-h-[460px]"></div>` : ''}
         <div class="px-5 py-2.5 flex items-center gap-3 bg-white border-b border-slate-100">
@@ -1462,8 +1544,8 @@
           <span class="text-xs font-bold text-slate-700 block">Comentários e Inspeções Técnicas:</span>
           <div id="comments-list-${post.id}" class="space-y-2"></div>
           <form onsubmit="submitCommentSmooth(event, '${post.id}')" class="flex gap-2 pt-1">
-            <input required type="text" name="text" placeholder="Adicionar parecer técnico..." class="flex-1 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-            <button type="submit" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-700 transition shadow-xs">
+            <input required type="text" name="text" placeholder="Adicionar parecer técnico..." class="flex-1 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
+            <button type="submit" class="bg-amber-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-amber-700 transition shadow-xs">
               Publicar
             </button>
           </form>
