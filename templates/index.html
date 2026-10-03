@@ -589,7 +589,7 @@
                   {% endif %}
                 </div>
                 <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
-                  <span onclick="openUserProfileModal('{{ task.assigned_to }}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition">
+                  <span onclick="openUserProfileModal('${task.assigned_to}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition">
                     <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
                   </span>
                   <button type="button" onclick="copyOrderText('{{ task.op_number }}', '{{ task.tool_type }}', '{{ task.title }}', '{{ task.supplier }}', '{{ task.due_date }}', `{{ task.instructions }}`)" class="text-amber-600 hover:text-amber-800 font-semibold flex items-center gap-1 text-[10px] bg-amber-50 px-2 py-0.5 rounded transition">
@@ -632,7 +632,7 @@
                   <p class="text-amber-600 font-mono text-[10px]">📅 Prazo: {{ task.due_date }}</p>
                 </div>
                 <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
-                  <span onclick="openUserProfileModal('{{ task.assigned_to }}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition">
+                  <span onclick="openUserProfileModal('${task.assigned_to}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition">
                     <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
                   </span>
                   <span class="text-blue-600 font-semibold text-[10px] bg-blue-50 px-2 py-0.5 rounded">Em Andamento</span>
@@ -1071,7 +1071,7 @@
         const reqMark = f.required ? '<span class="text-rose-500">*</span>' : '';
         const reqAttr = f.required ? 'required' : '';
 
-        // CORREÇÃO: Leitura e injeção sem falhas de opções para o menu suspenso (select)
+        // Leitura e injeção de opções para o menu suspenso (select)
         if (f.type === 'select') {
           let rawOpts = f.options || '';
           let opts = [];
@@ -1302,7 +1302,7 @@
     }
 
     // ==========================================
-    // 3. POSTAGEM DIRETA NO FEED (ESTILO REDE SOCIAL)
+    // 3. POSTAGEM DIRETA NO FEED
     // ==========================================
     function handlePostImageSelect(input) {
       if (input.files && input.files[0]) {
@@ -1360,7 +1360,53 @@
     }
 
     // ==========================================
-    // 4. BUSCA, NAVEGAÇÃO & KANBAN REATIVO
+    // 4. SUBMISSÃO NÃO-BLOQUEANTE DE DEMANDA
+    // ==========================================
+    async function submitCreateTaskSmooth(e) {
+      e.preventDefault();
+      const form = e.target;
+      const btn = document.getElementById('btn-submit-task');
+
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="animate-spin inline-block mr-2">🌀</span> Delegando...`;
+      }
+
+      const formData = new FormData(form);
+
+      if (!formData.get('title') || formData.get('title').trim() === '') {
+        const anyText = form.querySelector('input[type="text"]')?.value || 'Demanda Operacional';
+        formData.set('title', anyText);
+      }
+
+      try {
+        const res = await fetch('/tasks/create', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          form.reset();
+          switchTab('kanban');
+        } else {
+          alert(data.message || 'Erro ao delegar demanda. Verifique os campos.');
+        }
+      } catch (err) {
+        console.error("Erro na requisição:", err);
+        alert('Falha de conexão com o servidor ao delegar tarefa.');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<i data-lucide="send" class="w-3.5 h-3.5"></i> Delegar Demanda`;
+          lucide.createIcons();
+        }
+      }
+    }
+
+    // ==========================================
+    // 5. BUSCA, NAVEGAÇÃO & KANBAN REATIVO
     // ==========================================
     function isAssignedToMe(assignedTo) {
       if (!assignedTo) return false;
@@ -1531,7 +1577,7 @@
       appendCommentToDOM(postId, "{{ current_user.full_name }}", text);
 
       try {
-        const formData = new FormData();
+        const formData = new FormData(form);
         formData.append('text', text);
         await fetch(`/posts/${postId}/comment`, {
           method: 'POST',
@@ -1700,40 +1746,6 @@
       }
     });
 
-    async function submitCreateTaskSmooth(e) {
-      e.preventDefault();
-      const form = e.target;
-      const btn = document.getElementById('btn-submit-task');
-      if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = `<span class="animate-spin inline-block mr-2">🌀</span> Delegando...`;
-      }
-
-      const formData = new FormData(form);
-
-      try {
-        const res = await fetch('/tasks/create', {
-          method: 'POST',
-          body: formData
-        });
-
-        if (res.ok) {
-          form.reset();
-          if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = `<i data-lucide="send" class="w-3.5 h-3.5"></i> Delegar Demanda`;
-          }
-          switchTab('kanban');
-        }
-      } catch (err) {
-        console.error(err);
-        if (btn) {
-          btn.disabled = false;
-          btn.innerHTML = `<i data-lucide="send" class="w-3.5 h-3.5"></i> Delegar Demanda`;
-        }
-      }
-    }
-
     async function submitCollaborator(e) {
       e.preventDefault();
       const form = e.target;
@@ -1774,7 +1786,7 @@
     }
 
     // ==========================================
-    // 5. WEBSOCKET REATIVO
+    // 6. WEBSOCKET REATIVO
     // ==========================================
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     let socket;
