@@ -138,7 +138,6 @@ def ensure_default_sectors(db: Session):
         db.add_all(default_sectors)
         db.commit()
     else:
-        # Garante que setores antigos sem fields_schema recebam um padrão válido
         sectors = db.query(models.SectorConfig).all()
         for s in sectors:
             if not s.fields_schema or s.fields_schema.strip() == "":
@@ -234,7 +233,6 @@ def home(request: Request, db: Session = Depends(get_db)):
     response.headers["Expires"] = "0"
     return response
 
-# Rota para cadastrar ou editar modelo dinâmico de setor
 @app.post("/api/sectors/save")
 async def save_sector(
     request: Request,
@@ -267,7 +265,6 @@ async def save_sector(
     await manager.broadcast({"type": "REFRESH"})
     return JSONResponse(content={"success": True, "message": "Modelo de setor salvo com sucesso!"})
 
-# Rota para excluir setor customizado
 @app.delete("/api/sectors/{sector_id}")
 async def delete_sector(request: Request, sector_id: int, db: Session = Depends(get_db)):
     current_user = get_current_user(request, db)
@@ -458,10 +455,10 @@ async def create_task(
     sector_id: int = Form(0),
     sector_name: str = Form(""),
     op_number: str = Form(""),
-    tool_type: str = Form(...),
+    tool_type: str = Form("Geral"),
     title: str = Form(...),
     assigned_to: str = Form(...),
-    supplier: str = Form(...),
+    supplier: str = Form("Interno"),
     instructions: str = Form(""),
     due_date: str = Form(...),
     image: UploadFile = File(None),
@@ -487,7 +484,7 @@ async def create_task(
         title=title.strip(),
         delegated_by=delegator,
         assigned_to=clean_assigned_to,
-        supplier=supplier.strip(),
+        supplier=supplier.strip() or "Interno",
         instructions=instructions.strip(),
         due_date=due_date.strip(),
         status="Atribuído",
@@ -517,6 +514,64 @@ async def create_task(
     await manager.broadcast(task_payload)
 
     return JSONResponse(content={"success": True, "task": task_payload["task"]})
+
+# NOVA ROTA: CRIAÇÃO DIRETA DE POSTS NO FEED (ESTILO INSTAGRAM)
+@app.post("/posts/create-direct")
+async def create_direct_post(
+    request: Request,
+    title: str = Form(...),
+    tool_type: str = Form("Geral"),
+    op_number: str = Form(""),
+    supplier: str = Form("Interno"),
+    instructions: str = Form(""),
+    image: UploadFile = File(None),
+    db: Session = Depends(get_db)
+):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Sessão expirada."})
+
+    image_url = None
+    if image and image.filename:
+        file_path = f"uploads/{image.filename}"
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(image.file, buffer)
+        image_url = f"/{file_path}"
+
+    post = models.Post(
+        author=current_user.full_name,
+        delegated_by=current_user.full_name,
+        supplier=supplier.strip() or "Interno",
+        tool_type=tool_type.strip() or "Geral",
+        op_number=op_number.strip(),
+        title=title.strip(),
+        instructions=instructions.strip(),
+        due_date="Concluído",
+        image_url=image_url
+    )
+    db.add(post)
+    db.commit()
+
+    post_payload = {
+        "type": "POST_CREATED",
+        "post": {
+            "id": post.id,
+            "author": post.author,
+            "tool_type": post.tool_type,
+            "op_number": post.op_number,
+            "title": post.title,
+            "supplier": post.supplier,
+            "due_date": post.due_date,
+            "instructions": post.instructions,
+            "image_url": post.image_url,
+            "created_at": post.created_at.strftime('%d/%m/%Y %H:%M') if post.created_at else "",
+            "likes": 0,
+            "comments": []
+        }
+    }
+    await manager.broadcast(post_payload)
+
+    return JSONResponse(content={"success": True, "post": post_payload["post"]})
 
 class StatusUpdate(BaseModel):
     status: str
