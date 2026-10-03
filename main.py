@@ -53,7 +53,7 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_text()
-            # Responde a pings para manter o canal ativo contra timeouts do Render
+            # Mantém conexão viva respondendo ao heartbeat do cliente
             if data == "ping":
                 await websocket.send_text("pong")
     except WebSocketDisconnect:
@@ -90,7 +90,7 @@ def home(request: Request, db: Session = Depends(get_db)):
 
     team_user_names = [u.full_name for u in team_users]
 
-    # Tarefas da equipe inteira (atribuídas ou delegadas por membros da equipe)
+    # Tarefas da equipe inteira (atribuídas ou delegadas)
     all_tasks = db.query(models.Task).filter(
         or_(
             models.Task.assigned_to.in_(team_user_names),
@@ -98,7 +98,7 @@ def home(request: Request, db: Session = Depends(get_db)):
         )
     ).all()
 
-    # Feed unificado: qualquer post produzido ou delegado por alguém da equipe
+    # Feed unificado da equipe
     posts = db.query(models.Post).filter(
         or_(
             models.Post.author.in_(team_user_names),
@@ -120,6 +120,7 @@ def home(request: Request, db: Session = Depends(get_db)):
 
         collaborators.append({
             "name": u.full_name,
+            "username": u.username,
             "role": u.role,
             "department": getattr(u, 'department', 'Produção / Pré-Impressão'),
             "active_tasks": active_count,
@@ -222,7 +223,6 @@ async def register(
     redirect.set_cookie(key="user_session", value=clean_username, httponly=True)
     return redirect
 
-# CADASTRO VINCULADO À EQUIPE DO GESTOR (Com atualização se já existir)
 @app.post("/api/users/add-collaborator")
 async def add_collaborator(
     request: Request,
@@ -251,7 +251,13 @@ async def add_collaborator(
         existing.manager_id = manager_ref_id
         db.commit()
 
-        await manager.broadcast({"type": "REFRESH"})
+        await manager.broadcast({
+            "type": "USER_UPSERTED",
+            "name": full_name,
+            "username": clean_username,
+            "role": role,
+            "department": department
+        })
         return JSONResponse(content={"success": True, "message": "Colaborador vinculado à sua equipe com sucesso!"})
 
     new_user = models.User(
@@ -264,11 +270,16 @@ async def add_collaborator(
     db.add(new_user)
     db.commit()
 
-    await manager.broadcast({"type": "REFRESH"})
+    await manager.broadcast({
+        "type": "USER_UPSERTED",
+        "name": full_name,
+        "username": clean_username,
+        "role": role,
+        "department": department
+    })
 
-    return JSONResponse(content={"success": True, "message": "Colaborador adicionado à sua equipe com sucesso!"})
+    return JSONResponse(content={"success": True, "message": "Colaborador adicionado com sucesso!"})
 
-# EXCLUIR COLABORADOR DA EQUIPE DIRETAMENTE PELO SITE
 @app.delete("/api/users/{username}")
 async def delete_user(request: Request, username: str, db: Session = Depends(get_db)):
     current_user = get_current_user(request, db)
@@ -290,10 +301,19 @@ async def delete_user(request: Request, username: str, db: Session = Depends(get
     if user_to_delete.manager_id != current_user.id:
         return JSONResponse(status_code=403, content={"success": False, "message": "Este colaborador não pertence à sua equipe."})
 
+    del_username = user_to_delete.username
+    del_full_name = user_to_delete.full_name
+
     db.delete(user_to_delete)
     db.commit()
 
-    await manager.broadcast({"type": "REFRESH"})
+    # Transmite exclusão granular sem provocar recarregamento da janela
+    await manager.broadcast({
+        "type": "USER_DELETED",
+        "username": del_username,
+        "full_name": del_full_name
+    })
+
     return JSONResponse(content={"success": True, "message": "Colaborador removido com sucesso!"})
 
 @app.get("/logout")
@@ -316,7 +336,7 @@ async def create_task(
     db: Session = Depends(get_db)
 ):
     current_user = get_current_user(request, db)
-    delegator = current_user.full_name if current_user else "Robson Ramos (Gestão)"
+    delegator = current_user.full_name if current_user else "Gestão"
 
     image_url = None
     if image and image.filename:
@@ -340,7 +360,27 @@ async def create_task(
     db.add(new_task)
     db.commit()
 
-    await manager.broadcast({"type": "REFRESH"})
+    task_payload = {
+        "type": "TASK_CREATED",
+        "task": {
+            "id": new_task.id,
+            "op_number": new_task.op_number,
+            "tool_type": new_task.tool_type,
+            "title": new_task.title,
+            "delegated_by": new_task.delegated_by,
+            "assigned_to": new_task.assigned_to,
+            "supplier": new_task.supplier,
+            "instructions": new_task.instructions,
+            "due_date": new_task.due_date,
+            "status": new_task.status,
+            "image_url": new_task.image_url
+        }
+    }
+    await manager.broadcast(task_payload)
+
+    # Se a requisição veio de fetch assíncrono, responde com JSON
+    if request.headers.get("accept", "").find("application/json") != -1 or request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return JSONResponse(content={"success": True, "task": task_payload["task"]})
 
     return RedirectResponse(url="/", status_code=303)
 
@@ -358,6 +398,8 @@ async def update_task_status_api(task_id: int, payload: StatusUpdate, db: Sessio
     task.status = new_status
 
     published = False
+    new_post_payload = None
+
     if new_status == "Aprovado" and old_status != "Aprovado":
         post = models.Post(
             author=task.assigned_to,
@@ -371,34 +413,71 @@ async def update_task_status_api(task_id: int, payload: StatusUpdate, db: Sessio
             image_url=task.image_url
         )
         db.add(post)
+        db.commit()
         published = True
 
-    db.commit()
+        new_post_payload = {
+            "id": post.id,
+            "author": post.author,
+            "tool_type": post.tool_type,
+            "op_number": post.op_number,
+            "title": post.title,
+            "supplier": post.supplier,
+            "due_date": post.due_date,
+            "instructions": post.instructions,
+            "image_url": post.image_url,
+            "likes": 0,
+            "comments": []
+        }
+    else:
+        db.commit()
 
-    # Dispara o evento de atualização em tempo real para todos os clientes conectados
-    await manager.broadcast({"type": "REFRESH"})
+    # Emite atualização seletiva para a interface sem refresh geral
+    await manager.broadcast({
+        "type": "TASK_STATUS_UPDATED",
+        "task_id": task_id,
+        "new_status": new_status,
+        "assigned_to": task.assigned_to,
+        "published_to_feed": published,
+        "post": new_post_payload
+    })
 
-    return {"success": True, "published_to_feed": published}
+    return {"success": True, "published_to_feed": published, "new_status": new_status}
 
+# ROTA SILENCIOSA DE CURTIDAS (SEM REDIRECIONAR / SEM RELOAD)
 @app.post("/posts/{post_id}/like")
 async def like_post(post_id: int, db: Session = Depends(get_db)):
     post = db.query(models.Post).filter(models.Post.id == post_id).first()
-    if post:
-        post.likes += 1
-        db.commit()
-        await manager.broadcast({"type": "REFRESH"})
+    if not post:
+        return JSONResponse(status_code=404, content={"success": False, "message": "Post não encontrado"})
+    
+    post.likes += 1
+    db.commit()
+    
+    await manager.broadcast({
+        "type": "POST_LIKED",
+        "post_id": post_id,
+        "likes": post.likes
+    })
 
-    return RedirectResponse(url="/", status_code=303)
+    return JSONResponse(content={"success": True, "likes": post.likes})
 
+# ROTA SILENCIOSA DE COMENTÁRIOS (SEM REDIRECIONAR / SEM RELOAD)
 @app.post("/posts/{post_id}/comment")
 async def add_comment(request: Request, post_id: int, text: str = Form(...), db: Session = Depends(get_db)):
     current_user = get_current_user(request, db)
-    author_name = current_user.full_name if current_user else "Robson Ramos"
+    author_name = current_user.full_name if current_user else "Colaborador"
 
-    comment = models.Comment(post_id=post_id, author=author_name, text=text)
+    comment = models.Comment(post_id=post_id, author=author_name, text=text.strip())
     db.add(comment)
     db.commit()
 
-    await manager.broadcast({"type": "REFRESH"})
+    comment_data = {
+        "type": "NEW_COMMENT",
+        "post_id": post_id,
+        "author": author_name,
+        "text": text.strip()
+    }
+    await manager.broadcast(comment_data)
 
-    return RedirectResponse(url="/", status_code=303)
+    return JSONResponse(content={"success": True, "comment": comment_data})
