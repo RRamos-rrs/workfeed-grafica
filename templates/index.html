@@ -372,16 +372,78 @@
 
       </section>
 
-      <!-- ================= ABA 1: FEED GERAL ================= -->
+      <!-- ================= ABA 1: FEED GERAL COM POSTAGEM ESTILO INSTAGRAM ================= -->
       <section id="content-feed" class="hidden max-w-2xl mx-auto space-y-6">
+        
         <div class="flex items-center justify-between px-1">
           <div>
             <h2 class="text-base font-bold text-slate-900 tracking-tight">Feed de Conclusões & Entregas</h2>
-            <p class="text-xs text-slate-500">Histórico de demandas concluídas e validadas por todos os setores</p>
+            <p class="text-xs text-slate-500">Compartilhe fotos de serviços concluídos ou acompanhe as entregas da equipe</p>
           </div>
           <span id="badge-feed-total" class="text-xs font-mono font-bold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
             {{ posts|length }} registro(s)
           </span>
+        </div>
+
+        <!-- CARD DE PUBLICAÇÃO RÁPIDA ESTILO REDE SOCIAL -->
+        <div class="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-amber-500 text-white font-black text-sm flex items-center justify-center shadow-xs">
+              {{ current_user.full_name[:2]|upper }}
+            </div>
+            <div>
+              <p class="text-xs font-bold text-slate-900">{{ current_user.full_name }}</p>
+              <span class="text-[10px] text-slate-400">Publicar um trabalho ou foto no feed da equipe</span>
+            </div>
+          </div>
+
+          <form id="form-direct-post" onsubmit="submitDirectPost(event)" class="space-y-3">
+            <div>
+              <textarea 
+                required 
+                name="title" 
+                rows="2" 
+                placeholder="O que você concluiu hoje? Descreva o trabalho realizado..." 
+                class="w-full text-xs p-3.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-slate-50/60 resize-none"></textarea>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <input 
+                type="text" 
+                name="tool_type" 
+                placeholder="Setor / Categoria (Ex: Offset, Acabamento, Faca)" 
+                class="px-3 py-2 rounded-xl border border-slate-200 focus:ring-1 focus:ring-amber-500 bg-slate-50/40">
+              
+              <input 
+                type="text" 
+                name="op_number" 
+                placeholder="Nº da OP ou Ref. (Opcional)" 
+                class="px-3 py-2 rounded-xl border border-slate-200 focus:ring-1 focus:ring-amber-500 font-mono bg-slate-50/40">
+            </div>
+
+            <!-- PREVIEW DE IMAGEM -->
+            <div class="flex items-center justify-between pt-2 border-t border-slate-100 gap-3">
+              <label class="cursor-pointer flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-amber-600 px-3 py-2 rounded-xl border border-slate-200 hover:bg-amber-50/50 transition">
+                <i data-lucide="image" class="w-4 h-4 text-amber-500"></i>
+                <span id="label-image-text">Adicionar Foto</span>
+                <input type="file" name="image" accept="image/*" class="hidden" onchange="handlePostImageSelect(this)">
+              </label>
+
+              <button 
+                id="btn-submit-direct-post" 
+                type="submit" 
+                class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-2 px-5 rounded-xl shadow-xs transition flex items-center gap-1.5 active:scale-95">
+                <i data-lucide="send" class="w-3.5 h-3.5"></i> Publicar
+              </button>
+            </div>
+            
+            <div id="post-image-preview-container" class="hidden relative rounded-xl overflow-hidden border border-slate-200 max-h-48 bg-slate-900">
+              <img id="post-image-preview" src="" class="w-full h-48 object-cover">
+              <button type="button" onclick="clearSelectedImage()" class="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1 hover:bg-rose-600 transition">
+                <i data-lucide="x" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </form>
         </div>
 
         <div id="feed-posts-container" class="space-y-6">
@@ -409,21 +471,21 @@
             <div class="p-5 space-y-4">
               <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 bg-slate-50/80 rounded-xl border border-slate-100 text-xs">
                 <div>
-                  <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Executado por</p>
-                  <p onclick="openUserProfileModal('${post.author}')" class="font-bold text-slate-800 flex items-center gap-1.5 mt-0.5 cursor-pointer hover:text-amber-600 transition">
-                    <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> ${post.author}
+                  <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Publicado por</p>
+                  <p onclick="openUserProfileModal('{{ post.author }}')" class="font-bold text-slate-800 flex items-center gap-1.5 mt-0.5 cursor-pointer hover:text-amber-600 transition">
+                    <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> {{ post.author }}
                   </p>
                 </div>
                 <div>
                   <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Destino / Solicitante</p>
                   <p class="font-bold text-amber-700 flex items-center gap-1.5 mt-0.5">
-                    <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-500"></i> ${post.supplier}
+                    <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-500"></i> {{ post.supplier }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Data de Limite</p>
+                  <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Data de Registro</p>
                   <p class="font-semibold text-slate-700 flex items-center gap-1.5 mt-0.5 font-mono">
-                    <i data-lucide="calendar" class="w-3.5 h-3.5 text-amber-500"></i> ${post.due_date}
+                    <i data-lucide="calendar" class="w-3.5 h-3.5 text-amber-500"></i> {{ post.created_at.strftime('%d/%m/%Y %H:%M') if post.created_at else post.due_date }}
                   </p>
                 </div>
               </div>
@@ -446,17 +508,24 @@
 
             <!-- BOTÃO DE LIKE REATIVO -->
             <div class="px-5 py-2.5 flex items-center gap-3 bg-white border-b border-slate-100">
-              <button type="button" onclick="likePostSmooth('${post.id}')" class="flex items-center gap-1.5 text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-lg hover:bg-rose-100 active:scale-95 transition shadow-2xs">
+              <button type="button" onclick="likePostSmooth('{{ post.id }}')" class="flex items-center gap-1.5 text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-lg hover:bg-rose-100 active:scale-95 transition shadow-2xs">
                 <i data-lucide="heart" class="w-3.5 h-3.5 fill-rose-600"></i> 
-                <span id="post-likes-${post.id}">{{ post.likes }}</span> Validações
+                <span id="post-likes-{{ post.id }}">{{ post.likes }}</span> Validações
               </button>
             </div>
 
             <!-- COMENTÁRIOS REATIVOS -->
             <div class="p-5 bg-slate-50/70 space-y-3">
               <span class="text-xs font-bold text-slate-700 block">Comentários e Pareceres Técnicos:</span>
-              <div id="comments-list-${post.id}" class="space-y-2"></div>
-              <form onsubmit="submitCommentSmooth(event, '${post.id}')" class="flex gap-2 pt-1">
+              <div id="comments-list-{{ post.id }}" class="space-y-2">
+                {% for c in post.comments %}
+                <div class="bg-white p-3 rounded-xl border border-slate-200/80 text-xs shadow-2xs">
+                  <span class="font-bold text-slate-900">{{ c.author }}:</span> 
+                  <span class="text-slate-700 ml-1">{{ c.text }}</span>
+                </div>
+                {% endfor %}
+              </div>
+              <form onsubmit="submitCommentSmooth(event, '{{ post.id }}')" class="flex gap-2 pt-1">
                 <input required type="text" name="text" placeholder="Adicionar parecer sobre esta entrega..." class="flex-1 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
                 <button type="submit" class="bg-amber-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-amber-700 transition shadow-xs">
                   Publicar
@@ -826,9 +895,9 @@
               <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Adicionar Campo
             </button>
           </div>
-          <p class="text-[11px] text-slate-400">Defina os campos deste setor. Eles serão renderizados no formulário de delegação.</p>
+          <p class="text-[11px] text-slate-400">Ao selecionar <b>Lista / Opções</b>, digite os itens separados por vírgula no campo indicado.</p>
 
-          <div id="builder-fields-list" class="space-y-2 max-h-[280px] overflow-y-auto p-1">
+          <div id="builder-fields-list" class="space-y-2.5 max-h-[300px] overflow-y-auto p-1">
             <!-- Itens de campos criados dinamicamente via JS -->
           </div>
         </div>
@@ -949,7 +1018,7 @@
     lucide.createIcons();
     const CURRENT_USER_NAME = "{{ current_user.full_name }}".trim().toLowerCase();
 
-    // DADOS DE SETORES (PARSING SEGURO DO JSON)
+    // DADOS DE SETORES (COM PARSER DEFENSIVO)
     const SECTORS_DATA = [
       {% for sec in sectors %}
       {
@@ -978,13 +1047,11 @@
       if (!sector) return;
       currentSelectedSectorId = sectorId;
 
-      // Atualiza inputs ocultos para persistir o setor na tarefa
       const secIdInput = document.getElementById('task-sector-id');
       const secNameInput = document.getElementById('task-sector-name');
       if (secIdInput) secIdInput.value = sector.id;
       if (secNameInput) secNameInput.value = sector.name;
 
-      // Estilo das pílulas de seleção
       document.querySelectorAll('.sector-pill-btn').forEach(btn => {
         btn.className = "sector-pill-btn p-3 rounded-xl border text-left transition flex flex-col justify-between h-20 bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100";
       });
@@ -996,7 +1063,6 @@
       document.getElementById('dynamic-form-header-title').textContent = `Delegar Demanda • ${sector.name}`;
       document.getElementById('dynamic-sector-badge').textContent = `${sector.icon} ${sector.name}`;
 
-      // Monta os campos definidos pelo modelo do setor
       const container = document.getElementById('dynamic-fields-container');
       container.innerHTML = '';
 
@@ -1005,8 +1071,20 @@
         const reqMark = f.required ? '<span class="text-rose-500">*</span>' : '';
         const reqAttr = f.required ? 'required' : '';
 
+        // CORREÇÃO: Leitura e injeção sem falhas de opções para o menu suspenso (select)
         if (f.type === 'select') {
-          const opts = (f.options || '').split(',').map(o => o.trim()).filter(Boolean);
+          let rawOpts = f.options || '';
+          let opts = [];
+          if (Array.isArray(rawOpts)) {
+            opts = rawOpts;
+          } else if (typeof rawOpts === 'string') {
+            opts = rawOpts.split(',').map(o => o.trim()).filter(Boolean);
+          }
+
+          if (opts.length === 0) {
+            opts = ['Padrão / Geral'];
+          }
+
           const optHtml = opts.map(o => `<option value="${o}">${sector.icon} ${o}</option>`).join('');
           wrap.innerHTML = `
             <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">${f.label} ${reqMark}</label>
@@ -1078,7 +1156,7 @@
       document.getElementById('builder-sector-name').value = sector.name;
       document.getElementById('builder-btn-delete-sector').classList.remove('hidden');
 
-      builderCurrentFields = JSON.parse(JSON.stringify(sector.fields));
+      builderCurrentFields = JSON.parse(JSON.stringify(sector.fields || []));
       renderBuilderFieldsList();
     }
 
@@ -1109,6 +1187,7 @@
         item.className = "p-3 bg-white border border-slate-200 rounded-xl space-y-2.5 shadow-2xs";
 
         const isSelect = f.type === 'select';
+        const optionsVal = f.options || '';
 
         item.innerHTML = `
           <div class="flex items-center justify-between gap-2">
@@ -1133,13 +1212,25 @@
             </div>
             <div>
               <label class="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">${isSelect ? 'Opções (separadas por vírgula)' : 'Placeholder / Exemplo'}</label>
-              <input type="text" oninput="isSelect ? builderCurrentFields[${idx}].options = this.value : builderCurrentFields[${idx}].placeholder = this.value" value="${isSelect ? (f.options || '') : (f.placeholder || '')}" placeholder="${isSelect ? 'Opção 1, Opção 2' : 'Ex: Preencha...'}" class="w-full px-2.5 py-1.5 border rounded-lg text-xs font-semibold">
+              <input type="text" 
+                oninput="handleBuilderOptionsInput(${idx}, this.value, ${isSelect})" 
+                value="${isSelect ? optionsVal : (f.placeholder || '')}" 
+                placeholder="${isSelect ? 'Faca, Clichê, Relevo' : 'Ex: Preencha...'}" 
+                class="w-full px-2.5 py-1.5 border rounded-lg text-xs font-semibold focus:ring-1 focus:ring-amber-500">
             </div>
           </div>
         `;
         container.appendChild(item);
       });
       lucide.createIcons();
+    }
+
+    function handleBuilderOptionsInput(idx, value, isSelect) {
+      if (isSelect) {
+        builderCurrentFields[idx].options = value;
+      } else {
+        builderCurrentFields[idx].placeholder = value;
+      }
     }
 
     function addFieldToBuilder() {
@@ -1155,8 +1246,10 @@
 
     function updateBuilderFieldType(idx, newType) {
       builderCurrentFields[idx].type = newType;
-      if (newType === 'select' && !builderCurrentFields[idx].options) {
-        builderCurrentFields[idx].options = "Opção 1, Opção 2";
+      if (newType === 'select') {
+        if (!builderCurrentFields[idx].options) {
+          builderCurrentFields[idx].options = "Opção 1, Opção 2, Opção 3";
+        }
       }
       renderBuilderFieldsList();
     }
@@ -1209,7 +1302,65 @@
     }
 
     // ==========================================
-    // 3. BUSCA, NAVEGAÇÃO & KANBAN REATIVO
+    // 3. POSTAGEM DIRETA NO FEED (ESTILO REDE SOCIAL)
+    // ==========================================
+    function handlePostImageSelect(input) {
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('post-image-preview').src = e.target.result;
+          document.getElementById('post-image-preview-container').classList.remove('hidden');
+          document.getElementById('label-image-text').textContent = 'Trocar Foto';
+          lucide.createIcons();
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+
+    function clearSelectedImage() {
+      const input = document.querySelector('#form-direct-post input[name="image"]');
+      if (input) input.value = '';
+      document.getElementById('post-image-preview-container').classList.add('hidden');
+      document.getElementById('label-image-text').textContent = 'Adicionar Foto';
+    }
+
+    async function submitDirectPost(e) {
+      e.preventDefault();
+      const form = e.target;
+      const btn = document.getElementById('btn-submit-direct-post');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="animate-spin inline-block mr-1">🌀</span> Publicando...`;
+      }
+
+      const formData = new FormData(form);
+
+      try {
+        const res = await fetch('/posts/create-direct', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          form.reset();
+          clearSelectedImage();
+        } else {
+          alert(data.message || "Erro ao publicar no feed.");
+        }
+      } catch (err) {
+        console.error("Erro ao postar:", err);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<i data-lucide="send" class="w-3.5 h-3.5"></i> Publicar`;
+          lucide.createIcons();
+        }
+      }
+    }
+
+    // ==========================================
+    // 4. BUSCA, NAVEGAÇÃO & KANBAN REATIVO
     // ==========================================
     function isAssignedToMe(assignedTo) {
       if (!assignedTo) return false;
@@ -1623,7 +1774,7 @@
     }
 
     // ==========================================
-    // 4. WEBSOCKET REATIVO
+    // 5. WEBSOCKET REATIVO
     // ==========================================
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     let socket;
@@ -1655,6 +1806,9 @@
           else if (data.type === "POST_LIKED") {
             const likesElem = document.getElementById(`post-likes-${data.post_id}`);
             if (likesElem) likesElem.textContent = data.likes;
+          }
+          else if (data.type === "POST_CREATED") {
+            insertPostToFeedDOM(data.post);
           }
           else if (data.type === "TASK_STATUS_UPDATED") {
             moveTaskVisual(data.task_id, data.new_status, data.assigned_to);
@@ -1756,7 +1910,7 @@
         <h4 class="text-sm font-bold text-slate-900 leading-snug">${task.title}</h4>
         <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1">
           <p class="flex items-center gap-1.5 font-semibold text-slate-700">
-            <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-600"></i> ${task.supplier}
+            <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-600"></i> Solicitante/Destino: ${task.supplier}
           </p>
           <p class="text-amber-700 font-semibold font-mono text-[10px]">
             📅 Prazo Limite: ${task.due_date}
@@ -1767,7 +1921,7 @@
           <button type="button" onclick="copyOrderText('${task.op_number}', '${task.tool_type}', '${task.title}', '${task.supplier}', '${task.due_date}', \`${task.instructions || ''}\`)" class="text-slate-600 hover:text-amber-600 font-semibold flex items-center gap-1 text-[11px] transition">
             <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Demanda
           </button>
-          <button onclick="updateTaskStatusFast('${task.id}', 'Em Produção')" class="text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-xl transition border border-blue-200 flex items-center gap-1">
+          <button onclick="updateTaskStatusFast('${task.id}', 'Em Produção')" class="text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition border border-blue-200 flex items-center gap-1">
             Iniciar Execução <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
           </button>
         </div>
@@ -1841,7 +1995,7 @@
         <div class="p-5 space-y-4">
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 bg-slate-50/80 rounded-xl border border-slate-100 text-xs">
             <div>
-              <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Executado por</p>
+              <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Publicado por</p>
               <p onclick="openUserProfileModal('${post.author}')" class="font-bold text-slate-800 flex items-center gap-1.5 mt-0.5 cursor-pointer hover:text-amber-600 transition">
                 <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> ${post.author}
               </p>
@@ -1853,9 +2007,9 @@
               </p>
             </div>
             <div>
-              <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Data de Limite</p>
+              <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Data de Registro</p>
               <p class="font-semibold text-slate-700 flex items-center gap-1.5 mt-0.5 font-mono">
-                <i data-lucide="calendar" class="w-3.5 h-3.5 text-amber-500"></i> ${post.due_date}
+                <i data-lucide="calendar" class="w-3.5 h-3.5 text-amber-500"></i> ${post.created_at || post.due_date}
               </p>
             </div>
           </div>
