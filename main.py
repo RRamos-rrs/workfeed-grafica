@@ -28,10 +28,17 @@ except Exception as e:
     print(f"Aviso de migração automática: {e}")
 
 models.Base.metadata.create_all(bind=engine)
+
+# Diretórios necessários para uploads e arquivos estáticos (logo, favicon, etc.)
 os.makedirs("uploads", exist_ok=True)
+os.makedirs("static/img", exist_ok=True)
 
 app = FastAPI()
+
+# Montagem dos arquivos estáticos
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 templates = Jinja2Templates(directory="templates")
 
 class ConnectionManager:
