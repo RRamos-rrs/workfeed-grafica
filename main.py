@@ -12,7 +12,6 @@ from pydantic import BaseModel
 import models
 from database import engine, get_db
 
-# Garante que a coluna manager_id exista na tabela users ativa antes de qualquer consulta
 try:
     with engine.begin() as conn:
         conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS manager_id INTEGER REFERENCES users(id);"))
@@ -53,7 +52,6 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_text()
-            # Mantém conexão viva respondendo ao heartbeat do cliente
             if data == "ping":
                 await websocket.send_text("pong")
     except WebSocketDisconnect:
@@ -67,7 +65,6 @@ def get_current_user(request: Request, db: Session):
         return None
     return db.query(models.User).filter(models.User.username == username).first()
 
-# ROTA PRINCIPAL (Isolamento por equipe e Feed unificado)
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request, db: Session = Depends(get_db)):
     current_user = get_current_user(request, db)
@@ -76,11 +73,8 @@ def home(request: Request, db: Session = Depends(get_db)):
 
     role_normalized = (current_user.role or "").strip().lower()
     is_manager = role_normalized in ["gestor", "manager", "admin"]
-    
-    # Identifica o ID do Gestor da equipe
     manager_ref_id = current_user.id if is_manager else current_user.manager_id
 
-    # Busca todos os membros da mesma equipe (gestor + colaboradores)
     if manager_ref_id:
         team_users = db.query(models.User).filter(
             or_(models.User.id == manager_ref_id, models.User.manager_id == manager_ref_id)
@@ -90,7 +84,6 @@ def home(request: Request, db: Session = Depends(get_db)):
 
     team_user_names = [u.full_name for u in team_users]
 
-    # Tarefas da equipe inteira (atribuídas ou delegadas)
     all_tasks = db.query(models.Task).filter(
         or_(
             models.Task.assigned_to.in_(team_user_names),
@@ -98,7 +91,6 @@ def home(request: Request, db: Session = Depends(get_db)):
         )
     ).all()
 
-    # Feed unificado da equipe
     posts = db.query(models.Post).filter(
         or_(
             models.Post.author.in_(team_user_names),
@@ -251,14 +243,8 @@ async def add_collaborator(
         existing.manager_id = manager_ref_id
         db.commit()
 
-        await manager.broadcast({
-            "type": "USER_UPSERTED",
-            "name": full_name,
-            "username": clean_username,
-            "role": role,
-            "department": department
-        })
-        return JSONResponse(content={"success": True, "message": "Colaborador vinculado à sua equipe com sucesso!"})
+        await manager.broadcast({"type": "REFRESH"})
+        return JSONResponse(content={"success": True, "message": "Colaborador vinculado com sucesso!"})
 
     new_user = models.User(
         full_name=full_name,
@@ -270,14 +256,7 @@ async def add_collaborator(
     db.add(new_user)
     db.commit()
 
-    await manager.broadcast({
-        "type": "USER_UPSERTED",
-        "name": full_name,
-        "username": clean_username,
-        "role": role,
-        "department": department
-    })
-
+    await manager.broadcast({"type": "REFRESH"})
     return JSONResponse(content={"success": True, "message": "Colaborador adicionado com sucesso!"})
 
 @app.delete("/api/users/{username}")
@@ -307,7 +286,6 @@ async def delete_user(request: Request, username: str, db: Session = Depends(get
     db.delete(user_to_delete)
     db.commit()
 
-    # Transmite exclusão granular sem provocar recarregamento da janela
     await manager.broadcast({
         "type": "USER_DELETED",
         "username": del_username,
@@ -378,11 +356,7 @@ async def create_task(
     }
     await manager.broadcast(task_payload)
 
-    # Se a requisição veio de fetch assíncrono, responde com JSON
-    if request.headers.get("accept", "").find("application/json") != -1 or request.headers.get("x-requested-with") == "XMLHttpRequest":
-        return JSONResponse(content={"success": True, "task": task_payload["task"]})
-
-    return RedirectResponse(url="/", status_code=303)
+    return JSONResponse(content={"success": True, "task": task_payload["task"]})
 
 class StatusUpdate(BaseModel):
     status: str
@@ -426,16 +400,17 @@ async def update_task_status_api(task_id: int, payload: StatusUpdate, db: Sessio
             "due_date": post.due_date,
             "instructions": post.instructions,
             "image_url": post.image_url,
+            "created_at": post.created_at.strftime('%d/%m/%Y %H:%M') if post.created_at else "",
             "likes": 0,
             "comments": []
         }
     else:
         db.commit()
 
-    # Emite atualização seletiva para a interface sem refresh geral
     await manager.broadcast({
         "type": "TASK_STATUS_UPDATED",
         "task_id": task_id,
+        "old_status": old_status,
         "new_status": new_status,
         "assigned_to": task.assigned_to,
         "published_to_feed": published,
@@ -444,7 +419,6 @@ async def update_task_status_api(task_id: int, payload: StatusUpdate, db: Sessio
 
     return {"success": True, "published_to_feed": published, "new_status": new_status}
 
-# ROTA SILENCIOSA DE CURTIDAS (SEM REDIRECIONAR / SEM RELOAD)
 @app.post("/posts/{post_id}/like")
 async def like_post(post_id: int, db: Session = Depends(get_db)):
     post = db.query(models.Post).filter(models.Post.id == post_id).first()
@@ -462,7 +436,6 @@ async def like_post(post_id: int, db: Session = Depends(get_db)):
 
     return JSONResponse(content={"success": True, "likes": post.likes})
 
-# ROTA SILENCIOSA DE COMENTÁRIOS (SEM REDIRECIONAR / SEM RELOAD)
 @app.post("/posts/{post_id}/comment")
 async def add_comment(request: Request, post_id: int, text: str = Form(...), db: Session = Depends(get_db)):
     current_user = get_current_user(request, db)
