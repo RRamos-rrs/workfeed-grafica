@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WorkFeed Gráfica - Gestão Integrada de Demandas</title>
+  
+  <!-- FAVICON -->
+  <link rel="icon" type="image/png" href="/static/img/logo.png">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -25,13 +29,13 @@
   <header class="bg-[#0b1e36] text-white sticky top-0 z-50 shadow-md">
     <div class="max-w-[1440px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
       
-      <!-- LOGO -->
-      <div class="flex items-center gap-3 cursor-pointer select-none" onclick="switchTab('my-profile')">
-        <div class="w-9 h-9 bg-[#173a67] border border-blue-900/60 rounded-xl flex items-center justify-center font-black text-lg text-white shadow-inner">
-          W
+      <!-- LOGO INTEGRADA -->
+      <div class="flex items-center gap-3 cursor-pointer select-none group" onclick="switchTab('my-profile')">
+        <div class="h-10 bg-white/95 px-2.5 py-1 rounded-xl shadow-sm border border-slate-200/20 flex items-center justify-center transition-transform group-hover:scale-105">
+          <img src="/static/img/logo.png" alt="WorkFeed Gráfica" class="h-8 w-auto object-contain">
         </div>
         <div>
-          <span class="text-base font-extrabold tracking-tight block leading-tight text-white">
+          <span class="text-base font-extrabold tracking-tight block leading-tight text-white group-hover:text-amber-400 transition-colors">
             WorkFeed <span class="text-amber-500 font-extrabold">Gráfica</span>
           </span>
           <p class="text-[9px] uppercase font-bold tracking-widest text-slate-400">Gestão Integrada de Demandas</p>
@@ -771,7 +775,7 @@
             {% for sec in sectors %}
             <button 
               type="button" 
-              id="sector-pill-btn-{{ sec.id }}"
+              id="sector-pill-btn-{{ sec.id }}" 
               onclick="applySectorTemplate({{ sec.id }})" 
               class="sector-pill-btn p-3 rounded-xl border text-left transition flex flex-col justify-between h-20 {% if loop.first %}bg-amber-50 border-amber-400 text-amber-900 shadow-xs{% else %}bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100{% endif %}">
               <span class="text-xl">{{ sec.icon }}</span>
