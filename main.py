@@ -1,5 +1,6 @@
 import os
 import shutil
+import json
 from typing import List
 from fastapi import FastAPI, Depends, Request, Form, UploadFile, File, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -12,11 +13,16 @@ from pydantic import BaseModel
 import models
 from database import engine, get_db
 
-# Garante migração de colunas necessárias
+# Garante migração automática de colunas necessárias
 try:
     with engine.begin() as conn:
         conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS manager_id INTEGER REFERENCES users(id);"))
         conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS department VARCHAR(100) DEFAULT 'Produção / Pré-Impressão';"))
+        conn.execute(text("ALTER TABLE sector_configs ADD COLUMN IF NOT EXISTS fields_schema TEXT;"))
+        conn.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS sector_id INTEGER;"))
+        conn.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS sector_name VARCHAR(100);"))
+        conn.execute(text("ALTER TABLE posts ADD COLUMN IF NOT EXISTS sector_id INTEGER;"))
+        conn.execute(text("ALTER TABLE posts ADD COLUMN IF NOT EXISTS sector_name VARCHAR(100);"))
 except Exception as e:
     print(f"Aviso de migração automática: {e}")
 
@@ -67,64 +73,85 @@ def get_current_user(request: Request, db: Session):
         return None
     return db.query(models.User).filter(models.User.username == username).first()
 
-# Inicializador automático dos setores da empresa
+# Inicializador automático dos setores da empresa com schema dinâmico em JSON
 def ensure_default_sectors(db: Session):
-    if db.query(models.SectorConfig).count() == 0:
+    existing_count = db.query(models.SectorConfig).count()
+    if existing_count == 0:
+        default_schema_ferramentais = [
+            {"id": "tool_type", "label": "Tipo de Ferramental", "type": "select", "options": "Faca Corte e Vinco,Clichê de Relevo / Braille,Fitas de Braille,Matriz Hot Stamping,Gravação de Chapas Offset", "required": True},
+            {"id": "op_number", "label": "Nº da OP", "type": "text", "placeholder": "Ex: OP-1042", "required": False},
+            {"id": "title", "label": "Trabalho / Embalagem", "type": "text", "placeholder": "Ex: Cartucho 150ml Medicamento", "required": True},
+            {"id": "supplier", "label": "Fornecedor Destinatário", "type": "text", "placeholder": "Ex: Facas Precision / Clicheria Alfa", "required": True},
+            {"id": "due_date", "label": "Prazo Limite de Entrega", "type": "date", "required": True},
+            {"id": "instructions", "label": "Instruções Técnicas", "type": "textarea", "placeholder": "Lâmina 23,80mm, vinco 2pt canaleta 0,4x1,3mm, conferir braille...", "required": False}
+        ]
+
+        default_schema_comercial = [
+            {"id": "tool_type", "label": "Tipo de Atendimento", "type": "select", "options": "Orçamento de Embalagem,Envio de Amostra,Faturamento de Pedido,Aprovação de Prova", "required": True},
+            {"id": "op_number", "label": "Nº do Pedido / Orçamento", "type": "text", "placeholder": "Ex: ORC-5580", "required": False},
+            {"id": "title", "label": "Nome do Cliente / Projeto", "type": "text", "placeholder": "Ex: Linha Cosmética Verão", "required": True},
+            {"id": "supplier", "label": "Empresa / Cliente Solicitante", "type": "text", "placeholder": "Ex: Farmacêutica Nacional", "required": True},
+            {"id": "due_date", "label": "Prazo de Resposta / Entrega", "type": "date", "required": True},
+            {"id": "instructions", "label": "Condições e Escopo", "type": "textarea", "placeholder": "Tiragem, acabamentos e observações comerciais...", "required": False}
+        ]
+
+        default_schema_expedicao = [
+            {"id": "tool_type", "label": "Tipo de Operação", "type": "select", "options": "Cotação de Matéria-Prima,Despacho de Cargas,Entrada de Materiais,Conferência de Paletes", "required": True},
+            {"id": "op_number", "label": "Nº da NF / Pedido de Compra", "type": "text", "placeholder": "Ex: NF-44912 / PC-890", "required": False},
+            {"id": "title", "label": "Material / Lote de Carga", "type": "text", "placeholder": "Ex: Cartão Duplex 300g / 50 Paletes", "required": True},
+            {"id": "supplier", "label": "Transportadora / Fornecedor", "type": "text", "placeholder": "Ex: Papirus / Transportadora Rápida", "required": True},
+            {"id": "due_date", "label": "Data Prevista de Coleta / Doca", "type": "date", "required": True},
+            {"id": "instructions", "label": "Instruções de Logística", "type": "textarea", "placeholder": "Horário de coleta, doca de entrega, empilhamento...", "required": False}
+        ]
+
+        default_schema_manutencao = [
+            {"id": "tool_type", "label": "Tipo de Intervenção", "type": "select", "options": "Manutenção Preventiva,Troca de Peça Corretiva,Ajuste de Impressora,Inspeção de Corte e Vinco", "required": True},
+            {"id": "op_number", "label": "Cód. da Máquina / Tag", "type": "text", "placeholder": "Ex: OFFSET-02 / CORTE-BOBST-01", "required": False},
+            {"id": "title", "label": "Descrição da Intervenção", "type": "text", "placeholder": "Ex: Substituição de rolos de borracha", "required": True},
+            {"id": "supplier", "label": "Técnico / Fornecedor de Peça", "type": "text", "placeholder": "Ex: Manutenção Interna / Peças Gráficas", "required": True},
+            {"id": "due_date", "label": "Data Programada", "type": "date", "required": True},
+            {"id": "instructions", "label": "Procedimento Técnico", "type": "textarea", "placeholder": "Parada programada, checagem de pressão e sensores...", "required": False}
+        ]
+
         default_sectors = [
             models.SectorConfig(
                 name="Ferramentais & Pré-Impressão",
                 icon="🔪",
-                tool_types_csv="Faca Corte e Vinco,Clichê de Relevo / Braille,Fitas de Braille,Matriz Hot Stamping,Gravação de Chapas Offset",
-                ref_label="Nº da OP",
-                ref_placeholder="Ex: OP-1042",
-                title_label="Trabalho / Embalagem",
-                title_placeholder="Ex: Cartucho 150ml Medicamento",
-                entity_label="Fornecedor Destinatário",
-                entity_placeholder="Ex: Facas Precision / Clicheria Alfa",
-                instructions_label="Instruções Técnicas",
-                instructions_placeholder="Lâmina 23,80mm, vinco 2pt canaleta 0,4x1,3mm, conferir braille..."
+                fields_schema=json.dumps(default_schema_ferramentais, ensure_ascii=False)
             ),
             models.SectorConfig(
                 name="Comercial & Vendas",
                 icon="💼",
-                tool_types_csv="Orçamento de Embalagens,Amostra para Cliente,Aprovação de Prova,Faturamento e Pedido",
-                ref_label="Nº do Pedido / Orçamento",
-                ref_placeholder="Ex: ORC-5580",
-                title_label="Nome do Cliente / Projeto",
-                title_placeholder="Ex: Laboratório Vital / Linha Cosmética",
-                entity_label="Cliente Solicitante",
-                entity_placeholder="Ex: Farmacêutica Nacional",
-                instructions_label="Escopo Comercial & Requisitos",
-                instructions_placeholder="Quantidade de tiragem, acabamentos solicitados, prazo de faturamento..."
+                fields_schema=json.dumps(default_schema_comercial, ensure_ascii=False)
             ),
             models.SectorConfig(
                 name="Expedição & Compras",
                 icon="📦",
-                tool_types_csv="Cotação de Matéria-Prima,Despacho de Cargas,Entrada de Materiais,Conferência de Paletes",
-                ref_label="Nº da NF / Pedido de Compra",
-                ref_placeholder="Ex: NF-44912 / PC-890",
-                title_label="Material / Lote de Carga",
-                title_placeholder="Ex: Cartão Duplex 300g / 50 Paletes",
-                entity_label="Transportadora / Fornecedor",
-                entity_placeholder="Ex: Papirus / Transportadora Rápida",
-                instructions_label="Instruções de Logística",
-                instructions_placeholder="Horário de coleta, doca de entrega, especificações de empilhamento..."
+                fields_schema=json.dumps(default_schema_expedicao, ensure_ascii=False)
             ),
             models.SectorConfig(
                 name="Manutenção Operacional",
                 icon="🔧",
-                tool_types_csv="Manutenção Preventiva,Troca de Peça Corretiva,Ajuste de Impressora,Inspeção de Corte e Vinco",
-                ref_label="Cód. da Máquina / Tag",
-                ref_placeholder="Ex: OFFSET-02 / CORTE-BOBST-01",
-                title_label="Descrição da Intervenção",
-                title_placeholder="Ex: Substituição de rolos de borracha",
-                entity_label="Técnico / Fornecedor de Peça",
-                entity_placeholder="Ex: Manutenção Interna / Peças Gráficas",
-                instructions_label="Procedimento Técnico",
-                instructions_placeholder="Parada programada, verificação de sensores, teste de pressão..."
+                fields_schema=json.dumps(default_schema_manutencao, ensure_ascii=False)
             )
         ]
         db.add_all(default_sectors)
+        db.commit()
+    else:
+        # Garante que setores antigos sem fields_schema recebam um padrão válido
+        sectors = db.query(models.SectorConfig).all()
+        for s in sectors:
+            if not s.fields_schema or s.fields_schema.strip() == "":
+                opts = s.tool_types_csv or "Geral"
+                schema = [
+                    {"id": "tool_type", "label": "Categoria / Tipo", "type": "select", "options": opts, "required": True},
+                    {"id": "op_number", "label": s.ref_label or "Nº da OP", "type": "text", "placeholder": s.ref_placeholder or "Ex: OP-100", "required": False},
+                    {"id": "title", "label": s.title_label or "Trabalho", "type": "text", "placeholder": s.title_placeholder or "Ex: Descrição", "required": True},
+                    {"id": "supplier", "label": s.entity_label or "Destinatário", "type": "text", "placeholder": s.entity_placeholder or "Ex: Contato", "required": True},
+                    {"id": "due_date", "label": "Prazo Limite", "type": "date", "required": True},
+                    {"id": "instructions", "label": s.instructions_label or "Instruções", "type": "textarea", "placeholder": s.instructions_placeholder or "Detalhes...", "required": False}
+                ]
+                s.fields_schema = json.dumps(schema, ensure_ascii=False)
         db.commit()
 
 @app.get("/", response_class=HTMLResponse)
@@ -207,22 +234,14 @@ def home(request: Request, db: Session = Depends(get_db)):
     response.headers["Expires"] = "0"
     return response
 
-# Rota para cadastrar ou atualizar um Setor com seus campos customizados
+# Rota para cadastrar ou editar modelo dinâmico de setor
 @app.post("/api/sectors/save")
 async def save_sector(
     request: Request,
     sector_id: int = Form(0),
     name: str = Form(...),
     icon: str = Form("📁"),
-    tool_types_csv: str = Form(...),
-    ref_label: str = Form("Nº da OP / Ref."),
-    ref_placeholder: str = Form("Ex: OP-1042"),
-    title_label: str = Form("Trabalho / Descrição"),
-    title_placeholder: str = Form("Ex: Cartucho 150ml"),
-    entity_label: str = Form("Fornecedor / Destinatário"),
-    entity_placeholder: str = Form("Ex: Fornecedor X"),
-    instructions_label: str = Form("Instruções Técnicas / Escopo"),
-    instructions_placeholder: str = Form("Descreva os detalhes..."),
+    fields_schema_json: str = Form(...),
     db: Session = Depends(get_db)
 ):
     current_user = get_current_user(request, db)
@@ -236,33 +255,37 @@ async def save_sector(
         sector = models.SectorConfig(
             name=clean_name,
             icon=icon.strip() or "📁",
-            tool_types_csv=tool_types_csv.strip(),
-            ref_label=ref_label.strip(),
-            ref_placeholder=ref_placeholder.strip(),
-            title_label=title_label.strip(),
-            title_placeholder=title_placeholder.strip(),
-            entity_label=entity_label.strip(),
-            entity_placeholder=entity_placeholder.strip(),
-            instructions_label=instructions_label.strip(),
-            instructions_placeholder=instructions_placeholder.strip()
+            fields_schema=fields_schema_json.strip()
         )
         db.add(sector)
     else:
         sector.name = clean_name
         sector.icon = icon.strip() or "📁"
-        sector.tool_types_csv = tool_types_csv.strip()
-        sector.ref_label = ref_label.strip()
-        sector.ref_placeholder = ref_placeholder.strip()
-        sector.title_label = title_label.strip()
-        sector.title_placeholder = title_placeholder.strip()
-        sector.entity_label = entity_label.strip()
-        sector.entity_placeholder = entity_placeholder.strip()
-        sector.instructions_label = instructions_label.strip()
-        sector.instructions_placeholder = instructions_placeholder.strip()
+        sector.fields_schema = fields_schema_json.strip()
 
     db.commit()
     await manager.broadcast({"type": "REFRESH"})
     return JSONResponse(content={"success": True, "message": "Modelo de setor salvo com sucesso!"})
+
+# Rota para excluir setor customizado
+@app.delete("/api/sectors/{sector_id}")
+async def delete_sector(request: Request, sector_id: int, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Sessão expirada."})
+
+    role_normalized = (current_user.role or "").strip().lower()
+    if role_normalized not in ["gestor", "manager", "admin"]:
+        return JSONResponse(status_code=403, content={"success": False, "message": "Apenas gestores podem remover modelos de setores."})
+
+    sector = db.query(models.SectorConfig).filter(models.SectorConfig.id == sector_id).first()
+    if not sector:
+        return JSONResponse(status_code=404, content={"success": False, "message": "Setor não encontrado."})
+
+    db.delete(sector)
+    db.commit()
+    await manager.broadcast({"type": "REFRESH"})
+    return JSONResponse(content={"success": True, "message": "Setor removido com sucesso!"})
 
 @app.get("/api/users/profile/{full_name}")
 def get_user_profile(full_name: str, db: Session = Depends(get_db)):
@@ -432,6 +455,8 @@ def logout():
 @app.post("/tasks/create")
 async def create_task(
     request: Request,
+    sector_id: int = Form(0),
+    sector_name: str = Form(""),
     op_number: str = Form(""),
     tool_type: str = Form(...),
     title: str = Form(...),
@@ -455,6 +480,8 @@ async def create_task(
     clean_assigned_to = assigned_to.strip()
 
     new_task = models.Task(
+        sector_id=sector_id if sector_id > 0 else None,
+        sector_name=sector_name.strip() if sector_name else None,
         op_number=op_number.strip(),
         tool_type=tool_type.strip(),
         title=title.strip(),
@@ -473,6 +500,8 @@ async def create_task(
         "type": "TASK_CREATED",
         "task": {
             "id": new_task.id,
+            "sector_id": new_task.sector_id,
+            "sector_name": new_task.sector_name,
             "op_number": new_task.op_number,
             "tool_type": new_task.tool_type,
             "title": new_task.title,
@@ -507,6 +536,8 @@ async def update_task_status_api(task_id: int, payload: StatusUpdate, db: Sessio
 
     if new_status == "Aprovado" and old_status != "Aprovado":
         post = models.Post(
+            sector_id=task.sector_id,
+            sector_name=task.sector_name,
             author=task.assigned_to,
             delegated_by=task.delegated_by,
             supplier=task.supplier,
@@ -523,6 +554,8 @@ async def update_task_status_api(task_id: int, payload: StatusUpdate, db: Sessio
 
         new_post_payload = {
             "id": post.id,
+            "sector_id": post.sector_id,
+            "sector_name": post.sector_name,
             "author": post.author,
             "tool_type": post.tool_type,
             "op_number": post.op_number,
