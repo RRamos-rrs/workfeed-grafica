@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WorkFeed Gráfica - Controle de Ferramentais</title>
+  <title>WorkFeed Gráfica - Gestão Integrada de Demandas</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,7 +34,7 @@
           <span class="text-base font-extrabold tracking-tight block leading-tight text-white">
             WorkFeed <span class="text-amber-500 font-extrabold">Gráfica</span>
           </span>
-          <p class="text-[9px] uppercase font-bold tracking-widest text-slate-400">Controle de Ferramentais</p>
+          <p class="text-[9px] uppercase font-bold tracking-widest text-slate-400">Gestão Integrada de Demandas</p>
         </div>
       </div>
 
@@ -46,7 +46,7 @@
             id="global-search-input"
             type="text" 
             oninput="handleGlobalSearch(this.value)"
-            placeholder="Buscar ferramentas, OP, fornecedor..." 
+            placeholder="Buscar demandas, OP, cliente, responsável..." 
             class="w-full bg-[#122846] text-xs text-white placeholder-slate-400 pl-9 pr-4 py-2 rounded-xl border border-slate-700/60 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition"
           >
         </div>
@@ -55,6 +55,15 @@
       <!-- AÇÕES / PERFIL -->
       <div class="flex items-center gap-3">
         {% if current_user.role in ['Gestor', 'manager', 'admin'] %}
+        <button 
+          type="button" 
+          onclick="document.getElementById('modalSectorConfig').classList.remove('hidden')" 
+          title="Cadastrar / Editar Modelos de Setores"
+          class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold py-1.5 px-3 rounded-xl shadow-sm flex items-center gap-1.5 text-xs transition">
+          <i data-lucide="settings-2" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span>Modelos</span>
+        </button>
+
         <button 
           type="button" 
           onclick="document.getElementById('modalCollaborator').classList.remove('hidden')" 
@@ -115,7 +124,7 @@
 
         <button onclick="switchTab('feed')" id="tab-btn-feed" class="w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-100 hover:text-slate-900">
           <i data-lucide="layout-grid" class="w-4 h-4"></i>
-          <span>Feed de Homologação</span>
+          <span>Feed de Conclusões</span>
         </button>
 
         <button onclick="switchTab('profiles')" id="tab-btn-profiles" class="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-100 hover:text-slate-900">
@@ -130,28 +139,27 @@
 
         <button onclick="switchTab('new-task')" id="tab-btn-new-task" class="w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-100 hover:text-slate-900">
           <i data-lucide="plus-circle" class="w-4 h-4 text-amber-500"></i>
-          <span>Delegar Tarefa</span>
+          <span>Delegar Demanda</span>
         </button>
       </nav>
 
-      <!-- CARD FERRAMENTAIS ACEITOS -->
+      <!-- CARD SETORES CADASTRADOS NA EMPRESA -->
       <div class="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-3">
-        <h4 class="font-bold text-slate-800 text-xs tracking-tight flex items-center gap-2">
-          <i data-lucide="wrench" class="w-4 h-4 text-slate-400"></i> Ferramentais Aceitos
-        </h4>
+        <div class="flex items-center justify-between">
+          <h4 class="font-bold text-slate-800 text-xs tracking-tight flex items-center gap-2">
+            <i data-lucide="building-2" class="w-4 h-4 text-slate-400"></i> Setores Ativos
+          </h4>
+          <span class="text-[10px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md font-bold">{{ sectors|length }}</span>
+        </div>
         <div class="space-y-1.5 text-xs text-slate-600">
-          <div class="p-2 rounded-xl bg-slate-50 border border-slate-100 font-medium flex items-center gap-2">
-            <span>🔪</span> Faca Corte e Vinco
+          {% for sec in sectors %}
+          <div onclick="selectSectorAndGoToForm({{ sec.id }})" class="p-2 rounded-xl bg-slate-50 hover:bg-amber-50 hover:border-amber-200 border border-slate-100 font-medium flex items-center justify-between cursor-pointer transition">
+            <span class="flex items-center gap-2">
+              <span>{{ sec.icon }}</span> {{ sec.name }}
+            </span>
+            <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-400"></i>
           </div>
-          <div class="p-2 rounded-xl bg-slate-50 border border-slate-100 font-medium flex items-center gap-2">
-            <span>📐</span> Clichê Relevo/Braille
-          </div>
-          <div class="p-2 rounded-xl bg-slate-50 border border-slate-100 font-medium flex items-center gap-2">
-            <span>🏷️</span> Fitas de Braille
-          </div>
-          <div class="p-2 rounded-xl bg-slate-50 border border-slate-100 font-medium flex items-center gap-2">
-            <span>✨</span> Matriz Hot Stamping
-          </div>
+          {% endfor %}
         </div>
       </div>
 
@@ -159,10 +167,10 @@
       <div class="bg-gradient-to-br from-[#0c2340] to-[#123158] rounded-2xl p-5 text-white shadow-sm space-y-2 relative overflow-hidden">
         <div class="w-10 h-1 bg-amber-500 rounded-full mb-3"></div>
         <h3 class="text-sm font-black leading-snug">Mais produção com organização.</h3>
-        <p class="text-[11px] text-slate-300 leading-relaxed">Ferramentais no lugar certo, no tempo certo.</p>
+        <p class="text-[11px] text-slate-300 leading-relaxed">Demandas de cada setor no lugar certo, no tempo certo.</p>
         <div class="pt-4 border-t border-slate-700/60 flex items-center justify-between text-[10px] text-slate-400">
-          <span>WorkFeed Gráfica v1.0.0</span>
-          <span>Imprimindo grandes resultados.</span>
+          <span>WorkFeed Corporativo</span>
+          <span>Imprimindo resultados.</span>
         </div>
       </div>
     </aside>
@@ -187,7 +195,7 @@
               <p class="text-xs text-slate-500 mt-0.5">
                 Usuário: <span class="font-mono font-medium text-slate-700">@{{ current_user.username }}</span> • Função: <span class="font-semibold text-amber-600">{{ current_user.role }}</span>
               </p>
-              <p class="text-[11px] text-slate-400 mt-0.5">Setor: <span class="text-slate-600 font-medium">{{ current_user.department or 'Produção / Pré-Impressão' }}</span></p>
+              <p class="text-[11px] text-slate-400 mt-0.5">Setor: <span class="text-slate-600 font-medium">{{ current_user.department or 'Geral / Operacional' }}</span></p>
             </div>
           </div>
           
@@ -212,7 +220,7 @@
           <div class="flex items-center justify-between px-1">
             <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> 
-              Tarefas Atribuídas a Mim (A Fazer / Solicitar)
+              Demandas Atribuídas a Mim (A Fazer / Executar)
             </h3>
             <span id="badge-my-pending" class="text-xs font-mono font-medium text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
               {{ my_pending_tasks|length }} pendência(s)
@@ -227,13 +235,13 @@
                   {{ task.tool_type }}
                 </span>
                 <span class="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-                  OP: {{ task.op_number }}
+                  Ref/OP: {{ task.op_number }}
                 </span>
               </div>
               <h4 class="text-sm font-bold text-slate-900 leading-snug">{{ task.title }}</h4>
               <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1">
                 <p class="flex items-center gap-1.5 font-semibold text-slate-700">
-                  <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-600"></i> Fornecedor: {{ task.supplier }}
+                  <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-600"></i> Solicitante/Destino: {{ task.supplier }}
                 </p>
                 <p class="text-amber-700 font-semibold font-mono text-[10px]">
                   📅 Prazo Limite: {{ task.due_date }}
@@ -244,10 +252,10 @@
               </div>
               <div class="flex items-center justify-between pt-2 border-t border-slate-100">
                 <button type="button" onclick="copyOrderText('{{ task.op_number }}', '{{ task.tool_type }}', '{{ task.title }}', '{{ task.supplier }}', '{{ task.due_date }}', `{{ task.instructions }}`)" class="text-slate-600 hover:text-amber-600 font-semibold flex items-center gap-1 text-[11px] transition">
-                  <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Pedido
+                  <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Demanda
                 </button>
                 <button onclick="updateTaskStatusFast('{{ task.id }}', 'Em Produção')" class="text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-xl transition border border-blue-200 flex items-center gap-1">
-                  Iniciar Preparação <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                  Iniciar Execução <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
                 </button>
               </div>
             </div>
@@ -256,19 +264,19 @@
               <div class="w-10 h-10 bg-orange-50 text-orange-500 rounded-xl flex items-center justify-center mx-auto">
                 <i data-lucide="clipboard-list" class="w-5 h-5"></i>
               </div>
-              <h4 class="text-xs font-bold text-slate-700">Você não tem nenhuma nova tarefa pendente neste momento.</h4>
-              <p class="text-[11px] text-slate-400">Quando houver novas tarefas, elas aparecerão aqui.</p>
+              <h4 class="text-xs font-bold text-slate-700">Você não tem nenhuma nova demanda pendente neste momento.</h4>
+              <p class="text-[11px] text-slate-400">Quando outros setores ou a gestão delegarem tarefas a você, elas aparecerão aqui.</p>
             </div>
             {% endfor %}
           </div>
         </div>
 
-        <!-- BLOCO 2: EM PREPARAÇÃO -->
+        <!-- BLOCO 2: EM ANDAMENTO -->
         <div class="space-y-3 pt-2">
           <div class="flex items-center justify-between px-1">
             <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> 
-              Em Preparação / Aguardando Fornecedor
+              Em Andamento / Em Execução
             </h3>
             <span id="badge-my-inprogress" class="text-xs font-mono font-medium text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
               {{ my_in_progress_tasks|length }} em andamento
@@ -283,22 +291,22 @@
                   {{ task.tool_type }}
                 </span>
                 <span class="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-                  OP: {{ task.op_number }}
+                  Ref/OP: {{ task.op_number }}
                 </span>
               </div>
               <h4 class="text-sm font-bold text-slate-900 leading-snug">{{ task.title }}</h4>
               <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1">
                 <p class="flex items-center gap-1.5 font-semibold text-blue-700">
-                  <i data-lucide="truck" class="w-3.5 h-3.5 text-blue-500"></i> No Fabricante: {{ task.supplier }}
+                  <i data-lucide="truck" class="w-3.5 h-3.5 text-blue-500"></i> Solicitante/Destino: {{ task.supplier }}
                 </p>
                 <p class="text-amber-700 font-semibold font-mono text-[10px]">
                   📅 Previsão: {{ task.due_date }}
                 </p>
               </div>
               <div class="flex items-center justify-between pt-2 border-t border-slate-100">
-                <span class="text-[11px] text-slate-400 font-medium">Chegou do fornecedor?</span>
+                <span class="text-[11px] text-slate-400 font-medium">Serviço concluído?</span>
                 <button onclick="updateTaskStatusFast('{{ task.id }}', 'Aprovado')" class="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 px-3.5 py-1.5 rounded-xl transition shadow-xs flex items-center gap-1">
-                  <i data-lucide="check" class="w-3.5 h-3.5"></i> Homologar & Publicar
+                  <i data-lucide="check" class="w-3.5 h-3.5"></i> Concluir & Publicar
                 </button>
               </div>
             </div>
@@ -307,8 +315,8 @@
               <div class="w-10 h-10 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center mx-auto">
                 <i data-lucide="settings" class="w-5 h-5"></i>
               </div>
-              <h4 class="text-xs font-bold text-slate-700">Nenhuma ferramenta em fase de preparação com fornecedor.</h4>
-              <p class="text-[11px] text-slate-400">Assim que houver movimentações, você verá os itens aqui.</p>
+              <h4 class="text-xs font-bold text-slate-700">Nenhuma demanda em fase de execução no momento.</h4>
+              <p class="text-[11px] text-slate-400">Assim que iniciar o atendimento de uma demanda, você a verá aqui.</p>
             </div>
             {% endfor %}
           </div>
@@ -319,7 +327,7 @@
           <div class="flex items-center justify-between px-1">
             <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> 
-              Meus Ferramentais Homologados (Histórico Concluído)
+              Minhas Entregas & Serviços Concluídos
             </h3>
             <span id="badge-my-completed" class="text-xs font-mono font-medium text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
               {{ my_completed_posts|length }} concluído(s)
@@ -335,24 +343,21 @@
                     {{ post.tool_type }}
                   </span>
                   {% if post.op_number %}
-                  <span class="text-[10px] font-mono font-medium text-slate-500">OP: {{ post.op_number }}</span>
+                  <span class="text-[10px] font-mono font-medium text-slate-500">Ref: {{ post.op_number }}</span>
                   {% endif %}
                 </div>
                 <h4 class="text-xs font-bold text-slate-900">{{ post.title }}</h4>
-                <p class="text-[10px] text-slate-400">Fornecedor: <b class="text-slate-600">{{ post.supplier }}</b> • Concluído em: {{ post.created_at.strftime('%d/%m/%Y %H:%M') if post.created_at else '' }}</p>
+                <p class="text-[10px] text-slate-400">Entidade: <b class="text-slate-600">{{ post.supplier }}</b> • Concluído em: {{ post.created_at.strftime('%d/%m/%Y %H:%M') if post.created_at else '' }}</p>
               </div>
               <div class="flex items-center gap-2">
                 <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-xl whitespace-nowrap">
                   ✔ No Feed
                 </span>
-                <button type="button" class="text-slate-400 hover:text-slate-600 p-1">
-                  <i data-lucide="more-vertical" class="w-4 h-4"></i>
-                </button>
               </div>
             </div>
             {% else %}
             <div id="no-completed-msg" class="p-6 bg-white rounded-2xl border border-slate-200/80 text-center text-xs text-slate-400">
-              Você ainda não tem ferramentais homologados no histórico.
+              Você ainda não tem serviços homologados no histórico.
             </div>
             {% endfor %}
           </div>
@@ -364,8 +369,8 @@
       <section id="content-feed" class="hidden max-w-2xl mx-auto space-y-6">
         <div class="flex items-center justify-between px-1">
           <div>
-            <h2 class="text-base font-bold text-slate-900 tracking-tight">Feed de Ferramentais Homologados</h2>
-            <p class="text-xs text-slate-500">Histórico de especificações concluídas e validadas pela equipe</p>
+            <h2 class="text-base font-bold text-slate-900 tracking-tight">Feed de Conclusões & Entregas</h2>
+            <p class="text-xs text-slate-500">Histórico de demandas concluídas e validadas por todos os setores</p>
           </div>
           <span id="badge-feed-total" class="text-xs font-mono font-bold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
             {{ posts|length }} registro(s)
@@ -383,27 +388,27 @@
                   </span>
                   {% if post.op_number %}
                   <span class="text-[11px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-                    OP: {{ post.op_number }}
+                    Ref: {{ post.op_number }}
                   </span>
                   {% endif %}
                 </div>
                 <h3 class="text-sm sm:text-base font-bold text-slate-900 leading-snug">{{ post.title }}</h3>
               </div>
               <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 whitespace-nowrap shadow-2xs">
-                <i data-lucide="check-check" class="w-3.5 h-3.5 text-emerald-600"></i> Aprovado
+                <i data-lucide="check-check" class="w-3.5 h-3.5 text-emerald-600"></i> Concluído
               </span>
             </div>
 
             <div class="p-5 space-y-4">
               <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 bg-slate-50/80 rounded-xl border border-slate-100 text-xs">
                 <div>
-                  <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Solicitado por</p>
+                  <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Executado por</p>
                   <p onclick="openUserProfileModal('{{ post.author }}')" class="font-bold text-slate-800 flex items-center gap-1.5 mt-0.5 cursor-pointer hover:text-amber-600 transition">
                     <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> {{ post.author }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Fornecedor</p>
+                  <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Destino / Solicitante</p>
                   <p class="font-bold text-amber-700 flex items-center gap-1.5 mt-0.5">
                     <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-500"></i> {{ post.supplier }}
                   </p>
@@ -419,7 +424,7 @@
               {% if post.instructions %}
               <div class="p-3.5 bg-amber-50/30 rounded-xl border border-amber-100/70 text-xs space-y-1">
                 <span class="font-bold text-amber-900 flex items-center gap-1.5 text-[11px]">
-                  <i data-lucide="file-text" class="w-3.5 h-3.5 text-amber-600"></i> Especificações Técnicas:
+                  <i data-lucide="file-text" class="w-3.5 h-3.5 text-amber-600"></i> Especificações & Instruções:
                 </span>
                 <p class="text-slate-700 leading-relaxed">{{ post.instructions }}</p>
               </div>
@@ -428,7 +433,7 @@
 
             {% if post.image_url %}
             <div class="bg-slate-950 flex items-center justify-center border-y border-slate-200 overflow-hidden">
-              <img src="{{ post.image_url }}" alt="Ferramental Concluído" class="w-full object-cover max-h-[460px]">
+              <img src="{{ post.image_url }}" alt="Comprovante Concluído" class="w-full object-cover max-h-[460px]">
             </div>
             {% endif %}
 
@@ -442,7 +447,7 @@
 
             <!-- COMENTÁRIOS REATIVOS -->
             <div class="p-5 bg-slate-50/70 space-y-3">
-              <span class="text-xs font-bold text-slate-700 block">Comentários e Inspeções Técnicas:</span>
+              <span class="text-xs font-bold text-slate-700 block">Comentários e Pareceres Técnicos:</span>
               <div id="comments-list-{{ post.id }}" class="space-y-2">
                 {% for c in post.comments %}
                 <div class="bg-white p-3 rounded-xl border border-slate-200/80 text-xs shadow-2xs">
@@ -452,7 +457,7 @@
                 {% endfor %}
               </div>
               <form onsubmit="submitCommentSmooth(event, '{{ post.id }}')" class="flex gap-2 pt-1">
-                <input required type="text" name="text" placeholder="Adicionar parecer técnico..." class="flex-1 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
+                <input required type="text" name="text" placeholder="Adicionar parecer sobre esta entrega..." class="flex-1 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
                 <button type="submit" class="bg-amber-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-amber-700 transition shadow-xs">
                   Publicar
                 </button>
@@ -472,11 +477,11 @@
       <section id="content-kanban" class="hidden space-y-4">
         <div class="flex items-center justify-between px-1">
           <div>
-            <h2 class="text-base font-bold text-slate-900 tracking-tight">Quadro Geral de Acompanhamento</h2>
-            <p class="text-xs text-slate-500">Mova os cartões para atualizar as fases da preparação técnica</p>
+            <h2 class="text-base font-bold text-slate-900 tracking-tight">Quadro Geral de Demandas</h2>
+            <p class="text-xs text-slate-500">Mova os cartões para atualizar o andamento de cada setor</p>
           </div>
           <button onclick="switchTab('new-task')" class="text-xs font-bold bg-[#0b1e36] text-white px-3.5 py-2 rounded-xl hover:bg-slate-800 transition flex items-center gap-1.5 shadow-xs">
-            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Delegar Tarefa
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Delegar Demanda
           </button>
         </div>
 
@@ -502,7 +507,7 @@
                     {{ task.tool_type }}
                   </span>
                   <span class="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
-                    OP: {{ task.op_number }}
+                    Ref: {{ task.op_number }}
                   </span>
                 </div>
                 <h4 class="text-xs font-bold text-slate-900 leading-snug">{{ task.title }}</h4>
@@ -519,7 +524,7 @@
                     <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
                   </span>
                   <button type="button" onclick="copyOrderText('{{ task.op_number }}', '{{ task.tool_type }}', '{{ task.title }}', '{{ task.supplier }}', '{{ task.due_date }}', `{{ task.instructions }}`)" class="text-amber-600 hover:text-amber-800 font-semibold flex items-center gap-1 text-[10px] bg-amber-50 px-2 py-0.5 rounded transition">
-                    <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Pedido
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar
                   </button>
                 </div>
               </div>
@@ -532,7 +537,7 @@
             <div class="flex items-center justify-between px-2 mb-3">
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-blue-500 ring-4 ring-blue-100"></span>
-                <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">2. Em Preparação</h3>
+                <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">2. Em Execução</h3>
               </div>
               <span id="badge-kanban-Em Produção" class="text-xs font-mono font-bold bg-white text-slate-600 px-2 py-0.5 rounded-full shadow-2xs">
                 {{ tasks|selectattr('status', 'equalto', 'Em Produção')|list|length }}
@@ -547,13 +552,13 @@
                     {{ task.tool_type }}
                   </span>
                   <span class="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
-                    OP: {{ task.op_number }}
+                    Ref: {{ task.op_number }}
                   </span>
                 </div>
                 <h4 class="text-xs font-bold text-slate-900 leading-snug">{{ task.title }}</h4>
                 <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 space-y-1">
                   <p class="flex items-center gap-1.5 font-semibold text-blue-700">
-                    <i data-lucide="truck" class="w-3.5 h-3.5 text-blue-500"></i> No Fabricante: {{ task.supplier }}
+                    <i data-lucide="truck" class="w-3.5 h-3.5 text-blue-500"></i> Solicitante/Destino: {{ task.supplier }}
                   </p>
                   <p class="text-amber-600 font-mono text-[10px]">📅 Prazo: {{ task.due_date }}</p>
                 </div>
@@ -573,7 +578,7 @@
             <div class="flex items-center justify-between px-2 mb-3">
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-emerald-500 ring-4 ring-emerald-100"></span>
-                <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">3. Aprovado ✔</h3>
+                <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">3. Concluído ✔</h3>
               </div>
               <span id="badge-kanban-Aprovado" class="text-xs font-mono font-bold bg-white text-emerald-700 px-2 py-0.5 rounded-full shadow-2xs">
                 {{ tasks|selectattr('status', 'equalto', 'Aprovado')|list|length }}
@@ -591,7 +596,7 @@
                 </div>
                 <h4 class="text-xs font-bold text-slate-900 leading-snug line-through opacity-70">{{ task.title }}</h4>
                 <p class="text-[10px] text-slate-500 pt-2 border-t border-emerald-100">
-                  Fornecedor: <b>{{ task.supplier }}</b> • Resp: <b onclick="openUserProfileModal('{{ task.assigned_to }}')" class="cursor-pointer hover:text-amber-600 underline">{{ task.assigned_to }}</b>
+                  Destino: <b>{{ task.supplier }}</b> • Resp: <b onclick="openUserProfileModal('{{ task.assigned_to }}')" class="cursor-pointer hover:text-amber-600 underline">{{ task.assigned_to }}</b>
                 </p>
               </div>
               {% endfor %}
@@ -605,8 +610,8 @@
       <section id="content-profiles" class="hidden space-y-6">
         <div class="flex items-center justify-between px-1">
           <div>
-            <h2 class="text-base font-bold text-slate-900 tracking-tight">Equipe Técnica & Perfis</h2>
-            <p class="text-xs text-slate-500">Métricas operacionais de todos os membros cadastrados</p>
+            <h2 class="text-base font-bold text-slate-900 tracking-tight">Equipe & Colaboradores</h2>
+            <p class="text-xs text-slate-500">Métricas operacionais de todos os membros cadastrados na empresa</p>
           </div>
           <span id="profiles-count-badge" class="text-xs font-mono font-bold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
             {{ collaborators|length }} colaborador(es)
@@ -654,13 +659,13 @@
                 <p class="text-lg font-bold text-amber-600 font-mono">{{ member.active_tasks }}</p>
               </div>
               <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                <p class="text-slate-400 font-semibold text-[10px] uppercase">Homologados</p>
+                <p class="text-slate-400 font-semibold text-[10px] uppercase">Concluídos</p>
                 <p class="text-lg font-bold text-emerald-600 font-mono">{{ member.approved_tasks }}</p>
               </div>
             </div>
 
             <div onclick="openUserProfileModal('{{ member.name }}')" class="space-y-2 pt-2 border-t border-slate-100 cursor-pointer">
-              <span class="text-[11px] font-bold text-slate-700 block">Últimos Ferramentais Concluídos:</span>
+              <span class="text-[11px] font-bold text-slate-700 block">Últimas Demandas Entregues:</span>
               <div class="space-y-1.5">
                 {% for p in member.recent_posts %}
                 <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
@@ -668,7 +673,7 @@
                   <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded whitespace-nowrap">{{ p.tool_type }}</span>
                 </div>
                 {% else %}
-                <p class="text-[11px] text-slate-400 italic">Nenhum ferramental concluído até o momento.</p>
+                <p class="text-[11px] text-slate-400 italic">Nenhuma entrega registrada até o momento.</p>
                 {% endfor %}
               </div>
             </div>
@@ -677,39 +682,68 @@
         </div>
       </section>
 
-      <!-- ================= ABA 4: DELEGAR TAREFA ================= -->
-      <section id="content-new-task" class="hidden max-w-xl mx-auto">
-        <div class="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-xs">
-          <div class="mb-6 pb-4 border-b border-slate-100">
-            <h2 class="text-base font-bold text-slate-900 tracking-tight">Delegar Pedido de Ferramental</h2>
-            <p class="text-xs text-slate-500 mt-0.5">Preencha as especificações para o colaborador emitir o pedido técnico</p>
+      <!-- ================= ABA 4: DELEGAR DEMANDA MODULAR ================= -->
+      <section id="content-new-task" class="hidden max-w-2xl mx-auto space-y-4">
+        
+        <!-- CARD DE ESCOLHA DO SETOR -->
+        <div class="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs space-y-3">
+          <div>
+            <span class="text-[10px] uppercase font-bold tracking-wider text-amber-600">1. Selecione o Setor Responsável</span>
+            <h3 class="text-sm font-bold text-slate-900">Qual setor vai executar esta demanda?</h3>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {% for sec in sectors %}
+            <button 
+              type="button" 
+              id="sector-pill-btn-{{ sec.id }}"
+              onclick="applySectorTemplate({{ sec.id }})" 
+              class="sector-pill-btn p-3 rounded-xl border text-left transition flex flex-col justify-between h-20 {% if loop.first %}bg-amber-50 border-amber-400 text-amber-900 shadow-xs{% else %}bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100{% endif %}">
+              <span class="text-xl">{{ sec.icon }}</span>
+              <span class="text-[11px] font-bold truncate block">{{ sec.name }}</span>
+            </button>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- FORMULÁRIO DINÂMICO ADAPTATIVO -->
+        <div class="bg-white rounded-2xl border border-slate-200/90 p-6 sm:p-8 shadow-xs">
+          <div class="mb-6 pb-4 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400">2. Preenchimento de Especificações</span>
+              <h2 id="dynamic-form-header-title" class="text-base font-bold text-slate-900 tracking-tight">Delegar Demanda</h2>
+              <p id="dynamic-form-header-desc" class="text-xs text-slate-500 mt-0.5">Preencha as informações para o colaborador iniciar o trabalho</p>
+            </div>
+            <span id="dynamic-sector-badge" class="text-xs font-bold px-3 py-1 bg-amber-50 text-amber-700 rounded-full border border-amber-200">
+              Ferramentais
+            </span>
           </div>
 
           <form id="form-create-task" onsubmit="submitCreateTaskSmooth(event)" class="space-y-4">
+            
+            <!-- TIPO ESPECÍFICO DO SETOR -->
             <div>
-              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Tipo de Ferramental</label>
-              <select required name="tool_type" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500 bg-slate-50 font-bold text-slate-800">
-                <option value="Faca Corte e Vinco">🔪 Faca Corte e Vinco</option>
-                <option value="Clichê de Relevo / Braille">📐 Clichê de Relevo / Braille</option>
-                <option value="Fitas de Braille">🏷️ Fitas de Braille</option>
-                <option value="Hot Stamping">✨ Matriz de Hot Stamping</option>
+              <label id="lbl-tool-type" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Categoria / Tipo de Demanda</label>
+              <select required id="dynamic-tool-type-select" name="tool_type" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500 bg-slate-50 font-bold text-slate-800">
+                <!-- Populado dinamicamente via JavaScript -->
               </select>
             </div>
 
+            <!-- CÓDIGO/REF + TÍTULO DO SERVIÇO -->
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Nº da OP</label>
-                <input type="text" name="op_number" placeholder="Ex: OP-1042" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500 font-mono">
+                <label id="lbl-op-number" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Nº da OP</label>
+                <input type="text" id="input-op-number" name="op_number" placeholder="Ex: OP-1042" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500 font-mono">
               </div>
               <div class="sm:col-span-2">
-                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Trabalho / Embalagem</label>
-                <input required type="text" name="title" placeholder="Ex: Cartucho 150ml Medicamento" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500">
+                <label id="lbl-title" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Trabalho / Embalagem</label>
+                <input required type="text" id="input-title" name="title" placeholder="Ex: Cartucho 150ml Medicamento" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500">
               </div>
             </div>
 
+            <!-- RESPONSÁVEL + FORNECEDOR/DESTINATÁRIO -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Colaborador da Equipe</label>
+                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Colaborador Responsável</label>
                 <select required name="assigned_to" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500 bg-slate-50 font-bold text-slate-800">
                   {% for u in users %}
                   <option value="{{ u.full_name }}">{{ u.full_name }} ({{ u.role }})</option>
@@ -719,23 +753,23 @@
                 </select>
               </div>
               <div>
-                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Fornecedor Destinatário</label>
-                <input required type="text" name="supplier" placeholder="Ex: Facas Precision / Clicheria Alfa" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500">
+                <label id="lbl-supplier" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Fornecedor Destinatário</label>
+                <input required type="text" id="input-supplier" name="supplier" placeholder="Ex: Facas Precision / Clicheria Alfa" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500">
               </div>
             </div>
 
             <div>
-              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Prazo Limite de Entrega</label>
+              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Prazo Limite de Conclusão</label>
               <input required type="date" name="due_date" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500 font-mono">
             </div>
 
             <div>
-              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Instruções Técnicas</label>
-              <textarea name="instructions" rows="3" placeholder="Ex: Lâmina 23,80mm, vinco 2pt canaleta 0,4x1,3mm, confirmar altura de pontos braille..." class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500"></textarea>
+              <label id="lbl-instructions" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Instruções Técnicas</label>
+              <textarea id="input-instructions" name="instructions" rows="3" placeholder="Ex: Lâmina 23,80mm, vinco 2pt canaleta 0,4x1,3mm, confirmar altura de pontos braille..." class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500"></textarea>
             </div>
 
             <div>
-              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Desenho / Prova Técnica (Para o Feed):</label>
+              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Anexo / Comprovante / Prova (Opcional):</label>
               <div class="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:bg-slate-50 transition cursor-pointer">
                 <input type="file" name="image" accept="image/*" class="text-xs text-slate-500 w-full cursor-pointer">
               </div>
@@ -745,8 +779,8 @@
               <button type="button" onclick="switchTab('my-profile')" class="w-1/3 py-2.5 border border-slate-200 text-slate-600 font-semibold rounded-xl text-xs hover:bg-slate-50 transition">
                 Cancelar
               </button>
-              <button id="btn-submit-task" type="submit" class="w-2/3 bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2.5 rounded-xl text-xs transition shadow-xs flex items-center justify-center gap-2">
-                <i data-lucide="send" class="w-3.5 h-3.5"></i> Delegar Tarefa
+              <button id="btn-submit-task" type="submit" class="w-2/3 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-xs flex items-center justify-center gap-2">
+                <i data-lucide="send" class="w-3.5 h-3.5"></i> Delegar Demanda
               </button>
             </div>
           </form>
@@ -757,6 +791,82 @@
   </div>
 
   <!-- ================= MODAIS ================= -->
+  <!-- Modal Cadastrar / Editar Setor Corporativo -->
+  <div id="modalSectorConfig" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl relative max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-4 border-b pb-3">
+        <div>
+          <h3 class="text-base font-bold text-slate-900">Cadastrar Modelo de Setor</h3>
+          <p class="text-xs text-slate-400">Configure os campos e opções de acordo com o trabalho deste setor</p>
+        </div>
+        <button type="button" onclick="document.getElementById('modalSectorConfig').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+      </div>
+
+      <form id="formSaveSector" onsubmit="submitSaveSector(event)" class="space-y-3.5 text-xs">
+        <input type="hidden" name="sector_id" value="0">
+        
+        <div class="grid grid-cols-4 gap-2">
+          <div class="col-span-1">
+            <label class="block font-semibold text-slate-600 uppercase mb-1">Ícone</label>
+            <input type="text" name="icon" required value="🏷️" class="w-full text-center px-3 py-2 border rounded-xl text-base focus:ring-2 focus:ring-amber-500">
+          </div>
+          <div class="col-span-3">
+            <label class="block font-semibold text-slate-600 uppercase mb-1">Nome do Setor</label>
+            <input type="text" name="name" required placeholder="Ex: Criação & Arte" class="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-amber-500 font-bold">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-600 uppercase mb-1">Tipos / Serviços deste Setor (Separados por vírgula)</label>
+          <input type="text" name="tool_types_csv" required placeholder="Ex: Fechamento de Arquivo, Prova Digital, Vetorização" class="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-amber-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 pt-2 border-t">
+          <div>
+            <label class="block font-semibold text-slate-600 uppercase mb-1">Nome do Campo 1 (Código/Ref)</label>
+            <input type="text" name="ref_label" required value="Nº da OP" class="w-full px-3 py-1.5 border rounded-xl">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-600 uppercase mb-1">Placeholder Campo 1</label>
+            <input type="text" name="ref_placeholder" required value="Ex: OP-1042" class="w-full px-3 py-1.5 border rounded-xl">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold text-slate-600 uppercase mb-1">Nome do Campo 2 (Trabalho)</label>
+            <input type="text" name="title_label" required value="Trabalho / Embalagem" class="w-full px-3 py-1.5 border rounded-xl">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-600 uppercase mb-1">Placeholder Campo 2</label>
+            <input type="text" name="title_placeholder" required value="Ex: Cartucho 150ml" class="w-full px-3 py-1.5 border rounded-xl">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold text-slate-600 uppercase mb-1">Nome do Campo 3 (Entidade/Destino)</label>
+            <input type="text" name="entity_label" required value="Fornecedor / Destinatário" class="w-full px-3 py-1.5 border rounded-xl">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-600 uppercase mb-1">Placeholder Campo 3</label>
+            <input type="text" name="entity_placeholder" required value="Ex: Clicheria Alfa" class="w-full px-3 py-1.5 border rounded-xl">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-600 uppercase mb-1">Nome do Campo 4 (Instruções/Escopo)</label>
+          <input type="text" name="instructions_label" required value="Instruções Técnicas" class="w-full px-3 py-1.5 border rounded-xl">
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t">
+          <button type="button" onclick="document.getElementById('modalSectorConfig').classList.add('hidden')" class="px-4 py-2 bg-slate-100 text-slate-700 font-semibold rounded-xl">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition">Salvar Modelo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Modal Adicionar Colaborador -->
   <div id="modalCollaborator" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
     <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
@@ -786,7 +896,7 @@
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Setor / Departamento</label>
-            <input type="text" name="department" required placeholder="Ex: Acabamento" value="Produção / Pré-Impressão" class="w-full px-3.5 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+            <input type="text" name="department" required placeholder="Ex: Pré-Impressão" value="Pré-Impressão" class="w-full px-3.5 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
           </div>
         </div>
 
@@ -832,11 +942,11 @@
 
       <div class="grid grid-cols-2 gap-2 text-center pt-1">
         <div class="p-2.5 bg-orange-50 rounded-xl border border-orange-200">
-          <p class="text-[10px] uppercase font-bold text-orange-700">Tarefas Ativas</p>
+          <p class="text-[10px] uppercase font-bold text-orange-700">Demandas Ativas</p>
           <p id="modalUserPending" class="text-base font-bold text-orange-900 font-mono">0</p>
         </div>
         <div class="p-2.5 bg-emerald-50 rounded-xl border border-emerald-200">
-          <p class="text-[10px] uppercase font-bold text-emerald-700">Homologados</p>
+          <p class="text-[10px] uppercase font-bold text-emerald-700">Entregues</p>
           <p id="modalUserCompleted" class="text-base font-bold text-emerald-900 font-mono">0</p>
         </div>
       </div>
@@ -854,10 +964,72 @@
     </div>
   </div>
 
-  <!-- ================= JAVASCRIPT REATIVO ================= -->
+  <!-- ================= JAVASCRIPT REATIVO & MODULAR ================= -->
   <script>
     lucide.createIcons();
     const CURRENT_USER_NAME = "{{ current_user.full_name }}".trim().toLowerCase();
+
+    // DADOS DOS SETORES INJETADOS DINAMICAMENTE
+    const SECTORS_DATA = [
+      {% for sec in sectors %}
+      {
+        id: {{ sec.id }},
+        name: `{{ sec.name }}`,
+        icon: `{{ sec.icon }}`,
+        types: `{{ sec.tool_types_csv }}`.split(',').map(s => s.trim()).filter(Boolean),
+        ref_label: `{{ sec.ref_label }}`,
+        ref_placeholder: `{{ sec.ref_placeholder }}`,
+        title_label: `{{ sec.title_label }}`,
+        title_placeholder: `{{ sec.title_placeholder }}`,
+        entity_label: `{{ sec.entity_label }}`,
+        entity_placeholder: `{{ sec.entity_placeholder }}`,
+        instructions_label: `{{ sec.instructions_label }}`,
+        instructions_placeholder: `{{ sec.instructions_placeholder }}`
+      }{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ];
+
+    function applySectorTemplate(sectorId) {
+      const sector = SECTORS_DATA.find(s => s.id === sectorId);
+      if (!sector) return;
+
+      document.querySelectorAll('.sector-pill-btn').forEach(btn => {
+        btn.className = "sector-pill-btn p-3 rounded-xl border text-left transition flex flex-col justify-between h-20 bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100";
+      });
+      const activeBtn = document.getElementById(`sector-pill-btn-${sectorId}`);
+      if (activeBtn) {
+        activeBtn.className = "sector-pill-btn p-3 rounded-xl border text-left transition flex flex-col justify-between h-20 bg-amber-50 border-amber-400 text-amber-900 shadow-xs";
+      }
+
+      document.getElementById('dynamic-form-header-title').textContent = `Delegar Demanda • ${sector.name}`;
+      document.getElementById('dynamic-sector-badge').textContent = `${sector.icon} ${sector.name}`;
+
+      const typeSelect = document.getElementById('dynamic-tool-type-select');
+      typeSelect.innerHTML = '';
+      sector.types.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = `${sector.icon} ${t}`;
+        typeSelect.appendChild(opt);
+      });
+
+      document.getElementById('lbl-op-number').textContent = sector.ref_label;
+      document.getElementById('input-op-number').placeholder = sector.ref_placeholder;
+
+      document.getElementById('lbl-title').textContent = sector.title_label;
+      document.getElementById('input-title').placeholder = sector.title_placeholder;
+
+      document.getElementById('lbl-supplier').textContent = sector.entity_label;
+      document.getElementById('input-supplier').placeholder = sector.entity_placeholder;
+
+      document.getElementById('lbl-instructions').textContent = sector.instructions_label;
+      document.getElementById('input-instructions').placeholder = sector.instructions_placeholder;
+    }
+
+    function selectSectorAndGoToForm(sectorId) {
+      switchTab('new-task');
+      applySectorTemplate(sectorId);
+    }
 
     function isAssignedToMe(assignedTo) {
       if (!assignedTo) return false;
@@ -865,38 +1037,16 @@
       return target === CURRENT_USER_NAME || target.includes(CURRENT_USER_NAME) || CURRENT_USER_NAME.includes(target);
     }
 
-    // BUSCA GLOBAL NO TOPO
     function handleGlobalSearch(query) {
       const q = query.trim().toLowerCase();
-      
-      // Filtra nos cards do perfil
       document.querySelectorAll('#my-pending-container > div, #my-inprogress-container > div, #my-completed-container > div').forEach(el => {
-        if (!q) {
-          el.style.display = '';
-        } else {
-          const text = el.innerText.toLowerCase();
-          el.style.display = text.includes(q) ? '' : 'none';
-        }
+        el.style.display = (!q || el.innerText.toLowerCase().includes(q)) ? '' : 'none';
       });
-
-      // Filtra no Kanban
       document.querySelectorAll('.kanban-card').forEach(el => {
-        if (!q) {
-          el.style.display = '';
-        } else {
-          const text = el.innerText.toLowerCase();
-          el.style.display = text.includes(q) ? '' : 'none';
-        }
+        el.style.display = (!q || el.innerText.toLowerCase().includes(q)) ? '' : 'none';
       });
-
-      // Filtra no Feed
       document.querySelectorAll('#feed-posts-container > article').forEach(el => {
-        if (!q) {
-          el.style.display = '';
-        } else {
-          const text = el.innerText.toLowerCase();
-          el.style.display = text.includes(q) ? '' : 'none';
-        }
+        el.style.display = (!q || el.innerText.toLowerCase().includes(q)) ? '' : 'none';
       });
     }
 
@@ -1108,9 +1258,9 @@
               if (lastDiv) {
                 lastDiv.className = "flex items-center justify-between pt-2 border-t border-slate-100";
                 lastDiv.innerHTML = `
-                  <span class="text-[11px] text-slate-400 font-medium">Chegou do fornecedor?</span>
+                  <span class="text-[11px] text-slate-400 font-medium">Serviço concluído?</span>
                   <button onclick="updateTaskStatusFast('${taskId}', 'Aprovado')" class="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 px-3.5 py-1.5 rounded-xl transition shadow-xs flex items-center gap-1">
-                    <i data-lucide="check" class="w-3.5 h-3.5"></i> Homologar & Publicar
+                    <i data-lucide="check" class="w-3.5 h-3.5"></i> Concluir & Publicar
                   </button>
                 `;
               }
@@ -1171,16 +1321,16 @@
     }
 
     function copyOrderText(op, tool, title, supplier, due, instructions) {
-      const text = `*SOLICITAÇÃO DE FERRAMENTAL*\n` +
-                   `• OP: ${op || 'S/N'}\n` +
-                   `• Ferramental: ${tool}\n` +
-                   `• Trabalho: ${title}\n` +
-                   `• Fornecedor: ${supplier}\n` +
-                   `• Prazo Desejado: ${due}\n` +
-                   `• Instruções Técnicas: ${instructions || 'Conforme arquivo técnico'}`;
+      const text = `*DEMANDA DE TRABALHO*\n` +
+                   `• Ref/OP: ${op || 'S/N'}\n` +
+                   `• Categoria: ${tool}\n` +
+                   `• Descrição: ${title}\n` +
+                   `• Solicitante/Destino: ${supplier}\n` +
+                   `• Prazo Limite: ${due}\n` +
+                   `• Instruções: ${instructions || 'Conforme alinhamento'}`;
       
       navigator.clipboard.writeText(text).then(() => {
-        alert('📋 Pedido copiado! Pode colar na conversa ou e-mail com o fornecedor.');
+        alert('📋 Detalhes da demanda copiados para a área de transferência!');
       });
     }
 
@@ -1225,7 +1375,7 @@
       const btn = document.getElementById('btn-submit-task');
       if (btn) {
         btn.disabled = true;
-        btn.innerHTML = `<span class="animate-spin inline-block mr-2">🌀</span> Enviando...`;
+        btn.innerHTML = `<span class="animate-spin inline-block mr-2">🌀</span> Delegando...`;
       }
 
       const formData = new FormData(form);
@@ -1240,7 +1390,7 @@
           form.reset();
           if (btn) {
             btn.disabled = false;
-            btn.innerHTML = `<i data-lucide="send" class="w-3.5 h-3.5"></i> Delegar Tarefa`;
+            btn.innerHTML = `<i data-lucide="send" class="w-3.5 h-3.5"></i> Delegar Demanda`;
           }
           switchTab('kanban');
         }
@@ -1248,8 +1398,30 @@
         console.error(err);
         if (btn) {
           btn.disabled = false;
-          btn.innerHTML = `<i data-lucide="send" class="w-3.5 h-3.5"></i> Delegar Tarefa`;
+          btn.innerHTML = `<i data-lucide="send" class="w-3.5 h-3.5"></i> Delegar Demanda`;
         }
+      }
+    }
+
+    async function submitSaveSector(e) {
+      e.preventDefault();
+      const form = e.target;
+      const formData = new FormData(form);
+
+      try {
+        const res = await fetch('/api/sectors/save', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          document.getElementById('modalSectorConfig').classList.add('hidden');
+          window.location.reload();
+        } else {
+          alert(data.message || "Erro ao salvar modelo de setor.");
+        }
+      } catch (err) {
+        console.error(err);
       }
     }
 
@@ -1348,7 +1520,7 @@
             window.location.reload();
           }
         } catch (err) {
-          // Ignora mensagens de ping/pong
+          // Ignora pings
         }
       };
 
@@ -1380,7 +1552,7 @@
             ${task.tool_type}
           </span>
           <span class="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
-            OP: ${task.op_number || 'S/N'}
+            Ref: ${task.op_number || 'S/N'}
           </span>
         </div>
         <h4 class="text-xs font-bold text-slate-900 leading-snug">${task.title}</h4>
@@ -1395,7 +1567,7 @@
             <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> <b>${task.assigned_to}</b>
           </span>
           <button type="button" onclick="copyOrderText('${task.op_number}', '${task.tool_type}', '${task.title}', '${task.supplier}', '${task.due_date}', \`${task.instructions || ''}\`)" class="text-amber-600 hover:text-amber-800 font-semibold flex items-center gap-1 text-[10px] bg-amber-50 px-2 py-0.5 rounded transition">
-            <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Pedido
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar
           </button>
         </div>
       `;
@@ -1422,13 +1594,13 @@
             ${task.tool_type}
           </span>
           <span class="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-            OP: ${task.op_number || 'S/N'}
+            Ref: ${task.op_number || 'S/N'}
           </span>
         </div>
         <h4 class="text-sm font-bold text-slate-900 leading-snug">${task.title}</h4>
         <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1">
           <p class="flex items-center gap-1.5 font-semibold text-slate-700">
-            <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-600"></i> Fornecedor: ${task.supplier}
+            <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-600"></i> Solicitante/Destino: ${task.supplier}
           </p>
           <p class="text-amber-700 font-semibold font-mono text-[10px]">
             📅 Prazo Limite: ${task.due_date}
@@ -1437,10 +1609,10 @@
         </div>
         <div class="flex items-center justify-between pt-2 border-t border-slate-100">
           <button type="button" onclick="copyOrderText('${task.op_number}', '${task.tool_type}', '${task.title}', '${task.supplier}', '${task.due_date}', \`${task.instructions || ''}\`)" class="text-slate-600 hover:text-amber-600 font-semibold flex items-center gap-1 text-[11px] transition">
-            <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Pedido
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Demanda
           </button>
-          <button onclick="updateTaskStatusFast('${task.id}', 'Em Produção')" class="text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-xl transition border border-blue-200 flex items-center gap-1">
-            Iniciar Preparação <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+          <button onclick="updateTaskStatusFast('${task.id}', 'Em Produção')" class="text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition border border-blue-200 flex items-center gap-1">
+            Iniciar Execução <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
           </button>
         </div>
       `;
@@ -1464,10 +1636,10 @@
             <span class="text-[10px] font-bold text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-md">
               ${post.tool_type}
             </span>
-            ${post.op_number ? `<span class="text-[10px] font-mono font-medium text-slate-500">OP: ${post.op_number}</span>` : ''}
+            ${post.op_number ? `<span class="text-[10px] font-mono font-medium text-slate-500">Ref: ${post.op_number}</span>` : ''}
           </div>
           <h4 class="text-xs font-bold text-slate-900">${post.title}</h4>
-          <p class="text-[10px] text-slate-400">Fornecedor: <b class="text-slate-600">${post.supplier}</b> • Concluído em: Agora</p>
+          <p class="text-[10px] text-slate-400">Entidade: <b class="text-slate-600">${post.supplier}</b> • Concluído em: Agora</p>
         </div>
         <div class="flex items-center gap-2">
           <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-xl whitespace-nowrap">
@@ -1502,24 +1674,24 @@
               <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
                 ${post.tool_type}
               </span>
-              ${post.op_number ? `<span class="text-[11px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">OP: ${post.op_number}</span>` : ''}
+              ${post.op_number ? `<span class="text-[11px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">Ref: ${post.op_number}</span>` : ''}
             </div>
             <h3 class="text-sm sm:text-base font-bold text-slate-900 leading-snug">${post.title}</h3>
           </div>
           <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 whitespace-nowrap shadow-2xs">
-            <i data-lucide="check-check" class="w-3.5 h-3.5 text-emerald-600"></i> Aprovado
+            <i data-lucide="check-check" class="w-3.5 h-3.5 text-emerald-600"></i> Concluído
           </span>
         </div>
         <div class="p-5 space-y-4">
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 bg-slate-50/80 rounded-xl border border-slate-100 text-xs">
             <div>
-              <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Solicitado por</p>
+              <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Executado por</p>
               <p onclick="openUserProfileModal('${post.author}')" class="font-bold text-slate-800 flex items-center gap-1.5 mt-0.5 cursor-pointer hover:text-amber-600 transition">
                 <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> ${post.author}
               </p>
             </div>
             <div>
-              <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Fornecedor</p>
+              <p class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Destino / Solicitante</p>
               <p class="font-bold text-amber-700 flex items-center gap-1.5 mt-0.5">
                 <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-500"></i> ${post.supplier}
               </p>
@@ -1531,9 +1703,9 @@
               </p>
             </div>
           </div>
-          ${post.instructions ? `<div class="p-3.5 bg-amber-50/30 rounded-xl border border-amber-100/70 text-xs space-y-1"><span class="font-bold text-amber-900 flex items-center gap-1.5 text-[11px]"><i data-lucide="file-text" class="w-3.5 h-3.5 text-amber-600"></i> Especificações Técnicas:</span><p class="text-slate-700 leading-relaxed">${post.instructions}</p></div>` : ''}
+          ${post.instructions ? `<div class="p-3.5 bg-amber-50/30 rounded-xl border border-amber-100/70 text-xs space-y-1"><span class="font-bold text-amber-900 flex items-center gap-1.5 text-[11px]"><i data-lucide="file-text" class="w-3.5 h-3.5 text-amber-600"></i> Especificações & Instruções:</span><p class="text-slate-700 leading-relaxed">${post.instructions}</p></div>` : ''}
         </div>
-        ${post.image_url ? `<div class="bg-slate-950 flex items-center justify-center border-y border-slate-200 overflow-hidden"><img src="${post.image_url}" alt="Ferramental Concluído" class="w-full object-cover max-h-[460px]"></div>` : ''}
+        ${post.image_url ? `<div class="bg-slate-950 flex items-center justify-center border-y border-slate-200 overflow-hidden"><img src="${post.image_url}" alt="Comprovante Concluído" class="w-full object-cover max-h-[460px]"></div>` : ''}
         <div class="px-5 py-2.5 flex items-center gap-3 bg-white border-b border-slate-100">
           <button type="button" onclick="likePostSmooth('${post.id}')" class="flex items-center gap-1.5 text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-lg hover:bg-rose-100 active:scale-95 transition shadow-2xs">
             <i data-lucide="heart" class="w-3.5 h-3.5 fill-rose-600"></i> 
@@ -1541,10 +1713,10 @@
           </button>
         </div>
         <div class="p-5 bg-slate-50/70 space-y-3">
-          <span class="text-xs font-bold text-slate-700 block">Comentários e Inspeções Técnicas:</span>
+          <span class="text-xs font-bold text-slate-700 block">Comentários e Pareceres Técnicos:</span>
           <div id="comments-list-${post.id}" class="space-y-2"></div>
           <form onsubmit="submitCommentSmooth(event, '${post.id}')" class="flex gap-2 pt-1">
-            <input required type="text" name="text" placeholder="Adicionar parecer técnico..." class="flex-1 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
+            <input required type="text" name="text" placeholder="Adicionar parecer sobre esta entrega..." class="flex-1 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
             <button type="submit" class="bg-amber-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-amber-700 transition shadow-xs">
               Publicar
             </button>
@@ -1565,6 +1737,10 @@
     window.addEventListener('DOMContentLoaded', function() {
       const abaSalva = sessionStorage.getItem('aba_ativa') || 'my-profile';
       switchTab(abaSalva);
+
+      if (SECTORS_DATA.length > 0) {
+        applySectorTemplate(SECTORS_DATA[0].id);
+      }
     });
 
     window.addEventListener('pageshow', function(event) {
