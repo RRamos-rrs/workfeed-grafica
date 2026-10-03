@@ -801,7 +801,14 @@
   <!-- SCRIPT 100% REATIVO (ZERO PISCADAS / SEM RELOAD) -->
   <script>
     lucide.createIcons();
-    const CURRENT_USER_NAME = "{{ current_user.full_name }}";
+    const CURRENT_USER_NAME = "{{ current_user.full_name }}".trim().toLowerCase();
+
+    // COMPARAÇÃO TOLERANTE A ESPAÇOS E CARGOS
+    function isAssignedToMe(assignedTo) {
+      if (!assignedTo) return false;
+      const target = assignedTo.trim().toLowerCase();
+      return target === CURRENT_USER_NAME || target.includes(CURRENT_USER_NAME) || CURRENT_USER_NAME.includes(target);
+    }
 
     function switchTab(tab) {
       sessionStorage.setItem('aba_ativa', tab);
@@ -950,7 +957,7 @@
       if (!text) return;
 
       input.value = '';
-      appendCommentToDOM(postId, CURRENT_USER_NAME, text);
+      appendCommentToDOM(postId, "{{ current_user.full_name }}", text);
 
       try {
         const formData = new FormData();
@@ -974,9 +981,9 @@
       list.appendChild(div);
     }
 
-    // ATUALIZAR STATUS DE TAREFA (SEM TRAVAR)
+    // ATUALIZAR STATUS DE TAREFA (PROTEGIDO CONTRA FALHAS E TRAVAMENTOS)
     async function updateTaskStatusFast(taskId, newStatus) {
-      moveTaskVisual(taskId, newStatus, CURRENT_USER_NAME);
+      moveTaskVisual(taskId, newStatus, "{{ current_user.full_name }}");
 
       try {
         await fetch(`/api/tasks/${taskId}/status`, {
@@ -985,49 +992,55 @@
           body: JSON.stringify({ status: newStatus })
         });
       } catch (err) {
-        console.error('Erro ao atualizar status:', err);
+        console.error('Erro ao atualizar status na API:', err);
       }
     }
 
     function moveTaskVisual(taskId, newStatus, assignedTo) {
-      // 1. Move no Quadro Geral Kanban
-      const kanbanCard = document.getElementById(`task-${taskId}`);
-      const targetKanbanCol = document.getElementById(`kanban-col-${newStatus}`);
-
-      if (kanbanCard && targetKanbanCol) {
-        targetKanbanCol.prepend(kanbanCard);
-      }
-
-      // 2. Se for uma tarefa atribuída a mim, atualiza na aba "Meu Perfil"
-      const myCard = document.getElementById(`my-task-${taskId}`);
-      if (myCard) {
-        if (newStatus === "Em Produção") {
-          const inProgressCont = document.getElementById('my-inprogress-container');
-          const noInpMsg = document.getElementById('no-inprogress-msg');
-          if (noInpMsg) noInpMsg.remove();
-
-          if (inProgressCont) {
-            // Atualiza botões e estilo para o visual de "Em Produção"
-            myCard.className = "bg-white p-4 rounded-xl border border-blue-200 shadow-xs space-y-3 hover:border-blue-300 transition";
-            const btnArea = myCard.querySelector('.border-t');
-            if (btnArea) {
-              btnArea.innerHTML = `
-                <span class="text-[11px] text-slate-400 font-medium">Chegou do fornecedor?</span>
-                <button onclick="updateTaskStatusFast('${taskId}', 'Aprovado')" class="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-1.5 rounded-lg transition shadow-xs flex items-center gap-1">
-                  <i data-lucide="check" class="w-3.5 h-3.5"></i> Homologar & Publicar
-                </button>
-              `;
-            }
-            inProgressCont.prepend(myCard);
-          }
-        } else if (newStatus === "Aprovado") {
-          myCard.remove();
+      try {
+        // 1. Move no Kanban Geral
+        const kanbanCard = document.getElementById(`task-${taskId}`);
+        const targetKanbanCol = document.getElementById(`kanban-col-${newStatus}`);
+        if (kanbanCard && targetKanbanCol) {
+          targetKanbanCol.prepend(kanbanCard);
         }
-      }
 
-      recalculateKanbanBadges();
-      recalculateMyProfileCounters();
-      lucide.createIcons();
+        // 2. Se a tarefa é minha, atualiza na aba Meu Perfil
+        const myCard = document.getElementById(`my-task-${taskId}`);
+        if (myCard) {
+          if (newStatus === "Em Produção") {
+            const inProgressCont = document.getElementById('my-inprogress-container');
+            const noInpMsg = document.getElementById('no-inprogress-msg');
+            if (noInpMsg) noInpMsg.remove();
+
+            if (inProgressCont) {
+              myCard.className = "bg-white p-4 rounded-xl border border-blue-200 shadow-xs space-y-3 hover:border-blue-300 transition";
+              
+              // Ajusta o botão com segurança
+              const btnAreas = myCard.querySelectorAll('div');
+              const lastDiv = btnAreas[btnAreas.length - 1];
+              if (lastDiv) {
+                lastDiv.className = "flex items-center justify-between pt-2 border-t border-slate-100";
+                lastDiv.innerHTML = `
+                  <span class="text-[11px] text-slate-400 font-medium">Chegou do fornecedor?</span>
+                  <button onclick="updateTaskStatusFast('${taskId}', 'Aprovado')" class="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-1.5 rounded-lg transition shadow-xs flex items-center gap-1">
+                    <i data-lucide="check" class="w-3.5 h-3.5"></i> Homologar & Publicar
+                  </button>
+                `;
+              }
+              inProgressCont.prepend(myCard);
+            }
+          } else if (newStatus === "Aprovado") {
+            myCard.remove();
+          }
+        }
+
+        recalculateKanbanBadges();
+        recalculateMyProfileCounters();
+        lucide.createIcons();
+      } catch (err) {
+        console.error("Erro interno ao manipular DOM do card:", err);
+      }
     }
 
     function recalculateKanbanBadges() {
@@ -1035,14 +1048,14 @@
         const badge = document.getElementById(`badge-kanban-${status}`);
         const col = document.getElementById(`kanban-col-${status}`);
         if (badge && col) {
-          badge.textContent = col.children.length;
+          badge.textContent = col.querySelectorAll('.kanban-card').length;
         }
       });
 
       const totalBadge = document.getElementById('badge-kanban-total');
-      const c1 = document.getElementById('kanban-col-Atribuído')?.children.length || 0;
-      const c2 = document.getElementById('kanban-col-Em Produção')?.children.length || 0;
-      const c3 = document.getElementById('kanban-col-Aprovado')?.children.length || 0;
+      const c1 = document.getElementById('kanban-col-Atribuído')?.querySelectorAll('.kanban-card').length || 0;
+      const c2 = document.getElementById('kanban-col-Em Produção')?.querySelectorAll('.kanban-card').length || 0;
+      const c3 = document.getElementById('kanban-col-Aprovado')?.querySelectorAll('.kanban-card').length || 0;
       if (totalBadge) totalBadge.textContent = c1 + c2 + c3;
     }
 
@@ -1120,7 +1133,6 @@
       }
     });
 
-    // CRIAÇÃO DE TAREFA ASSÍNCRONA E SILENCIOSA
     async function submitCreateTaskSmooth(e) {
       e.preventDefault();
       const form = e.target;
@@ -1235,17 +1247,15 @@
             moveTaskVisual(data.task_id, data.new_status, data.assigned_to);
             if (data.published_to_feed && data.post) {
               insertPostToFeedDOM(data.post);
-              // Se foi o próprio usuário que homologou, adiciona ao bloco de concluídos dele
-              if (data.assigned_to === CURRENT_USER_NAME) {
+              if (isAssignedToMe(data.assigned_to)) {
                 insertMyCompletedDOM(data.post);
               }
             }
           }
-          // 4. RECEBE NOVA TAREFA CRIADA
+          // 4. RECEBE NOVA TAREFA CRIADA (COM COMPARAÇÃO BLINDADA)
           else if (data.type === "TASK_CREATED") {
             insertTaskToKanbanDOM(data.task);
-            // Se a tarefa for delegada para mim, insere na minha aba de perfil instantaneamente!
-            if (data.task.assigned_to === CURRENT_USER_NAME) {
+            if (isAssignedToMe(data.task.assigned_to)) {
               insertTaskToMyProfileDOM(data.task);
             }
           }
@@ -1258,7 +1268,7 @@
             window.location.reload();
           }
         } catch (err) {
-          // Ignora mensagens de texto simples como "pong"
+          // Ignora mensagens de ping/pong
         }
       };
 
@@ -1389,7 +1399,7 @@
       if (compCounter) compCounter.textContent = parseInt(compCounter.textContent || "0") + 1;
 
       const badgeC = document.getElementById('badge-my-completed');
-      if (badgeC) badgeC.textContent = `${compCont.children.length} concluído(s)`;
+      if (badgeC) badgeC.textContent = `${compCont.querySelectorAll('div.bg-white').length} concluído(s)`;
     }
 
     function insertPostToFeedDOM(post) {
@@ -1463,7 +1473,7 @@
       container.prepend(article);
 
       const fBadge = document.getElementById('badge-feed-total');
-      if (fBadge) fBadge.textContent = `${container.children.length} registro(s)`;
+      if (fBadge) fBadge.textContent = `${container.querySelectorAll('article').length} registro(s)`;
 
       lucide.createIcons();
     }
