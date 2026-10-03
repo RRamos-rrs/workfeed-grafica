@@ -98,15 +98,15 @@ def home(request: Request, db: Session = Depends(get_db)):
         )
     ).order_by(models.Post.created_at.desc()).all()
 
-    my_tasks = [t for t in all_tasks if t.assigned_to == current_user.full_name]
+    my_tasks = [t for t in all_tasks if (t.assigned_to or "").strip() == current_user.full_name.strip()]
     my_pending_tasks = [t for t in my_tasks if t.status == "Atribuído"]
     my_in_progress_tasks = [t for t in my_tasks if t.status == "Em Produção"]
-    my_completed_posts = [p for p in posts if p.author == current_user.full_name]
+    my_completed_posts = [p for p in posts if (p.author or "").strip() == current_user.full_name.strip()]
 
     collaborators = []
     for u in team_users:
-        user_tasks = [t for t in all_tasks if t.assigned_to == u.full_name]
-        user_posts = [p for p in posts if p.author == u.full_name]
+        user_tasks = [t for t in all_tasks if (t.assigned_to or "").strip() == u.full_name.strip()]
+        user_posts = [p for p in posts if (p.author or "").strip() == u.full_name.strip()]
         active_count = len([t for t in user_tasks if t.status != "Aprovado"])
         approved_count = len(user_posts)
 
@@ -142,12 +142,13 @@ def home(request: Request, db: Session = Depends(get_db)):
 
 @app.get("/api/users/profile/{full_name}")
 def get_user_profile(full_name: str, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.full_name == full_name).first()
+    clean_name = full_name.strip()
+    user = db.query(models.User).filter(models.User.full_name.ilike(clean_name)).first()
     if not user:
         return JSONResponse(status_code=404, content={"message": "Colaborador não encontrado"})
     
-    tasks = db.query(models.Task).filter(models.Task.assigned_to == full_name).all()
-    posts = db.query(models.Post).filter(models.Post.author == full_name).all()
+    tasks = db.query(models.Task).filter(models.Task.assigned_to.ilike(clean_name)).all()
+    posts = db.query(models.Post).filter(models.Post.author.ilike(clean_name)).all()
     
     return {
         "full_name": user.full_name,
@@ -200,7 +201,7 @@ async def register(
         )
 
     new_user = models.User(
-        full_name=full_name,
+        full_name=full_name.strip(),
         username=clean_username,
         role=role,
         password=password,
@@ -233,11 +234,12 @@ async def add_collaborator(
     is_manager = role_normalized in ["gestor", "manager", "admin"]
     manager_ref_id = current_user.id if is_manager else current_user.manager_id
     clean_username = username.strip()
+    clean_full_name = full_name.strip()
 
     existing = db.query(models.User).filter(models.User.username.ilike(clean_username)).first()
     
     if existing:
-        existing.full_name = full_name
+        existing.full_name = clean_full_name
         existing.role = role
         existing.password = password
         existing.manager_id = manager_ref_id
@@ -247,7 +249,7 @@ async def add_collaborator(
         return JSONResponse(content={"success": True, "message": "Colaborador vinculado com sucesso!"})
 
     new_user = models.User(
-        full_name=full_name,
+        full_name=clean_full_name,
         username=clean_username,
         role=role,
         password=password,
@@ -314,7 +316,7 @@ async def create_task(
     db: Session = Depends(get_db)
 ):
     current_user = get_current_user(request, db)
-    delegator = current_user.full_name if current_user else "Gestão"
+    delegator = current_user.full_name.strip() if current_user else "Gestão"
 
     image_url = None
     if image and image.filename:
@@ -323,15 +325,17 @@ async def create_task(
             shutil.copyfileobj(image.file, buffer)
         image_url = f"/{file_path}"
 
+    clean_assigned_to = assigned_to.strip()
+
     new_task = models.Task(
-        op_number=op_number,
-        tool_type=tool_type,
-        title=title,
+        op_number=op_number.strip(),
+        tool_type=tool_type.strip(),
+        title=title.strip(),
         delegated_by=delegator,
-        assigned_to=assigned_to,
-        supplier=supplier,
-        instructions=instructions,
-        due_date=due_date,
+        assigned_to=clean_assigned_to,
+        supplier=supplier.strip(),
+        instructions=instructions.strip(),
+        due_date=due_date.strip(),
         status="Atribuído",
         image_url=image_url
     )
@@ -439,7 +443,7 @@ async def like_post(post_id: int, db: Session = Depends(get_db)):
 @app.post("/posts/{post_id}/comment")
 async def add_comment(request: Request, post_id: int, text: str = Form(...), db: Session = Depends(get_db)):
     current_user = get_current_user(request, db)
-    author_name = current_user.full_name if current_user else "Colaborador"
+    author_name = current_user.full_name.strip() if current_user else "Colaborador"
 
     comment = models.Comment(post_id=post_id, author=author_name, text=text.strip())
     db.add(comment)
