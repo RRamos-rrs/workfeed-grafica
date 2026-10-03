@@ -1,6 +1,7 @@
 import os
 import shutil
 import json
+import asyncio
 from typing import List
 from fastapi import FastAPI, Depends, Request, Form, UploadFile, File, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -48,7 +49,7 @@ class ConnectionManager:
     async def broadcast(self, message: dict):
         for connection in list(self.active_connections):
             try:
-                await connection.send_json(message)
+                await asyncio.wait_for(connection.send_json(message), timeout=1.0)
             except Exception:
                 self.disconnect(connection)
 
@@ -73,7 +74,6 @@ def get_current_user(request: Request, db: Session):
         return None
     return db.query(models.User).filter(models.User.username == username).first()
 
-# Inicializador automático dos setores da empresa com schema dinâmico em JSON
 def ensure_default_sectors(db: Session):
     existing_count = db.query(models.SectorConfig).count()
     if existing_count == 0:
@@ -262,7 +262,7 @@ async def save_sector(
         sector.fields_schema = fields_schema_json.strip()
 
     db.commit()
-    await manager.broadcast({"type": "REFRESH"})
+    asyncio.create_task(manager.broadcast({"type": "REFRESH"}))
     return JSONResponse(content={"success": True, "message": "Modelo de setor salvo com sucesso!"})
 
 @app.delete("/api/sectors/{sector_id}")
@@ -281,7 +281,7 @@ async def delete_sector(request: Request, sector_id: int, db: Session = Depends(
 
     db.delete(sector)
     db.commit()
-    await manager.broadcast({"type": "REFRESH"})
+    asyncio.create_task(manager.broadcast({"type": "REFRESH"}))
     return JSONResponse(content={"success": True, "message": "Setor removido com sucesso!"})
 
 @app.get("/api/users/profile/{full_name}")
@@ -355,7 +355,7 @@ async def register(
     db.add(new_user)
     db.commit()
 
-    await manager.broadcast({"type": "REFRESH"})
+    asyncio.create_task(manager.broadcast({"type": "REFRESH"}))
 
     redirect = RedirectResponse(url="/", status_code=303)
     redirect.set_cookie(key="user_session", value=clean_username, httponly=True)
@@ -391,7 +391,7 @@ async def add_collaborator(
         existing.manager_id = manager_ref_id
         db.commit()
 
-        await manager.broadcast({"type": "REFRESH"})
+        asyncio.create_task(manager.broadcast({"type": "REFRESH"}))
         return JSONResponse(content={"success": True, "message": "Colaborador vinculado com sucesso!"})
 
     new_user = models.User(
@@ -405,7 +405,7 @@ async def add_collaborator(
     db.add(new_user)
     db.commit()
 
-    await manager.broadcast({"type": "REFRESH"})
+    asyncio.create_task(manager.broadcast({"type": "REFRESH"}))
     return JSONResponse(content={"success": True, "message": "Colaborador adicionado com sucesso!"})
 
 @app.delete("/api/users/{username}")
@@ -435,11 +435,11 @@ async def delete_user(request: Request, username: str, db: Session = Depends(get
     db.delete(user_to_delete)
     db.commit()
 
-    await manager.broadcast({
+    asyncio.create_task(manager.broadcast({
         "type": "USER_DELETED",
         "username": del_username,
         "full_name": del_full_name
-    })
+    }))
 
     return JSONResponse(content={"success": True, "message": "Colaborador removido com sucesso!"})
 
@@ -456,16 +456,19 @@ async def create_task(
     sector_name: str = Form(""),
     op_number: str = Form(""),
     tool_type: str = Form("Geral"),
-    title: str = Form(...),
-    assigned_to: str = Form(...),
+    title: str = Form("Demanda Operacional"),
+    assigned_to: str = Form(""),
     supplier: str = Form("Interno"),
     instructions: str = Form(""),
-    due_date: str = Form(...),
+    due_date: str = Form("A definir"),
     image: UploadFile = File(None),
     db: Session = Depends(get_db)
 ):
     current_user = get_current_user(request, db)
     delegator = current_user.full_name.strip() if current_user else "Gestão"
+
+    clean_title = title.strip() if title else f"Demanda - {tool_type}"
+    clean_assigned = assigned_to.strip() if assigned_to else (current_user.full_name if current_user else "Equipe")
 
     image_url = None
     if image and image.filename:
@@ -474,19 +477,17 @@ async def create_task(
             shutil.copyfileobj(image.file, buffer)
         image_url = f"/{file_path}"
 
-    clean_assigned_to = assigned_to.strip()
-
     new_task = models.Task(
         sector_id=sector_id if sector_id > 0 else None,
         sector_name=sector_name.strip() if sector_name else None,
         op_number=op_number.strip(),
-        tool_type=tool_type.strip(),
-        title=title.strip(),
+        tool_type=tool_type.strip() or "Geral",
+        title=clean_title,
         delegated_by=delegator,
-        assigned_to=clean_assigned_to,
+        assigned_to=clean_assigned,
         supplier=supplier.strip() or "Interno",
         instructions=instructions.strip(),
-        due_date=due_date.strip(),
+        due_date=due_date.strip() or "A definir",
         status="Atribuído",
         image_url=image_url
     )
@@ -511,11 +512,10 @@ async def create_task(
             "image_url": new_task.image_url
         }
     }
-    await manager.broadcast(task_payload)
+    asyncio.create_task(manager.broadcast(task_payload))
 
     return JSONResponse(content={"success": True, "task": task_payload["task"]})
 
-# NOVA ROTA: CRIAÇÃO DIRETA DE POSTS NO FEED (ESTILO INSTAGRAM)
 @app.post("/posts/create-direct")
 async def create_direct_post(
     request: Request,
@@ -569,7 +569,7 @@ async def create_direct_post(
             "comments": []
         }
     }
-    await manager.broadcast(post_payload)
+    asyncio.create_task(manager.broadcast(post_payload))
 
     return JSONResponse(content={"success": True, "post": post_payload["post"]})
 
@@ -626,7 +626,7 @@ async def update_task_status_api(task_id: int, payload: StatusUpdate, db: Sessio
     else:
         db.commit()
 
-    await manager.broadcast({
+    asyncio.create_task(manager.broadcast({
         "type": "TASK_STATUS_UPDATED",
         "task_id": task_id,
         "old_status": old_status,
@@ -634,7 +634,7 @@ async def update_task_status_api(task_id: int, payload: StatusUpdate, db: Sessio
         "assigned_to": task.assigned_to,
         "published_to_feed": published,
         "post": new_post_payload
-    })
+    }))
 
     return {"success": True, "published_to_feed": published, "new_status": new_status}
 
@@ -647,11 +647,11 @@ async def like_post(post_id: int, db: Session = Depends(get_db)):
     post.likes += 1
     db.commit()
     
-    await manager.broadcast({
+    asyncio.create_task(manager.broadcast({
         "type": "POST_LIKED",
         "post_id": post_id,
         "likes": post.likes
-    })
+    }))
 
     return JSONResponse(content={"success": True, "likes": post.likes})
 
@@ -670,6 +670,6 @@ async def add_comment(request: Request, post_id: int, text: str = Form(...), db:
         "author": author_name,
         "text": text.strip()
     }
-    await manager.broadcast(comment_data)
+    asyncio.create_task(manager.broadcast(comment_data))
 
     return JSONResponse(content={"success": True, "comment": comment_data})
