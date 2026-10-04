@@ -7,7 +7,7 @@ from fastapi import FastAPI, Depends, Request, Form, UploadFile, File, Response,
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, text
 from pydantic import BaseModel
 
@@ -29,13 +29,12 @@ except Exception as e:
 
 models.Base.metadata.create_all(bind=engine)
 
-# Diretórios necessários para uploads e arquivos estáticos (logo, favicon, etc.)
+# Diretórios necessários para uploads e arquivos estáticos
 os.makedirs("uploads", exist_ok=True)
 os.makedirs("static/img", exist_ok=True)
 
 app = FastAPI()
 
-# Montagem dos arquivos estáticos
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -148,14 +147,14 @@ def ensure_default_sectors(db: Session):
         sectors = db.query(models.SectorConfig).all()
         for s in sectors:
             if not s.fields_schema or s.fields_schema.strip() == "":
-                opts = s.tool_types_csv or "Geral"
+                opts = getattr(s, 'tool_types_csv', None) or "Geral"
                 schema = [
                     {"id": "tool_type", "label": "Categoria / Tipo", "type": "select", "options": opts, "required": True},
-                    {"id": "op_number", "label": s.ref_label or "Nº da OP", "type": "text", "placeholder": s.ref_placeholder or "Ex: OP-100", "required": False},
-                    {"id": "title", "label": s.title_label or "Trabalho", "type": "text", "placeholder": s.title_placeholder or "Ex: Descrição", "required": True},
-                    {"id": "supplier", "label": s.entity_label or "Destinatário", "type": "text", "placeholder": s.entity_placeholder or "Ex: Contato", "required": True},
+                    {"id": "op_number", "label": getattr(s, 'ref_label', None) or "Nº da OP", "type": "text", "placeholder": getattr(s, 'ref_placeholder', None) or "Ex: OP-100", "required": False},
+                    {"id": "title", "label": getattr(s, 'title_label', None) or "Trabalho", "type": "text", "placeholder": getattr(s, 'title_placeholder', None) or "Ex: Descrição", "required": True},
+                    {"id": "supplier", "label": getattr(s, 'entity_label', None) or "Destinatário", "type": "text", "placeholder": getattr(s, 'entity_placeholder', None) or "Ex: Contato", "required": True},
                     {"id": "due_date", "label": "Prazo Limite", "type": "date", "required": True},
-                    {"id": "instructions", "label": s.instructions_label or "Instruções", "type": "textarea", "placeholder": s.instructions_placeholder or "Detalhes...", "required": False}
+                    {"id": "instructions", "label": getattr(s, 'instructions_label', None) or "Instruções", "type": "textarea", "placeholder": getattr(s, 'instructions_placeholder', None) or "Detalhes...", "required": False}
                 ]
                 s.fields_schema = json.dumps(schema, ensure_ascii=False)
         db.commit()
@@ -188,7 +187,8 @@ def home(request: Request, db: Session = Depends(get_db)):
         )
     ).all()
 
-    posts = db.query(models.Post).filter(
+    # CARREGAMENTO EXPLÍCITO DE COMENTÁRIOS COM JOINEDLOAD (EVITA SUMIÇO DE COMENTÁRIOS)
+    posts = db.query(models.Post).options(joinedload(models.Post.comments)).filter(
         or_(
             models.Post.author.in_(team_user_names),
             models.Post.delegated_by.in_(team_user_names)
@@ -571,7 +571,7 @@ async def create_direct_post(
             "due_date": post.due_date,
             "instructions": post.instructions,
             "image_url": post.image_url,
-            "created_at": post.created_at.strftime('%d/%m/%Y %H:%M') if post.created_at else "",
+            "created_at": post.created_at.strftime('%d/%m/%Y %H:%M') if getattr(post, 'created_at', None) else "",
             "likes": 0,
             "comments": []
         }
@@ -583,6 +583,7 @@ async def create_direct_post(
 class StatusUpdate(BaseModel):
     status: str
 
+# ROTA DE STATUS CORRIGIDA E BLINDADA CONTRA FALHAS DE ROLLBACK
 @app.put("/api/tasks/{task_id}/status")
 async def update_task_status_api(task_id: int, payload: StatusUpdate, db: Session = Depends(get_db)):
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
@@ -597,39 +598,46 @@ async def update_task_status_api(task_id: int, payload: StatusUpdate, db: Sessio
     new_post_payload = None
 
     if new_status == "Aprovado" and old_status != "Aprovado":
-        post = models.Post(
-            sector_id=task.sector_id,
-            sector_name=task.sector_name,
-            author=task.assigned_to,
-            delegated_by=task.delegated_by,
-            supplier=task.supplier,
-            tool_type=task.tool_type,
-            op_number=task.op_number,
-            title=task.title,
-            instructions=task.instructions,
-            due_date=task.due_date,
-            image_url=task.image_url
-        )
-        db.add(post)
-        db.commit()
-        published = True
+        try:
+            post = models.Post(
+                sector_id=getattr(task, 'sector_id', None),
+                sector_name=getattr(task, 'sector_name', None),
+                author=task.assigned_to or "Colaborador",
+                delegated_by=task.delegated_by or "Gestão",
+                supplier=task.supplier or "Interno",
+                tool_type=task.tool_type or "Geral",
+                op_number=task.op_number or "",
+                title=task.title or "Demanda Concluída",
+                instructions=task.instructions or "",
+                due_date=task.due_date or "Concluído",
+                image_url=task.image_url
+            )
+            db.add(post)
+            db.commit()
+            db.refresh(post)
+            published = True
 
-        new_post_payload = {
-            "id": post.id,
-            "sector_id": post.sector_id,
-            "sector_name": post.sector_name,
-            "author": post.author,
-            "tool_type": post.tool_type,
-            "op_number": post.op_number,
-            "title": post.title,
-            "supplier": post.supplier,
-            "due_date": post.due_date,
-            "instructions": post.instructions,
-            "image_url": post.image_url,
-            "created_at": post.created_at.strftime('%d/%m/%Y %H:%M') if post.created_at else "",
-            "likes": 0,
-            "comments": []
-        }
+            new_post_payload = {
+                "id": post.id,
+                "sector_id": getattr(post, 'sector_id', None),
+                "sector_name": getattr(post, 'sector_name', None),
+                "author": post.author,
+                "tool_type": post.tool_type,
+                "op_number": post.op_number,
+                "title": post.title,
+                "supplier": post.supplier,
+                "due_date": post.due_date,
+                "instructions": post.instructions,
+                "image_url": post.image_url,
+                "created_at": post.created_at.strftime('%d/%m/%Y %H:%M') if getattr(post, 'created_at', None) else "",
+                "likes": 0,
+                "comments": []
+            }
+        except Exception as err:
+            db.rollback()
+            print(f"Aviso: Falha ao duplicar para Post, salvando apenas o status: {err}")
+            task.status = new_status
+            db.commit()
     else:
         db.commit()
 
@@ -651,7 +659,7 @@ async def like_post(post_id: int, db: Session = Depends(get_db)):
     if not post:
         return JSONResponse(status_code=404, content={"success": False, "message": "Post não encontrado"})
     
-    post.likes += 1
+    post.likes = (post.likes or 0) + 1
     db.commit()
     
     asyncio.create_task(manager.broadcast({
@@ -662,20 +670,26 @@ async def like_post(post_id: int, db: Session = Depends(get_db)):
 
     return JSONResponse(content={"success": True, "likes": post.likes})
 
+# ROTA DE COMENTÁRIOS COM PERSISTÊNCIA REFORÇADA
 @app.post("/posts/{post_id}/comment")
 async def add_comment(request: Request, post_id: int, text: str = Form(...), db: Session = Depends(get_db)):
     current_user = get_current_user(request, db)
     author_name = current_user.full_name.strip() if current_user else "Colaborador"
 
-    comment = models.Comment(post_id=post_id, author=author_name, text=text.strip())
+    clean_text = text.strip()
+    if not clean_text:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Comentário vazio."})
+
+    comment = models.Comment(post_id=post_id, author=author_name, text=clean_text)
     db.add(comment)
     db.commit()
+    db.refresh(comment)
 
     comment_data = {
         "type": "NEW_COMMENT",
         "post_id": post_id,
         "author": author_name,
-        "text": text.strip()
+        "text": clean_text
     }
     asyncio.create_task(manager.broadcast(comment_data))
 
