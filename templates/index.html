@@ -173,7 +173,7 @@
     <!-- ================= CONTEÚDO PRINCIPAL ================= -->
     <main class="lg:col-span-9 space-y-6">
 
-      <!-- ================= ABA 0: MEU PERFIL & MINHAS TAREFAS ================= -->
+      <!-- ABA 0: MEU PERFIL & MINHAS TAREFAS -->
       <section id="content-my-profile" class="space-y-6">
         <div class="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div class="flex items-center gap-4">
@@ -338,7 +338,7 @@
         </div>
       </section>
 
-      <!-- ================= ABA 1: FEED GERAL ================= -->
+      <!-- ABA 1: FEED GERAL -->
       <section id="content-feed" class="hidden max-w-2xl mx-auto space-y-6">
         <div class="flex items-center justify-between px-1">
           <div>
@@ -433,7 +433,7 @@
         </div>
       </section>
 
-      <!-- ================= ABA 2: QUADRO KANBAN GERAL ================= -->
+      <!-- ABA 2: QUADRO KANBAN GERAL -->
       <section id="content-kanban" class="hidden space-y-4">
         <div class="flex items-center justify-between px-1">
           <div>
@@ -446,7 +446,7 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
-          <!-- COLUNA 1: ATRIBUÍDO -->
+          <!-- COLUNA 1 -->
           <div class="bg-slate-100/90 rounded-2xl p-3 border border-slate-200/80 flex flex-col min-h-[520px]">
             <div class="flex items-center justify-between px-2 mb-3">
               <div class="flex items-center gap-2">
@@ -491,7 +491,7 @@
             </div>
           </div>
 
-          <!-- COLUNA 2: EM EXECUÇÃO -->
+          <!-- COLUNA 2 -->
           <div class="bg-slate-100/90 rounded-2xl p-3 border border-slate-200/80 flex flex-col min-h-[520px]">
             <div class="flex items-center justify-between px-2 mb-3">
               <div class="flex items-center gap-2">
@@ -526,7 +526,7 @@
                     <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
                   </span>
                   <button type="button" onclick="updateTaskStatusFast('{{ task.id }}', 'Aprovado')" class="text-emerald-600 hover:text-emerald-800 font-semibold flex items-center gap-1 text-[10px] bg-emerald-50 px-2.5 py-1 rounded transition border border-emerald-200">
-                    <i data-lucide="check" class="w-3.5 h-3.5"></i> Concluir
+                    <i data-lucide="check" class="w-3 h-3"></i> Concluir
                   </button>
                 </div>
               </div>
@@ -534,7 +534,7 @@
             </div>
           </div>
 
-          <!-- COLUNA 3: CONCLUÍDO -->
+          <!-- COLUNA 3 -->
           <div class="bg-slate-100/90 rounded-2xl p-3 border border-slate-200/80 flex flex-col min-h-[520px]">
             <div class="flex items-center justify-between px-2 mb-3">
               <div class="flex items-center gap-2">
@@ -566,7 +566,7 @@
         </div>
       </section>
 
-      <!-- ================= ABA 3: EQUIPE ================= -->
+      <!-- ABA 3: EQUIPE -->
       <section id="content-profiles" class="hidden space-y-6">
         <div class="flex items-center justify-between px-1">
           <div>
@@ -614,7 +614,7 @@
       <!-- ================= ABA 4: NOVO TEMPLATE ELEGANTE DE DEMANDA ================= -->
       <section id="content-new-task" class="hidden max-w-2xl mx-auto space-y-4">
         
-        <!-- SELEÇÃO RÁPIDA DE SETOR (DISCRETA NO TOPO) -->
+        <!-- SELEÇÃO RÁPIDA DE SETOR -->
         <div class="flex items-center justify-between px-1">
           <div class="flex items-center gap-2">
             <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Setor Ativo:</span>
@@ -671,23 +671,29 @@
               >
             </div>
 
-            <!-- 2. LINHA PAREADA: SOLICITANTE & RESPONSÁVEL -->
+            <!-- 2. LINHA PAREADA: SOLICITANTE DINÂMICO (<SELECT> OU <INPUT>) & RESPONSÁVEL -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label id="lbl-task-supplier" class="block text-xs font-bold text-slate-800 mb-1.5">
                   Solicitante <span class="text-rose-500">*</span>
                 </label>
-                <div class="relative">
+                <!-- Container populado dinamicamente para permitir <select> com setores ou <input> -->
+                <div id="supplier-input-container" class="relative">
                   <i data-lucide="user" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
-                  <input 
-                    required 
-                    type="text" 
-                    name="supplier" 
-                    id="task-input-supplier"
-                    placeholder="Nome / Setor Solicitante" 
-                    value="{{ current_user.full_name }}"
-                    class="w-full text-xs pl-10 pr-3.5 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] bg-white transition"
-                  >
+                  <select required name="supplier" id="task-input-supplier" class="w-full text-xs pl-10 pr-8 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] bg-white transition font-medium appearance-none">
+                    <option value="" disabled>Nome / Setor Solicitante</option>
+                    <optgroup label="Meus Setores">
+                      {% for sec in sectors %}
+                      <option value="{{ sec.name }}">{{ sec.icon }} {{ sec.name }}</option>
+                      {% endfor %}
+                    </optgroup>
+                    <optgroup label="Colaboradores">
+                      {% for u in users %}
+                      <option value="{{ u.full_name }}" {% if u.full_name == current_user.full_name %}selected{% endif %}>{{ u.full_name }}</option>
+                      {% endfor %}
+                    </optgroup>
+                  </select>
+                  <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
                 </div>
               </div>
 
@@ -846,7 +852,7 @@
             </button>
           </div>
 
-          <!-- LISTA COMPLETA DOS CAMPOS (SEM EXCLUSÕES) -->
+          <!-- LISTA COMPLETA DOS CAMPOS -->
           <div id="builder-fields-list" class="space-y-2.5 max-h-[360px] overflow-y-auto p-1">
           </div>
         </div>
@@ -957,6 +963,12 @@
       {% endfor %}
     ];
 
+    const ALL_USERS = [
+      {% for u in users %}
+      { full_name: `{{ u.full_name }}`, role: `{{ u.role }}` }{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ];
+
     let currentSelectedSectorId = SECTORS_DATA.length > 0 ? SECTORS_DATA[0].id : 0;
     let builderCurrentFields = [];
 
@@ -971,7 +983,7 @@
       }
     }
 
-    // 1. RENDERIZADOR DINÂMICO HARMONIZADO
+    // 1. RENDERIZADOR DINÂMICO DO SOLICITANTE E DOS CAMPOS
     function applySectorTemplate(sectorId) {
       const sector = SECTORS_DATA.find(s => s.id === sectorId);
       if (!sector) return;
@@ -992,16 +1004,49 @@
 
       document.getElementById('dynamic-form-header-title').textContent = `Nova Demanda • ${sector.name}`;
 
-      // Atualiza rótulos caso tenham sido renomeados no editor
+      // Configuração dinâmica do campo SOLICITANTE
+      const fSupplier = sector.fields.find(f => f.id === 'supplier');
+      const supplierCont = document.getElementById('supplier-input-container');
+
+      if (fSupplier && fSupplier.type === 'text') {
+        // Se configurado como texto livre
+        supplierCont.innerHTML = `
+          <i data-lucide="user" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+          <input required type="text" name="supplier" id="task-input-supplier" placeholder="${fSupplier.placeholder || 'Nome / Setor Solicitante'}" value="{{ current_user.full_name }}" class="w-full text-xs pl-10 pr-3.5 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] bg-white transition">
+        `;
+      } else {
+        // Se configurado como lista ou padrão com opções
+        let optsHtml = '';
+        if (fSupplier && fSupplier.options) {
+          let customOpts = Array.isArray(fSupplier.options) ? fSupplier.options : fSupplier.options.split(',').map(o => o.trim()).filter(Boolean);
+          optsHtml = customOpts.map(o => `<option value="${o}">${o}</option>`).join('');
+        } else {
+          // Padrão: Setores e Colaboradores
+          const secOpts = SECTORS_DATA.map(s => `<option value="${s.name}">${s.icon} ${s.name}</option>`).join('');
+          const userOpts = ALL_USERS.map(u => `<option value="${u.full_name}" ${u.full_name.toLowerCase() === CURRENT_USER_NAME ? 'selected' : ''}>${u.full_name}</option>`).join('');
+          optsHtml = `
+            <optgroup label="Setores Ativos">${secOpts}</optgroup>
+            <optgroup label="Colaboradores">${userOpts}</optgroup>
+          `;
+        }
+
+        supplierCont.innerHTML = `
+          <i data-lucide="user" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+          <select required name="supplier" id="task-input-supplier" class="w-full text-xs pl-10 pr-8 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] bg-white transition font-medium appearance-none">
+            ${optsHtml}
+          </select>
+          <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+        `;
+      }
+
+      // Atualiza rótulos caso tenham sido alterados no editor
       const fTitle = sector.fields.find(f => f.id === 'title');
       if (fTitle) {
         document.getElementById('lbl-task-title').innerHTML = `${fTitle.label} <span class="text-rose-500">*</span>`;
         if (fTitle.placeholder) document.getElementById('task-input-title').placeholder = fTitle.placeholder;
       }
-      const fSupplier = sector.fields.find(f => f.id === 'supplier');
       if (fSupplier) {
         document.getElementById('lbl-task-supplier').innerHTML = `${fSupplier.label} <span class="text-rose-500">*</span>`;
-        if (fSupplier.placeholder) document.getElementById('task-input-supplier').placeholder = fSupplier.placeholder;
       }
       const fDue = sector.fields.find(f => f.id === 'due_date');
       if (fDue) {
@@ -1013,10 +1058,10 @@
         if (fInstructions.placeholder) document.getElementById('task-input-instructions').placeholder = fInstructions.placeholder;
       }
 
+      // Renderiza campos adicionais
       const container = document.getElementById('dynamic-fields-container');
       container.innerHTML = '';
 
-      // Campos adicionais criados no editor
       const otherFields = sector.fields.filter(f => !['title', 'supplier', 'assigned_to', 'due_date', 'instructions'].includes(f.id));
 
       if (otherFields.length > 0) {
@@ -1057,7 +1102,7 @@
       applySectorTemplate(sectorId);
     }
 
-    // 2. CONSTRUTOR / EDITOR VISUAL (LISTA COMPLETA GARANTIDA)
+    // 2. CONSTRUTOR / EDITOR VISUAL (LISTA COMPLETA)
     function openSectorBuilderModal() {
       const select = document.getElementById('builder-sector-select');
       select.innerHTML = '';
@@ -1090,12 +1135,11 @@
       document.getElementById('builder-sector-name').value = sector.name;
       document.getElementById('builder-btn-delete-sector').classList.remove('hidden');
 
-      // Faz merge para garantir que os campos padrão existam e sejam editáveis
       let fields = JSON.parse(JSON.stringify(sector.fields || []));
       
       const defaultFieldMap = [
         {"id": "title", "label": "Título da tarefa", "type": "text", "placeholder": "Ex.: Nome do trabalho", "required": true},
-        {"id": "supplier", "label": "Solicitante", "type": "text", "placeholder": "Nome ou Setor Solicitante", "required": true},
+        {"id": "supplier", "label": "Solicitante", "type": "select", "options": "Comercial, Expedição, Produção, Balcão", "required": true},
         {"id": "due_date", "label": "Prazo", "type": "date", "required": true},
         {"id": "instructions", "label": "Descrição da solicitação", "type": "textarea", "placeholder": "Descreva o escopo...", "required": false}
       ];
@@ -1119,7 +1163,7 @@
 
       builderCurrentFields = [
         {"id": "title", "label": "Título da tarefa", "type": "text", "placeholder": "Ex.: Nome da tarefa", "required": true},
-        {"id": "supplier", "label": "Solicitante", "type": "text", "placeholder": "Nome / Setor Solicitante", "required": true},
+        {"id": "supplier", "label": "Solicitante", "type": "select", "options": "Comercial, Expedição, Produção, Diretoria", "required": true},
         {"id": "tool_type", "label": "Categoria / Tipo", "type": "select", "options": "Tipo A, Tipo B, Tipo C", "required": true},
         {"id": "op_number", "label": "Nº da OP / Ref", "type": "text", "placeholder": "Ex: OP-1042", "required": false},
         {"id": "due_date", "label": "Prazo", "type": "date", "required": true},
@@ -1203,7 +1247,7 @@
       if (res.ok) window.location.reload();
     }
 
-    // 3. SUBMISSÃO DE DEMANDA INTEGRADA COM ATUALIZAÇÃO IMEDIATA
+    // 3. SUBMISSÃO DE DEMANDA INTEGRADA
     async function submitCreateTaskSmooth(e) {
       e.preventDefault();
       const form = e.target;
@@ -1248,7 +1292,7 @@
       }
     }
 
-    // 4. INSERÇÃO DINÂMICA DE CARDS NO KANBAN & PERFIL (SEM PRECISAR DE F5)
+    // 4. INSERÇÃO DINÂMICA DE CARDS NO KANBAN & PERFIL
     function insertTaskToKanbanDOM(task) {
       if (document.getElementById(`task-${task.id}`)) return;
 
@@ -1524,7 +1568,7 @@
       if (e.target && e.target.classList.contains('kanban-card')) e.target.style.opacity = '1';
     });
 
-    // 8. WEBSOCKET COM DISPARO REATIVO DE TASK_CREATED
+    // 8. WEBSOCKET
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     let socket;
     function conectarWebSocket() {
