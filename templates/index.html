@@ -222,6 +222,250 @@
 
           <div id="my-pending-container" class="space-y-3">
             {% for task in my_pending_tasks %}
+            <div id="my-task-{{ task.id }}" class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-O código do template Jinja2/HTML está bem estruturado com Tailwind CSS e JavaScript funcional para Kanban e perfis. Para deixá-lo pronto para produção e evitar bugs comuns em tempo de execução, foram identificados alguns pontos críticos de melhoria:
+
+### Pontos Críticos e Ajustes Necessários
+
+1. **Abertura do Modal de Perfil:**
+   * A função `openUserProfileModal(userName)` é chamada na Topbar, nos cards do Kanban e na lista de equipe, mas **não estava implementada** no `<script>`. Ao ser clicada, gerava erro de função não definida no console.
+2. **Serialização Segura de Dados no JavaScript:**
+   * O trecho `return JSON.parse({{ sec.fields_schema | tojson }});` pode quebrar caso `sec.fields_schema` já seja uma string JSON no backend (causando escape duplo). Uma condicional defensiva resolve o problema.
+3. **Filtro de Busca Global:**
+   * O campo `id="global-search-input"` chama `handleGlobalSearch(this.value)`, que também estava ausente.
+4. **Sincronização de Contadores:**
+   * Ao mover cards via arrastar/soltar ou pelos botões rápidos (`updateTaskStatusFast`), os contadores numéricos da barra lateral e do perfil precisam ser recalculados automaticamente.
+
+---
+
+### Código Completo Corrigido e Atualizado
+
+Substitua pelo arquivo completo abaixo, com as funções faltantes implementadas e a lógica blindada:
+
+```html
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WorkFeed Gráfica - Gestão Integrada de Demandas</title>
+  
+  <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
+  <script src="[https://unpkg.com/lucide@latest](https://unpkg.com/lucide@latest)"></script>
+  <link rel="preconnect" href="[https://fonts.googleapis.com](https://fonts.googleapis.com)">
+  <link rel="preconnect" href="[https://fonts.gstatic.com](https://fonts.gstatic.com)" crossorigin>
+  <link href="[https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600&display=swap](https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600&display=swap)" rel="stylesheet">
+
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    .kanban-dropzone.dragover {
+      background-color: #f1f5f9;
+      border: 2px dashed #0284c7;
+    }
+  </style>
+</head>
+<body class="bg-[#eef2f6] text-slate-800 min-h-screen flex flex-col antialiased">
+
+  <!-- ================= TOPBAR ESCURA ================= -->
+  <header class="bg-[#0b1e36] text-white sticky top-0 z-50 shadow-md">
+    <div class="max-w-[1440px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      
+      <!-- LOGO -->
+      <div class="flex items-center gap-3 cursor-pointer select-none" onclick="switchTab('my-profile')">
+        <div class="w-9 h-9 bg-[#173a67] border border-blue-900/60 rounded-xl flex items-center justify-center font-black text-lg text-white shadow-inner">
+          W
+        </div>
+        <div>
+          <span class="text-base font-extrabold tracking-tight block leading-tight text-white">
+            WorkFeed <span class="text-amber-500 font-extrabold">Gráfica</span>
+          </span>
+          <p class="text-[9px] uppercase font-bold tracking-widest text-slate-400">Gestão Integrada de Demandas</p>
+        </div>
+      </div>
+
+      <!-- BARRA DE BUSCA -->
+      <div class="hidden md:flex flex-1 max-w-md mx-6">
+        <div class="relative w-full">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+          <input 
+            id="global-search-input"
+            type="text" 
+            oninput="handleGlobalSearch(this.value)"
+            placeholder="Buscar demandas, OP, cliente, responsável..." 
+            class="w-full bg-[#122846] text-xs text-white placeholder-slate-400 pl-9 pr-4 py-2 rounded-xl border border-slate-700/60 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition"
+          >
+        </div>
+      </div>
+
+      <!-- AÇÕES / PERFIL -->
+      <div class="flex items-center gap-3">
+        {% if current_user.role in ['Gestor', 'manager', 'admin'] %}
+        <button 
+          type="button" 
+          onclick="openSectorBuilderModal()" 
+          title="Montar ou Editar Modelos de Tarefas por Setor"
+          class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold py-1.5 px-3 rounded-xl shadow-sm flex items-center gap-1.5 text-xs transition">
+          <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span>Modelos</span>
+        </button>
+
+        <button 
+          type="button" 
+          onclick="document.getElementById('modalCollaborator').classList.remove('hidden')" 
+          class="bg-[#0284c7] hover:bg-[#0369a1] text-white font-bold py-1.5 px-3.5 rounded-xl shadow-sm flex items-center gap-1.5 text-xs transition active:scale-95">
+          <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+          <span>+ Colaborador</span>
+        </button>
+        {% endif %}
+
+        <div class="flex items-center gap-2.5 pl-2 border-l border-slate-700/60">
+          <button onclick="openUserProfileModal('{{ current_user.full_name }}')" class="flex items-center gap-2.5 text-left group">
+            <div class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black text-xs shadow-sm">
+              {{ current_user.full_name[:2]|upper }}
+            </div>
+            <div class="hidden sm:block leading-tight">
+              <p class="text-xs font-bold text-white group-hover:text-amber-400 transition">{{ current_user.full_name }}</p>
+              <span class="text-[10px] text-slate-400">{{ current_user.role }}</span>
+            </div>
+          </button>
+          <a href="/logout" title="Sair da Conta" class="text-slate-400 hover:text-rose-400 transition p-1.5 rounded-lg hover:bg-slate-800/60 ml-1">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ================= LAYOUT PRINCIPAL ================= -->
+  <div class="max-w-[1440px] mx-auto w-full px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
+
+    <!-- ================= BARRA LATERAL ================= -->
+    <aside class="lg:col-span-3 space-y-4">
+      <nav class="bg-white rounded-2xl border border-slate-200/90 p-2 shadow-xs space-y-1">
+        
+        <button onclick="switchTab('my-profile')" id="tab-btn-my-profile" class="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-bold rounded-xl transition bg-[#0b1e36] text-white">
+          <div class="flex items-center gap-3">
+            <i data-lucide="user" class="w-4 h-4"></i>
+            <span>Meu Perfil & Tarefas</span>
+          </div>
+          {% set pending_total = (my_pending_tasks|length) + (my_in_progress_tasks|length) %}
+          <span id="badge-my-tasks-total" class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white {% if pending_total == 0 %}hidden{% endif %}">
+            {{ pending_total }}
+          </span>
+        </button>
+
+        <button onclick="switchTab('kanban')" id="tab-btn-kanban" class="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+          <div class="flex items-center gap-3">
+            <i data-lucide="kanban" class="w-4 h-4"></i>
+            <span>Quadro Geral (Kanban)</span>
+          </div>
+          <span id="badge-kanban-total" class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+            {{ tasks|length }}
+          </span>
+        </button>
+
+        <button onclick="switchTab('feed')" id="tab-btn-feed" class="w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+          <i data-lucide="layout-grid" class="w-4 h-4"></i>
+          <span>Feed de Conclusões</span>
+        </button>
+
+        <button onclick="switchTab('profiles')" id="tab-btn-profiles" class="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+          <div class="flex items-center gap-3">
+            <i data-lucide="users" class="w-4 h-4"></i>
+            <span>Equipe & Métricas</span>
+          </div>
+          <span id="badge-team-count" class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+            {{ collaborators|length }}
+          </span>
+        </button>
+
+        <button onclick="switchTab('new-task')" id="tab-btn-new-task" class="w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+          <i data-lucide="plus-circle" class="w-4 h-4 text-blue-600"></i>
+          <span>Delegar Demanda</span>
+        </button>
+      </nav>
+
+      <!-- SETORES ATIVOS -->
+      <div class="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-3">
+        <div class="flex items-center justify-between">
+          <h4 class="font-bold text-slate-800 text-xs tracking-tight flex items-center gap-2">
+            <i data-lucide="building-2" class="w-4 h-4 text-slate-400"></i> Setores Ativos
+          </h4>
+          <span class="text-[10px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md font-bold">{{ sectors|length }}</span>
+        </div>
+        <div class="space-y-1.5 text-xs text-slate-600">
+          {% for sec in sectors %}
+          <div onclick="selectSectorAndGoToForm({{ sec.id }})" class="p-2 rounded-xl bg-slate-50 hover:bg-blue-50 hover:border-blue-200 border border-slate-100 font-medium flex items-center justify-between cursor-pointer transition group">
+            <span class="flex items-center gap-2">
+              <span>{{ sec.icon }}</span> {{ sec.name }}
+            </span>
+            <div class="flex items-center gap-1">
+              {% if current_user.role in ['Gestor', 'manager', 'admin'] %}
+              <button type="button" onclick="event.stopPropagation(); editSectorModel({{ sec.id }})" title="Editar campos deste modelo" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-blue-600 p-1">
+                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+              </button>
+              {% endif %}
+              <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-400"></i>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </aside>
+
+    <!-- ================= CONTEÚDO PRINCIPAL ================= -->
+    <main class="lg:col-span-9 space-y-6">
+
+      <!-- ABA 0: MEU PERFIL & MINHAS TAREFAS -->
+      <section id="content-my-profile" class="space-y-6">
+        <div class="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="flex items-center gap-4">
+            <div class="w-16 h-16 rounded-2xl bg-amber-500 text-white font-black text-2xl flex items-center justify-center shadow-sm">
+              {{ current_user.full_name[:2]|upper }}
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-base font-bold text-slate-900 leading-snug">{{ current_user.full_name }}</h2>
+                <i data-lucide="info" onclick="openUserProfileModal('{{ current_user.full_name }}')" class="w-4 h-4 text-slate-400 hover:text-amber-500 transition cursor-pointer"></i>
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5">
+                Usuário: <span class="font-mono font-medium text-slate-700">@{{ current_user.username }}</span> • Função: <span class="font-semibold text-amber-600">{{ current_user.role }}</span>
+              </p>
+              <p class="text-[11px] text-slate-400 mt-0.5">Setor: <span class="text-slate-600 font-medium">{{ current_user.department or 'Geral / Operacional' }}</span></p>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-3">
+            <div class="px-5 py-2.5 bg-orange-50/70 rounded-2xl border border-orange-200/80 text-center min-w-[130px]">
+              <p class="text-[10px] uppercase font-bold text-orange-600 tracking-wider flex items-center justify-center gap-1">
+                <i data-lucide="clock" class="w-3.5 h-3.5"></i> Minhas Pendências
+              </p>
+              <p id="my-profile-pending-counter" class="text-xl font-bold text-orange-600 font-mono mt-0.5">{{ (my_pending_tasks|length) + (my_in_progress_tasks|length) }}</p>
+            </div>
+            <div class="px-5 py-2.5 bg-emerald-50/70 rounded-2xl border border-emerald-200/80 text-center min-w-[130px]">
+              <p class="text-[10px] uppercase font-bold text-emerald-600 tracking-wider flex items-center justify-center gap-1">
+                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Concluídos
+              </p>
+              <p id="my-profile-completed-counter" class="text-xl font-bold text-emerald-600 font-mono mt-0.5">{{ my_completed_posts|length }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- BLOCO 1: ATRIBUÍDAS A MIM -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between px-1">
+            <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> 
+              Demandas Atribuídas a Mim (A Fazer / Executar)
+            </h3>
+            <span id="badge-my-pending" class="text-xs font-mono font-medium text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+              {{ my_pending_tasks|length }} pendência(s)
+            </span>
+          </div>
+
+          <div id="my-pending-container" class="space-y-3">
+            {% for task in my_pending_tasks %}
             <div id="my-task-{{ task.id }}" class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3 hover:border-amber-300 transition">
               <div class="flex items-center justify-between gap-2">
                 <span class="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
@@ -611,7 +855,7 @@
         </div>
       </section>
 
-      <!-- ================= ABA 4: NOVO TEMPLATE ELEGANTE DE DEMANDA ================= -->
+      <!-- ABA 4: NOVO FORMULÁRIO DE DEMANDA -->
       <section id="content-new-task" class="hidden max-w-2xl mx-auto space-y-4">
         
         <!-- SELEÇÃO RÁPIDA DE SETOR -->
@@ -638,10 +882,9 @@
           {% endif %}
         </div>
 
-        <!-- CARD PRINCIPAL: DESIGN DO ANEXO -->
+        <!-- CARD PRINCIPAL -->
         <div class="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 sm:p-8 space-y-6">
           
-          <!-- CABEÇALHO DO CARD -->
           <div class="flex items-center gap-3.5 pb-2 border-b border-slate-100">
             <div class="w-12 h-12 rounded-2xl bg-[#0284c7] flex items-center justify-center text-white shadow-sm">
               <i data-lucide="clipboard-list" class="w-6 h-6"></i>
@@ -656,7 +899,7 @@
             <input type="hidden" id="task-sector-id" name="sector_id" value="0">
             <input type="hidden" id="task-sector-name" name="sector_name" value="">
             
-            <!-- 1. TÍTULO DA TAREFA -->
+            <!-- 1. TÍTULO -->
             <div>
               <label id="lbl-task-title" class="block text-xs font-bold text-slate-800 mb-1.5">
                 Título da tarefa <span class="text-rose-500">*</span>
@@ -671,13 +914,12 @@
               >
             </div>
 
-            <!-- 2. LINHA PAREADA: SOLICITANTE DINÂMICO (<SELECT> OU <INPUT>) & RESPONSÁVEL -->
+            <!-- 2. SOLICITANTE & RESPONSÁVEL -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label id="lbl-task-supplier" class="block text-xs font-bold text-slate-800 mb-1.5">
                   Solicitante <span class="text-rose-500">*</span>
                 </label>
-                <!-- Container populado dinamicamente para permitir <select> com setores ou <input> -->
                 <div id="supplier-input-container" class="relative">
                   <i data-lucide="user" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
                   <select required name="supplier" id="task-input-supplier" class="w-full text-xs pl-10 pr-8 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] bg-white transition font-medium appearance-none">
@@ -716,7 +958,7 @@
               </div>
             </div>
 
-            <!-- 3. LINHA PAREADA: PRAZO & PRIORIDADE -->
+            <!-- 3. PRAZO & PRIORIDADE -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
               <div>
                 <label id="lbl-task-due" class="block text-xs font-bold text-slate-800 mb-1.5">
@@ -754,11 +996,10 @@
               </div>
             </div>
 
-            <!-- ÁREA DE CAMPOS DINÂMICOS ESPECÍFICOS DO SETOR -->
-            <div id="dynamic-fields-container" class="space-y-4 pt-1">
-            </div>
+            <!-- CAMPOS DINÂMICOS DO SETOR -->
+            <div id="dynamic-fields-container" class="space-y-4 pt-1"></div>
 
-            <!-- 4. DESCRIÇÃO DA SOLICITAÇÃO -->
+            <!-- 4. DESCRIÇÃO -->
             <div>
               <div class="flex items-center justify-between mb-1.5">
                 <label id="lbl-task-instructions" class="block text-xs font-bold text-slate-800">
@@ -777,7 +1018,7 @@
                 class="w-full text-xs p-3.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] bg-white transition resize-none"></textarea>
             </div>
 
-            <!-- 5. ANEXO (OPCIONAL) -->
+            <!-- 5. ANEXO -->
             <div>
               <label class="block text-xs font-bold text-slate-800 mb-1.5">Anexo (opcional)</label>
               <div class="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center hover:bg-slate-50/70 transition cursor-pointer relative group">
@@ -790,7 +1031,7 @@
               </div>
             </div>
 
-            <!-- BOTÕES: CANCELAR & REGISTRAR DEMANDA -->
+            <!-- BOTÕES -->
             <div class="pt-4 flex items-center justify-between gap-4 border-t border-slate-100">
               <button type="button" onclick="switchTab('my-profile')" class="px-6 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">
                 Cancelar
@@ -807,7 +1048,7 @@
     </main>
   </div>
 
-  <!-- MODAL: SETOR BUILDER TOTALMENTE VISÍVEL (SEM OCULTAR NADA) -->
+  <!-- MODAL: SETOR BUILDER -->
   <div id="modalSectorBuilder" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-2xl relative max-h-[90vh] overflow-y-auto space-y-4">
       <div class="flex justify-between items-start border-b pb-3">
@@ -851,10 +1092,7 @@
               <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Adicionar Campo
             </button>
           </div>
-
-          <!-- LISTA COMPLETA DOS CAMPOS -->
-          <div id="builder-fields-list" class="space-y-2.5 max-h-[360px] overflow-y-auto p-1">
-          </div>
+          <div id="builder-fields-list" class="space-y-2.5 max-h-[360px] overflow-y-auto p-1"></div>
         </div>
 
         <div class="flex items-center justify-between pt-3 border-t">
@@ -870,7 +1108,7 @@
     </div>
   </div>
 
-  <!-- Modal Adicionar Colaborador -->
+  <!-- MODAL ADICIONAR COLABORADOR -->
   <div id="modalCollaborator" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
     <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
       <div class="flex justify-between items-center mb-4 border-b pb-3">
@@ -912,7 +1150,7 @@
     </div>
   </div>
 
-  <!-- Modal Detalhes do Perfil -->
+  <!-- MODAL DETALHES DO PERFIL -->
   <div id="modalUserProfile" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl relative space-y-4">
       <div class="flex justify-between items-start border-b pb-3">
@@ -954,7 +1192,8 @@
         icon: `{{ sec.icon }}`,
         fields: (() => {
           try {
-            return JSON.parse({{ sec.fields_schema | tojson }});
+            const raw = {{ sec.fields_schema | tojson }};
+            return typeof raw === 'string' ? JSON.parse(raw) : (raw || []);
           } catch (e) {
             return [];
           }
@@ -965,13 +1204,72 @@
 
     const ALL_USERS = [
       {% for u in users %}
-      { full_name: `{{ u.full_name }}`, role: `{{ u.role }}` }{% if not loop.last %},{% endif %}
+      { 
+        full_name: `{{ u.full_name }}`, 
+        username: `{{ u.username }}`,
+        role: `{{ u.role }}`,
+        department: `{{ u.department or 'Operacional' }}`
+      }{% if not loop.last %},{% endif %}
       {% endfor %}
     ];
 
     let currentSelectedSectorId = SECTORS_DATA.length > 0 ? SECTORS_DATA[0].id : 0;
     let builderCurrentFields = [];
 
+    // Modal de Informações do Usuário
+    function openUserProfileModal(userName) {
+      if (!userName) return;
+      const user = ALL_USERS.find(u => u.full_name.toLowerCase() === userName.trim().toLowerCase());
+      
+      const modal = document.getElementById('modalUserProfile');
+      const avatar = document.getElementById('modalUserAvatar');
+      const nameElem = document.getElementById('modalUserName');
+      const handleElem = document.getElementById('modalUserHandle');
+      const roleElem = document.getElementById('modalUserRole');
+      const deptElem = document.getElementById('modalUserDepartment');
+
+      if (user) {
+        avatar.textContent = user.full_name.substring(0, 2).toUpperCase();
+        nameElem.textContent = user.full_name;
+        handleElem.textContent = `@${user.username}`;
+        roleElem.textContent = user.role;
+        deptElem.textContent = user.department;
+      } else {
+        avatar.textContent = userName.substring(0, 2).toUpperCase();
+        nameElem.textContent = userName;
+        handleElem.textContent = '@colaborador';
+        roleElem.textContent = 'Colaborador';
+        deptElem.textContent = 'Geral';
+      }
+
+      modal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    // Busca Global
+    function handleGlobalSearch(query) {
+      const q = query.trim().toLowerCase();
+      
+      // Filtra cards no Kanban
+      document.querySelectorAll('.kanban-card').forEach(card => {
+        const text = card.textContent.toLowerCase();
+        card.style.display = (!q || text.includes(q)) ? '' : 'none';
+      });
+
+      // Filtra cards no Meu Perfil
+      document.querySelectorAll('#my-pending-container > div, #my-inprogress-container > div').forEach(card => {
+        const text = card.textContent.toLowerCase();
+        card.style.display = (!q || text.includes(q)) ? '' : 'none';
+      });
+
+      // Filtra Feed
+      document.querySelectorAll('#feed-posts-container > article').forEach(post => {
+        const text = post.textContent.toLowerCase();
+        post.style.display = (!q || text.includes(q)) ? '' : 'none';
+      });
+    }
+
+    // Atualiza nome do anexo
     function updateFileName(input) {
       const label = document.getElementById('anexo-label');
       if (input.files && input.files[0]) {
@@ -983,7 +1281,7 @@
       }
     }
 
-    // 1. RENDERIZADOR DINÂMICO DO SOLICITANTE E DOS CAMPOS
+    // Aplica Template Dinâmico do Setor
     function applySectorTemplate(sectorId) {
       const sector = SECTORS_DATA.find(s => s.id === sectorId);
       if (!sector) return;
@@ -1004,24 +1302,20 @@
 
       document.getElementById('dynamic-form-header-title').textContent = `Nova Demanda • ${sector.name}`;
 
-      // Configuração dinâmica do campo SOLICITANTE
       const fSupplier = sector.fields.find(f => f.id === 'supplier');
       const supplierCont = document.getElementById('supplier-input-container');
 
       if (fSupplier && fSupplier.type === 'text') {
-        // Se configurado como texto livre
         supplierCont.innerHTML = `
           <i data-lucide="user" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
           <input required type="text" name="supplier" id="task-input-supplier" placeholder="${fSupplier.placeholder || 'Nome / Setor Solicitante'}" value="{{ current_user.full_name }}" class="w-full text-xs pl-10 pr-3.5 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] bg-white transition">
         `;
       } else {
-        // Se configurado como lista ou padrão com opções
         let optsHtml = '';
         if (fSupplier && fSupplier.options) {
           let customOpts = Array.isArray(fSupplier.options) ? fSupplier.options : fSupplier.options.split(',').map(o => o.trim()).filter(Boolean);
           optsHtml = customOpts.map(o => `<option value="${o}">${o}</option>`).join('');
         } else {
-          // Padrão: Setores e Colaboradores
           const secOpts = SECTORS_DATA.map(s => `<option value="${s.name}">${s.icon} ${s.name}</option>`).join('');
           const userOpts = ALL_USERS.map(u => `<option value="${u.full_name}" ${u.full_name.toLowerCase() === CURRENT_USER_NAME ? 'selected' : ''}>${u.full_name}</option>`).join('');
           optsHtml = `
@@ -1039,7 +1333,6 @@
         `;
       }
 
-      // Atualiza rótulos caso tenham sido alterados no editor
       const fTitle = sector.fields.find(f => f.id === 'title');
       if (fTitle) {
         document.getElementById('lbl-task-title').innerHTML = `${fTitle.label} <span class="text-rose-500">*</span>`;
@@ -1058,7 +1351,6 @@
         if (fInstructions.placeholder) document.getElementById('task-input-instructions').placeholder = fInstructions.placeholder;
       }
 
-      // Renderiza campos adicionais
       const container = document.getElementById('dynamic-fields-container');
       container.innerHTML = '';
 
@@ -1102,7 +1394,7 @@
       applySectorTemplate(sectorId);
     }
 
-    // 2. CONSTRUTOR / EDITOR VISUAL (LISTA COMPLETA)
+    // Modal do Builder de Setores
     function openSectorBuilderModal() {
       const select = document.getElementById('builder-sector-select');
       select.innerHTML = '';
@@ -1247,7 +1539,32 @@
       if (res.ok) window.location.reload();
     }
 
-    // 3. SUBMISSÃO DE DEMANDA INTEGRADA
+    // Cadastro de Colaborador
+    async function submitCollaborator(e) {
+      e.preventDefault();
+      const form = e.target;
+      const btn = document.getElementById('btnSubmitCollaborator');
+      btn.disabled = true;
+      btn.textContent = 'Gravando...';
+      const formData = new FormData(form);
+
+      try {
+        const res = await fetch('/api/collaborators/create', { method: 'POST', body: formData });
+        if (res.ok) {
+          window.location.reload();
+        } else {
+          const data = await res.json();
+          alert(data.message || 'Erro ao criar colaborador.');
+        }
+      } catch (err) {
+        alert('Erro ao conectar ao servidor.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Salvar Colaborador';
+      }
+    }
+
+    // Submissão de Demanda
     async function submitCreateTaskSmooth(e) {
       e.preventDefault();
       const form = e.target;
@@ -1258,7 +1575,6 @@
       }
 
       const formData = new FormData(form);
-
       const priority = formData.get('priority') || 'Normal';
       let instructions = formData.get('instructions') || '';
       formData.set('instructions', `[Prioridade: ${priority}] ${instructions}`);
@@ -1292,7 +1608,6 @@
       }
     }
 
-    // 4. INSERÇÃO DINÂMICA DE CARDS NO KANBAN & PERFIL
     function insertTaskToKanbanDOM(task) {
       if (document.getElementById(`task-${task.id}`)) return;
 
@@ -1381,7 +1696,6 @@
       lucide.createIcons();
     }
 
-    // 5. STATUS FAST COM BOTÕES ATUALIZADOS
     async function updateTaskStatusFast(taskId, newStatus) {
       moveTaskVisual(taskId, newStatus, "{{ current_user.full_name }}");
       try {
@@ -1403,7 +1717,7 @@
         const footer = kanbanCard.querySelector('.border-t');
         if (newStatus === "Em Produção" && footer) {
           footer.innerHTML = `
-            <span class="text-slate-600 font-bold">${assignedTo}</span>
+            <span onclick="openUserProfileModal('${assignedTo}')" class="text-slate-600 font-bold cursor-pointer hover:text-amber-600">${assignedTo}</span>
             <button type="button" onclick="updateTaskStatusFast('${taskId}', 'Aprovado')" class="text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded text-[10px] font-bold border border-emerald-200">
               Concluir
             </button>
@@ -1420,7 +1734,7 @@
             const myFooter = myCard.querySelector('.border-t');
             if (myFooter) {
               myFooter.innerHTML = `
-                <span class="text-[11px] text-slate-400">Serviço concluído?</span>
+                <span class="text-[11px] text-slate-400 font-medium">Serviço concluído?</span>
                 <button onclick="updateTaskStatusFast('${taskId}', 'Aprovado')" class="text-xs font-bold bg-emerald-600 text-white px-3.5 py-1.5 rounded-xl shadow-xs">
                   Concluir & Publicar
                 </button>
@@ -1432,6 +1746,8 @@
           myCard.remove();
         }
       }
+      recalculateKanbanBadges();
+      recalculateMyProfileCounters();
       lucide.createIcons();
     }
 
@@ -1475,7 +1791,6 @@
       if (badgeInp) badgeInp.textContent = `${inpCount} em andamento`;
     }
 
-    // 6. COMENTÁRIOS SEM DUPLICAÇÃO
     async function submitCommentSmooth(e, postId) {
       e.preventDefault();
       const form = e.target;
@@ -1514,7 +1829,6 @@
       }
     }
 
-    // 7. NAVEGAÇÃO ENTRE ABAS
     function switchTab(tab) {
       sessionStorage.setItem('aba_ativa', tab);
       const tabs = ['my-profile', 'feed', 'kanban', 'profiles', 'new-task'];
@@ -1568,7 +1882,7 @@
       if (e.target && e.target.classList.contains('kanban-card')) e.target.style.opacity = '1';
     });
 
-    // 8. WEBSOCKET
+    // WebSocket
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     let socket;
     function conectarWebSocket() {
