@@ -29,7 +29,7 @@ except Exception as e:
 
 models.Base.metadata.create_all(bind=engine)
 
-# Diretórios necessários para uploads e arquivos estáticos
+# Diretórios necessários para uploads e ficheiros estáticos
 os.makedirs("uploads", exist_ok=True)
 os.makedirs("static/img", exist_ok=True)
 
@@ -187,7 +187,7 @@ def home(request: Request, db: Session = Depends(get_db)):
         )
     ).all()
 
-    # CARREGAMENTO EXPLÍCITO DE COMENTÁRIOS COM JOINEDLOAD (EVITA SUMIÇO DE COMENTÁRIOS)
+    # joinedload assegura que os comentários são carregados sem sumir após o refresh
     posts = db.query(models.Post).options(joinedload(models.Post.comments)).filter(
         or_(
             models.Post.author.in_(team_user_names),
@@ -456,6 +456,7 @@ def logout():
     response.delete_cookie("user_session")
     return response
 
+# ROTA COM PROCESSAMENTO INTELIGENTE DE CAMPOS (ELIMINA CARDS COM DADOS EM BRANCO)
 @app.post("/tasks/create")
 async def create_task(
     request: Request,
@@ -474,8 +475,43 @@ async def create_task(
     current_user = get_current_user(request, db)
     delegator = current_user.full_name.strip() if current_user else "Gestão"
 
-    clean_title = title.strip() if title else f"Demanda - {tool_type}"
-    clean_assigned = assigned_to.strip() if assigned_to else (current_user.full_name if current_user else "Equipe")
+    form_data = await request.form()
+
+    clean_title = title.strip() if title and title != "Demanda Operacional" else ""
+    clean_tool = tool_type.strip() if tool_type and tool_type != "Geral" else ""
+    clean_supplier = supplier.strip() if supplier and supplier != "Interno" else ""
+    clean_op = op_number.strip()
+    clean_due = due_date.strip() if due_date and due_date != "A definir" else ""
+    clean_instructions = instructions.strip()
+
+    extra_details = []
+    for key, value in form_data.items():
+        if key not in ['sector_id', 'sector_name', 'image', 'assigned_to'] and isinstance(value, str):
+            val_str = value.strip()
+            if not val_str:
+                continue
+            if not clean_title and key in ['title', 'trabalho', 'descricao']:
+                clean_title = val_str
+            elif not clean_tool and ('tool' in key or 'tipo' in key or 'categoria' in key):
+                clean_tool = val_str
+            elif not clean_op and ('op' in key or 'ref' in key or 'pedido' in key):
+                clean_op = val_str
+            elif not clean_supplier and ('supplier' in key or 'cliente' in key or 'destino' in key or 'fornecedor' in key):
+                clean_supplier = val_str
+            elif not clean_due and ('date' in key or 'prazo' in key or 'data' in key):
+                clean_due = val_str
+            elif key.startswith('custom_'):
+                extra_details.append(f"{val_str}")
+
+    final_title = clean_title or f"Demanda - {clean_tool or 'Geral'}"
+    final_tool = clean_tool or "Geral"
+    final_supplier = clean_supplier or "Interno"
+    final_op = clean_op or "S/N"
+    final_due = clean_due or "A definir"
+
+    if extra_details:
+        adicional = " | ".join(extra_details)
+        clean_instructions = f"{clean_instructions} ({adicional})".strip() if clean_instructions else adicional
 
     image_url = None
     if image and image.filename:
@@ -487,19 +523,20 @@ async def create_task(
     new_task = models.Task(
         sector_id=sector_id if sector_id > 0 else None,
         sector_name=sector_name.strip() if sector_name else None,
-        op_number=op_number.strip(),
-        tool_type=tool_type.strip() or "Geral",
-        title=clean_title,
+        op_number=final_op,
+        tool_type=final_tool,
+        title=final_title,
         delegated_by=delegator,
-        assigned_to=clean_assigned,
-        supplier=supplier.strip() or "Interno",
-        instructions=instructions.strip(),
-        due_date=due_date.strip() or "A definir",
+        assigned_to=assigned_to.strip() or (current_user.full_name if current_user else "Equipe"),
+        supplier=final_supplier,
+        instructions=clean_instructions,
+        due_date=final_due,
         status="Atribuído",
         image_url=image_url
     )
     db.add(new_task)
     db.commit()
+    db.refresh(new_task)
 
     task_payload = {
         "type": "TASK_CREATED",
@@ -558,6 +595,7 @@ async def create_direct_post(
     )
     db.add(post)
     db.commit()
+    db.refresh(post)
 
     post_payload = {
         "type": "POST_CREATED",
@@ -583,7 +621,7 @@ async def create_direct_post(
 class StatusUpdate(BaseModel):
     status: str
 
-# ROTA DE STATUS CORRIGIDA E BLINDADA CONTRA FALHAS DE ROLLBACK
+# ROTA DE ATUALIZAÇÃO BLINDADA COM ROLLBACK SEGURO
 @app.put("/api/tasks/{task_id}/status")
 async def update_task_status_api(task_id: int, payload: StatusUpdate, db: Session = Depends(get_db)):
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
@@ -635,7 +673,7 @@ async def update_task_status_api(task_id: int, payload: StatusUpdate, db: Sessio
             }
         except Exception as err:
             db.rollback()
-            print(f"Aviso: Falha ao duplicar para Post, salvando apenas o status: {err}")
+            print(f"Aviso: Erro ao duplicar Post no Feed, mantendo status da Task: {err}")
             task.status = new_status
             db.commit()
     else:
@@ -670,7 +708,7 @@ async def like_post(post_id: int, db: Session = Depends(get_db)):
 
     return JSONResponse(content={"success": True, "likes": post.likes})
 
-# ROTA DE COMENTÁRIOS COM PERSISTÊNCIA REFORÇADA
+# ROTA DE COMENTÁRIOS COM PERSISTÊNCIA DIRETA
 @app.post("/posts/{post_id}/comment")
 async def add_comment(request: Request, post_id: int, text: str = Form(...), db: Session = Depends(get_db)):
     current_user = get_current_user(request, db)
