@@ -26,7 +26,7 @@
   <header class="bg-[#0b1e36] text-white sticky top-0 z-50 shadow-md">
     <div class="max-w-[1440px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
       
-      <!-- LOGO RESTAURADA -->
+      <!-- LOGO -->
       <div class="flex items-center gap-3 cursor-pointer select-none" onclick="switchTab('my-profile')">
         <div class="w-9 h-9 bg-[#173a67] border border-blue-900/60 rounded-xl flex items-center justify-center font-black text-lg text-white shadow-inner">
           W
@@ -404,7 +404,6 @@
               {% endif %}
             </div>
 
-            <!-- BOTÃO DE LIKE -->
             <div class="px-5 py-2.5 flex items-center gap-3 bg-white border-b border-slate-100">
               <button type="button" onclick="likePostSmooth('{{ post.id }}')" class="flex items-center gap-1.5 text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-lg hover:bg-rose-100 transition shadow-2xs">
                 <i data-lucide="heart" class="w-3.5 h-3.5 fill-rose-600"></i> 
@@ -412,7 +411,6 @@
               </button>
             </div>
 
-            <!-- COMENTÁRIOS -->
             <div class="p-5 bg-slate-50/70 space-y-3">
               <span class="text-xs font-bold text-slate-700 block">Comentários e Pareceres Técnicos:</span>
               <div id="comments-list-{{ post.id }}" class="space-y-2">
@@ -528,7 +526,7 @@
                     <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
                   </span>
                   <button type="button" onclick="updateTaskStatusFast('{{ task.id }}', 'Aprovado')" class="text-emerald-600 hover:text-emerald-800 font-semibold flex items-center gap-1 text-[10px] bg-emerald-50 px-2.5 py-1 rounded transition border border-emerald-200">
-                    <i data-lucide="check" class="w-3 h-3"></i> Concluir
+                    <i data-lucide="check" class="w-3.5 h-3.5"></i> Concluir
                   </button>
                 </div>
               </div>
@@ -613,7 +611,7 @@
         </div>
       </section>
 
-      <!-- ================= ABA 4: NOVO TEMPLATE ELEGANTE DE DEMANDA (DESIGN IDÊNTICO AO ANEXO) ================= -->
+      <!-- ================= ABA 4: NOVO TEMPLATE ELEGANTE DE DEMANDA ================= -->
       <section id="content-new-task" class="hidden max-w-2xl mx-auto space-y-4">
         
         <!-- SELEÇÃO RÁPIDA DE SETOR (DISCRETA NO TOPO) -->
@@ -640,7 +638,7 @@
           {% endif %}
         </div>
 
-        <!-- CARD PRINCIPAL: DESIGN IDÊNTICO AO ANEXO -->
+        <!-- CARD PRINCIPAL: DESIGN DO ANEXO -->
         <div class="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 sm:p-8 space-y-6">
           
           <!-- CABEÇALHO DO CARD -->
@@ -660,7 +658,7 @@
             
             <!-- 1. TÍTULO DA TAREFA -->
             <div>
-              <label class="block text-xs font-bold text-slate-800 mb-1.5">
+              <label id="lbl-task-title" class="block text-xs font-bold text-slate-800 mb-1.5">
                 Título da tarefa <span class="text-rose-500">*</span>
               </label>
               <input 
@@ -676,7 +674,7 @@
             <!-- 2. LINHA PAREADA: SOLICITANTE & RESPONSÁVEL -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-bold text-slate-800 mb-1.5">
+                <label id="lbl-task-supplier" class="block text-xs font-bold text-slate-800 mb-1.5">
                   Solicitante <span class="text-rose-500">*</span>
                 </label>
                 <div class="relative">
@@ -694,7 +692,7 @@
               </div>
 
               <div>
-                <label class="block text-xs font-bold text-slate-800 mb-1.5">
+                <label id="lbl-task-assigned" class="block text-xs font-bold text-slate-800 mb-1.5">
                   Responsável <span class="text-rose-500">*</span>
                 </label>
                 <div class="relative">
@@ -715,7 +713,7 @@
             <!-- 3. LINHA PAREADA: PRAZO & PRIORIDADE -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
               <div>
-                <label class="block text-xs font-bold text-slate-800 mb-1.5">
+                <label id="lbl-task-due" class="block text-xs font-bold text-slate-800 mb-1.5">
                   Prazo <span class="text-rose-500">*</span>
                 </label>
                 <div class="relative">
@@ -750,14 +748,14 @@
               </div>
             </div>
 
-            <!-- ÁREA DE CAMPOS DINÂMICOS CUSTOMIZADOS DO SETOR -->
+            <!-- ÁREA DE CAMPOS DINÂMICOS ESPECÍFICOS DO SETOR -->
             <div id="dynamic-fields-container" class="space-y-4 pt-1">
             </div>
 
             <!-- 4. DESCRIÇÃO DA SOLICITAÇÃO -->
             <div>
               <div class="flex items-center justify-between mb-1.5">
-                <label class="block text-xs font-bold text-slate-800">
+                <label id="lbl-task-instructions" class="block text-xs font-bold text-slate-800">
                   Descrição da solicitação <span class="text-rose-500">*</span>
                 </label>
                 <span id="char-counter" class="text-[11px] font-mono text-slate-400">0/500</span>
@@ -773,7 +771,7 @@
                 class="w-full text-xs p-3.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] bg-white transition resize-none"></textarea>
             </div>
 
-            <!-- 5. ANEXO (OPCIONAL) ESTILO DRAG & DROP -->
+            <!-- 5. ANEXO (OPCIONAL) -->
             <div>
               <label class="block text-xs font-bold text-slate-800 mb-1.5">Anexo (opcional)</label>
               <div class="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center hover:bg-slate-50/70 transition cursor-pointer relative group">
@@ -803,13 +801,13 @@
     </main>
   </div>
 
-  <!-- MODAL: SETOR BUILDER -->
+  <!-- MODAL: SETOR BUILDER TOTALMENTE VISÍVEL (SEM OCULTAR NADA) -->
   <div id="modalSectorBuilder" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-2xl relative max-h-[90vh] overflow-y-auto space-y-4">
       <div class="flex justify-between items-start border-b pb-3">
         <div>
           <h3 id="builder-modal-title" class="text-base font-bold text-slate-900">Personalizar Modelo do Setor</h3>
-          <p class="text-xs text-slate-400">Monte os campos e perguntas adicionais para este setor</p>
+          <p class="text-xs text-slate-400">Edite todos os campos e perguntas utilizados por este setor</p>
         </div>
         <button type="button" onclick="document.getElementById('modalSectorBuilder').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
       </div>
@@ -842,13 +840,14 @@
 
         <div class="space-y-2 pt-2 border-t">
           <div class="flex items-center justify-between">
-            <span class="font-bold text-slate-800 uppercase tracking-wider text-[11px]">Campos extras deste formulário:</span>
+            <span class="font-bold text-slate-800 uppercase tracking-wider text-[11px]">Campos deste Formulário:</span>
             <button type="button" onclick="addFieldToBuilder()" class="text-xs font-bold text-[#0284c7] hover:text-[#0369a1] flex items-center gap-1 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
               <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Adicionar Campo
             </button>
           </div>
 
-          <div id="builder-fields-list" class="space-y-2.5 max-h-[300px] overflow-y-auto p-1">
+          <!-- LISTA COMPLETA DOS CAMPOS (SEM EXCLUSÕES) -->
+          <div id="builder-fields-list" class="space-y-2.5 max-h-[360px] overflow-y-auto p-1">
           </div>
         </div>
 
@@ -936,6 +935,7 @@
     </div>
   </div>
 
+  <!-- ================= JAVASCRIPT ================= -->
   <script>
     lucide.createIcons();
     const CURRENT_USER_NAME = "{{ current_user.full_name }}".trim().toLowerCase();
@@ -971,7 +971,7 @@
       }
     }
 
-    // 1. RENDERIZADOR DINÂMICO
+    // 1. RENDERIZADOR DINÂMICO HARMONIZADO
     function applySectorTemplate(sectorId) {
       const sector = SECTORS_DATA.find(s => s.id === sectorId);
       if (!sector) return;
@@ -992,25 +992,47 @@
 
       document.getElementById('dynamic-form-header-title').textContent = `Nova Demanda • ${sector.name}`;
 
+      // Atualiza rótulos caso tenham sido renomeados no editor
+      const fTitle = sector.fields.find(f => f.id === 'title');
+      if (fTitle) {
+        document.getElementById('lbl-task-title').innerHTML = `${fTitle.label} <span class="text-rose-500">*</span>`;
+        if (fTitle.placeholder) document.getElementById('task-input-title').placeholder = fTitle.placeholder;
+      }
+      const fSupplier = sector.fields.find(f => f.id === 'supplier');
+      if (fSupplier) {
+        document.getElementById('lbl-task-supplier').innerHTML = `${fSupplier.label} <span class="text-rose-500">*</span>`;
+        if (fSupplier.placeholder) document.getElementById('task-input-supplier').placeholder = fSupplier.placeholder;
+      }
+      const fDue = sector.fields.find(f => f.id === 'due_date');
+      if (fDue) {
+        document.getElementById('lbl-task-due').innerHTML = `${fDue.label} <span class="text-rose-500">*</span>`;
+      }
+      const fInstructions = sector.fields.find(f => f.id === 'instructions');
+      if (fInstructions) {
+        document.getElementById('lbl-task-instructions').innerHTML = `${fInstructions.label} <span class="text-rose-500">*</span>`;
+        if (fInstructions.placeholder) document.getElementById('task-input-instructions').placeholder = fInstructions.placeholder;
+      }
+
       const container = document.getElementById('dynamic-fields-container');
       container.innerHTML = '';
 
-      const customFields = sector.fields.filter(f => !['title', 'supplier', 'assigned_to', 'due_date', 'instructions'].includes(f.id));
+      // Campos adicionais criados no editor
+      const otherFields = sector.fields.filter(f => !['title', 'supplier', 'assigned_to', 'due_date', 'instructions'].includes(f.id));
 
-      if (customFields.length > 0) {
+      if (otherFields.length > 0) {
         const titleSec = document.createElement('div');
         titleSec.className = "pt-2 border-t border-slate-100";
         titleSec.innerHTML = `<span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">Campos Específicos deste Setor:</span>`;
         container.appendChild(titleSec);
 
-        customFields.forEach(f => {
+        otherFields.forEach(f => {
           const wrap = document.createElement('div');
           const reqMark = f.required ? '<span class="text-rose-500">*</span>' : '';
           const reqAttr = f.required ? 'required' : '';
 
           if (f.type === 'select') {
             let rawOpts = f.options || '';
-            let opts = Array.isArray(rawOpts) ? rawOpts : (typeof rawOpts === 'string' ? rawOpts.split(',').map(o => o.trim()).filter(Boolean) : ['Geral']);
+            let opts = Array.isArray(rawOpts) ? rawOpts : (typeof rawOpts === 'string' ? rawOpts.split(',').map(o => o.trim()).filter(Boolean) : ['Padrão']);
             const optHtml = opts.map(o => `<option value="${o}">${o}</option>`).join('');
             wrap.innerHTML = `
               <label class="block text-xs font-bold text-slate-800 mb-1.5">${f.label} ${reqMark}</label>
@@ -1035,7 +1057,7 @@
       applySectorTemplate(sectorId);
     }
 
-    // 2. CONSTRUTOR / EDITOR VISUAL
+    // 2. CONSTRUTOR / EDITOR VISUAL (LISTA COMPLETA GARANTIDA)
     function openSectorBuilderModal() {
       const select = document.getElementById('builder-sector-select');
       select.innerHTML = '';
@@ -1053,6 +1075,12 @@
       lucide.createIcons();
     }
 
+    function editSectorModel(sectorId) {
+      openSectorBuilderModal();
+      document.getElementById('builder-sector-select').value = sectorId;
+      loadSectorIntoBuilder(sectorId);
+    }
+
     function loadSectorIntoBuilder(sectorId) {
       const sector = SECTORS_DATA.find(s => s.id == sectorId);
       if (!sector) return;
@@ -1062,7 +1090,23 @@
       document.getElementById('builder-sector-name').value = sector.name;
       document.getElementById('builder-btn-delete-sector').classList.remove('hidden');
 
-      builderCurrentFields = JSON.parse(JSON.stringify(sector.fields || []));
+      // Faz merge para garantir que os campos padrão existam e sejam editáveis
+      let fields = JSON.parse(JSON.stringify(sector.fields || []));
+      
+      const defaultFieldMap = [
+        {"id": "title", "label": "Título da tarefa", "type": "text", "placeholder": "Ex.: Nome do trabalho", "required": true},
+        {"id": "supplier", "label": "Solicitante", "type": "text", "placeholder": "Nome ou Setor Solicitante", "required": true},
+        {"id": "due_date", "label": "Prazo", "type": "date", "required": true},
+        {"id": "instructions", "label": "Descrição da solicitação", "type": "textarea", "placeholder": "Descreva o escopo...", "required": false}
+      ];
+
+      defaultFieldMap.forEach(df => {
+        if (!fields.some(f => f.id === df.id)) {
+          fields.push(df);
+        }
+      });
+
+      builderCurrentFields = fields;
       renderBuilderFieldsList();
     }
 
@@ -1074,8 +1118,12 @@
       document.getElementById('builder-btn-delete-sector').classList.add('hidden');
 
       builderCurrentFields = [
-        {"id": "tool_type", "label": "Categoria do Trabalho", "type": "select", "options": "Faca, Clichê, Impressão", "required": true},
-        {"id": "op_number", "label": "Nº da OP ou Ref", "type": "text", "placeholder": "Ex: OP-1042", "required": false}
+        {"id": "title", "label": "Título da tarefa", "type": "text", "placeholder": "Ex.: Nome da tarefa", "required": true},
+        {"id": "supplier", "label": "Solicitante", "type": "text", "placeholder": "Nome / Setor Solicitante", "required": true},
+        {"id": "tool_type", "label": "Categoria / Tipo", "type": "select", "options": "Tipo A, Tipo B, Tipo C", "required": true},
+        {"id": "op_number", "label": "Nº da OP / Ref", "type": "text", "placeholder": "Ex: OP-1042", "required": false},
+        {"id": "due_date", "label": "Prazo", "type": "date", "required": true},
+        {"id": "instructions", "label": "Descrição da solicitação", "type": "textarea", "placeholder": "Descreva os detalhes...", "required": false}
       ];
       renderBuilderFieldsList();
     }
@@ -1089,7 +1137,7 @@
         const isSelect = f.type === 'select';
         item.innerHTML = `
           <div class="flex items-center justify-between gap-2">
-            <span class="font-bold text-[11px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">Campo #${idx + 1}</span>
+            <span class="font-bold text-[11px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">Campo #${idx + 1} (${f.id})</span>
             <button type="button" onclick="removeFieldFromBuilder(${idx})" class="text-rose-500 hover:text-rose-700 p-1">
               <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
             </button>
@@ -1097,18 +1145,20 @@
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div>
               <label class="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">Nome / Rótulo</label>
-              <input type="text" oninput="builderCurrentFields[${idx}].label = this.value" value="${f.label}" class="w-full px-2.5 py-1.5 border rounded-lg text-xs font-semibold">
+              <input type="text" oninput="builderCurrentFields[${idx}].label = this.value" value="${f.label}" class="w-full px-2.5 py-1.5 border rounded-lg text-xs font-semibold focus:ring-1 focus:ring-blue-500">
             </div>
             <div>
               <label class="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">Tipo</label>
               <select onchange="updateBuilderFieldType(${idx}, this.value)" class="w-full px-2.5 py-1.5 border rounded-lg text-xs font-semibold bg-slate-50">
                 <option value="text" ${f.type === 'text' ? 'selected' : ''}>Texto Curto</option>
                 <option value="select" ${f.type === 'select' ? 'selected' : ''}>Lista / Opções</option>
+                <option value="textarea" ${f.type === 'textarea' ? 'selected' : ''}>Texto Longo</option>
+                <option value="date" ${f.type === 'date' ? 'selected' : ''}>Data</option>
               </select>
             </div>
             <div>
-              <label class="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">${isSelect ? 'Opções (com vírgula)' : 'Placeholder'}</label>
-              <input type="text" oninput="handleBuilderOptionsInput(${idx}, this.value, ${isSelect})" value="${isSelect ? (f.options || '') : (f.placeholder || '')}" class="w-full px-2.5 py-1.5 border rounded-lg text-xs font-semibold">
+              <label class="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">${isSelect ? 'Opções (separadas por vírgula)' : 'Placeholder'}</label>
+              <input type="text" oninput="handleBuilderOptionsInput(${idx}, this.value, ${isSelect})" value="${isSelect ? (f.options || '') : (f.placeholder || '')}" class="w-full px-2.5 py-1.5 border rounded-lg text-xs font-semibold focus:ring-1 focus:ring-blue-500">
             </div>
           </div>
         `;
@@ -1153,7 +1203,7 @@
       if (res.ok) window.location.reload();
     }
 
-    // 3. SUBMISSÃO DE DEMANDA INTEGRADA
+    // 3. SUBMISSÃO DE DEMANDA INTEGRADA COM ATUALIZAÇÃO IMEDIATA
     async function submitCreateTaskSmooth(e) {
       e.preventDefault();
       const form = e.target;
@@ -1175,6 +1225,14 @@
         if (res.ok && data.success) {
           form.reset();
           document.getElementById('char-counter').textContent = "0/500";
+          
+          if (data.task) {
+            insertTaskToKanbanDOM(data.task);
+            if (isAssignedToMe(data.task.assigned_to)) {
+              insertTaskToMyProfileDOM(data.task);
+            }
+          }
+          
           switchTab('kanban');
         } else {
           alert(data.message || 'Erro ao registrar demanda.');
@@ -1190,31 +1248,93 @@
       }
     }
 
-    // 4. COMENTÁRIOS SEM DUPLICAÇÃO
-    async function submitCommentSmooth(e, postId) {
-      e.preventDefault();
-      const form = e.target;
-      const input = form.querySelector('input[name="text"]');
-      const text = input.value.trim();
-      if (!text) return;
-      input.value = '';
+    // 4. INSERÇÃO DINÂMICA DE CARDS NO KANBAN & PERFIL (SEM PRECISAR DE F5)
+    function insertTaskToKanbanDOM(task) {
+      if (document.getElementById(`task-${task.id}`)) return;
 
-      try {
-        const formData = new FormData(form);
-        formData.append('text', text);
-        await fetch(`/posts/${postId}/comment`, { method: 'POST', body: formData });
-      } catch (err) {
-        console.error("Erro ao comentar:", err);
-      }
+      const col = document.getElementById('kanban-col-Atribuído');
+      if (!col) return;
+
+      const card = document.createElement('div');
+      card.id = `task-${task.id}`;
+      card.className = "kanban-card bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md transition space-y-3";
+      card.draggable = true;
+      card.ondragstart = (e) => handleDragStart(e, task.id);
+
+      card.innerHTML = `
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+            ${task.tool_type}
+          </span>
+          <span class="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
+            Ref: ${task.op_number || 'S/N'}
+          </span>
+        </div>
+        <h4 class="text-xs font-bold text-slate-900 leading-snug">${task.title}</h4>
+        <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 space-y-1">
+          <p class="flex items-center gap-1.5 font-semibold text-slate-700">
+            <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-500"></i> ${task.supplier}
+          </p>
+          ${task.instructions ? `<p class="text-slate-500 line-clamp-2 text-[10px]">${task.instructions}</p>` : ''}
+        </div>
+        <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
+          <span onclick="openUserProfileModal('${task.assigned_to}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition">
+            <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> <b>${task.assigned_to}</b>
+          </span>
+          <button type="button" onclick="copyOrderText('${task.op_number}', '${task.tool_type}', '${task.title}', '${task.supplier}', '${task.due_date}', \`${task.instructions || ''}\`)" class="text-amber-600 hover:text-amber-800 font-semibold flex items-center gap-1 text-[10px] bg-amber-50 px-2 py-0.5 rounded transition">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar
+          </button>
+        </div>
+      `;
+
+      col.prepend(card);
+      recalculateKanbanBadges();
+      lucide.createIcons();
     }
 
-    function appendCommentToDOM(postId, author, text) {
-      const list = document.getElementById(`comments-list-${postId}`);
-      if (!list) return;
+    function insertTaskToMyProfileDOM(task) {
+      if (document.getElementById(`my-task-${task.id}`)) return;
+
+      const pCont = document.getElementById('my-pending-container');
+      const noMsg = document.getElementById('no-pending-msg');
+      if (noMsg) noMsg.remove();
+      if (!pCont) return;
+
       const div = document.createElement('div');
-      div.className = "bg-white p-3 rounded-xl border border-slate-200/80 text-xs shadow-2xs";
-      div.innerHTML = `<span class="font-bold text-slate-900">${author}:</span> <span class="text-slate-700 ml-1">${text}</span>`;
-      list.appendChild(div);
+      div.id = `my-task-${task.id}`;
+      div.className = "bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3 hover:border-amber-300 transition";
+      div.innerHTML = `
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+            ${task.tool_type}
+          </span>
+          <span class="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+            Ref: ${task.op_number || 'S/N'}
+          </span>
+        </div>
+        <h4 class="text-sm font-bold text-slate-900 leading-snug">${task.title}</h4>
+        <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1">
+          <p class="flex items-center gap-1.5 font-semibold text-slate-700">
+            <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-600"></i> Solicitante/Destino: ${task.supplier}
+          </p>
+          <p class="text-amber-700 font-semibold font-mono text-[10px]">
+            📅 Prazo Limite: ${task.due_date}
+          </p>
+          ${task.instructions ? `<p class="text-slate-500 text-[10px] pt-1 border-t border-slate-200/60 leading-relaxed">${task.instructions}</p>` : ''}
+        </div>
+        <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+          <button type="button" onclick="copyOrderText('${task.op_number}', '${task.tool_type}', '${task.title}', '${task.supplier}', '${task.due_date}', \`${task.instructions || ''}\`)" class="text-slate-600 hover:text-amber-600 font-semibold flex items-center gap-1 text-[11px] transition">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Demanda
+          </button>
+          <button onclick="updateTaskStatusFast('${task.id}', 'Em Produção')" class="text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition border border-blue-200 flex items-center gap-1">
+            Iniciar Execução <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      `;
+
+      pCont.prepend(div);
+      recalculateMyProfileCounters();
+      lucide.createIcons();
     }
 
     // 5. STATUS FAST COM BOTÕES ATUALIZADOS
@@ -1271,7 +1391,86 @@
       lucide.createIcons();
     }
 
-    // 6. NAVEGAÇÃO ENTRE ABAS
+    function recalculateKanbanBadges() {
+      ['Atribuído', 'Em Produção', 'Aprovado'].forEach(status => {
+        const badge = document.getElementById(`badge-kanban-${status}`);
+        const col = document.getElementById(`kanban-col-${status}`);
+        if (badge && col) {
+          badge.textContent = col.querySelectorAll('.kanban-card').length;
+        }
+      });
+
+      const totalBadge = document.getElementById('badge-kanban-total');
+      const c1 = document.getElementById('kanban-col-Atribuído')?.querySelectorAll('.kanban-card').length || 0;
+      const c2 = document.getElementById('kanban-col-Em Produção')?.querySelectorAll('.kanban-card').length || 0;
+      const c3 = document.getElementById('kanban-col-Aprovado')?.querySelectorAll('.kanban-card').length || 0;
+      if (totalBadge) totalBadge.textContent = c1 + c2 + c3;
+    }
+
+    function recalculateMyProfileCounters() {
+      const pCont = document.getElementById('my-pending-container');
+      const inpCont = document.getElementById('my-inprogress-container');
+      const pCount = pCont ? pCont.querySelectorAll('[id^="my-task-"]').length : 0;
+      const inpCount = inpCont ? inpCont.querySelectorAll('[id^="my-task-"]').length : 0;
+      const total = pCount + inpCount;
+
+      const badgeNav = document.getElementById('badge-my-tasks-total');
+      if (badgeNav) {
+        badgeNav.textContent = total;
+        if (total === 0) badgeNav.classList.add('hidden');
+        else badgeNav.classList.remove('hidden');
+      }
+
+      const counterHeader = document.getElementById('my-profile-pending-counter');
+      if (counterHeader) counterHeader.textContent = total;
+
+      const badgeP = document.getElementById('badge-my-pending');
+      if (badgeP) badgeP.textContent = `${pCount} pendência(s)`;
+
+      const badgeInp = document.getElementById('badge-my-inprogress');
+      if (badgeInp) badgeInp.textContent = `${inpCount} em andamento`;
+    }
+
+    // 6. COMENTÁRIOS SEM DUPLICAÇÃO
+    async function submitCommentSmooth(e, postId) {
+      e.preventDefault();
+      const form = e.target;
+      const input = form.querySelector('input[name="text"]');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+
+      try {
+        const formData = new FormData(form);
+        formData.append('text', text);
+        await fetch(`/posts/${postId}/comment`, { method: 'POST', body: formData });
+      } catch (err) {
+        console.error("Erro ao comentar:", err);
+      }
+    }
+
+    function appendCommentToDOM(postId, author, text) {
+      const list = document.getElementById(`comments-list-${postId}`);
+      if (!list) return;
+      const div = document.createElement('div');
+      div.className = "bg-white p-3 rounded-xl border border-slate-200/80 text-xs shadow-2xs";
+      div.innerHTML = `<span class="font-bold text-slate-900">${author}:</span> <span class="text-slate-700 ml-1">${text}</span>`;
+      list.appendChild(div);
+    }
+
+    async function likePostSmooth(postId) {
+      const likesElem = document.getElementById(`post-likes-${postId}`);
+      if (likesElem) {
+        likesElem.textContent = parseInt(likesElem.textContent || "0") + 1;
+      }
+      try {
+        await fetch(`/posts/${postId}/like`, { method: 'POST' });
+      } catch (err) {
+        console.error("Erro ao curtir:", err);
+      }
+    }
+
+    // 7. NAVEGAÇÃO ENTRE ABAS
     function switchTab(tab) {
       sessionStorage.setItem('aba_ativa', tab);
       const tabs = ['my-profile', 'feed', 'kanban', 'profiles', 'new-task'];
@@ -1294,7 +1493,38 @@
       navigator.clipboard.writeText(text).then(() => alert('📋 Demanda copiada com sucesso!'));
     }
 
-    // 7. WEBSOCKET
+    function isAssignedToMe(assignedTo) {
+      if (!assignedTo) return false;
+      const target = assignedTo.trim().toLowerCase();
+      return target === CURRENT_USER_NAME || target.includes(CURRENT_USER_NAME) || CURRENT_USER_NAME.includes(target);
+    }
+
+    let draggedTaskId = null;
+    function handleDragStart(e, taskId) {
+      draggedTaskId = taskId;
+      e.dataTransfer.setData('text/plain', taskId);
+      e.target.style.opacity = '0.5';
+    }
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.currentTarget.classList.add('dragover');
+    }
+    function handleDragLeave(e) {
+      e.currentTarget.classList.remove('dragover');
+    }
+    async function handleDrop(e, newStatus) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('dragover');
+      const card = document.getElementById(`task-${draggedTaskId}`);
+      if (!card) return;
+      card.style.opacity = '1';
+      updateTaskStatusFast(draggedTaskId, newStatus);
+    }
+    document.addEventListener('dragend', (e) => {
+      if (e.target && e.target.classList.contains('kanban-card')) e.target.style.opacity = '1';
+    });
+
+    // 8. WEBSOCKET COM DISPARO REATIVO DE TASK_CREATED
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     let socket;
     function conectarWebSocket() {
@@ -1302,9 +1532,21 @@
       socket.onmessage = function(event) {
         try {
           const data = JSON.parse(event.data);
-          if (data.type === "NEW_COMMENT") appendCommentToDOM(data.post_id, data.author, data.text);
-          else if (data.type === "TASK_STATUS_UPDATED") moveTaskVisual(data.task_id, data.new_status, data.assigned_to);
-          else if (data.type === "REFRESH") window.location.reload();
+          if (data.type === "TASK_CREATED") {
+            insertTaskToKanbanDOM(data.task);
+            if (isAssignedToMe(data.task.assigned_to)) {
+              insertTaskToMyProfileDOM(data.task);
+            }
+          }
+          else if (data.type === "TASK_STATUS_UPDATED") {
+            moveTaskVisual(data.task_id, data.new_status, data.assigned_to);
+          }
+          else if (data.type === "NEW_COMMENT") {
+            appendCommentToDOM(data.post_id, data.author, data.text);
+          }
+          else if (data.type === "REFRESH") {
+            window.location.reload();
+          }
         } catch (err) {}
       };
       socket.onclose = () => setTimeout(conectarWebSocket, 2000);
