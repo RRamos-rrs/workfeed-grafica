@@ -990,7 +990,7 @@
     </div>
   </div>
 
-  <!-- ================= JAVASCRIPT CORRIGIDO COM INJEÇÃO EM TEMPO REAL NO FEED ================= -->
+  <!-- ================= JAVASCRIPT CORRIGIDO CIRURGICAMENTE ================= -->
   <script>
     lucide.createIcons();
     const CURRENT_USER_NAME = "{{ current_user.full_name }}".trim().toLowerCase();
@@ -1552,7 +1552,6 @@
       lucide.createIcons();
     }
 
-    // FUNÇÃO QUE FALTAVA: DESENHA O POST NO FEED DE TODOS EM TEMPO REAL
     function insertPostToFeedDOM(post) {
       if (!post || document.getElementById(`feed-post-${post.id}`)) return;
 
@@ -1654,13 +1653,24 @@
       }
     }
 
+    // ==========================================
+    // MOVIMENTAÇÃO DE CARDS NO KANBAN E NO PERFIL (CORRIGIDA)
+    // ==========================================
     function moveTaskVisual(taskId, newStatus, assignedTo) {
-      const kanbanCard = document.getElementById(`task-${taskId}`);
+      let kanbanCard = document.getElementById(`task-${taskId}`);
       const targetKanbanCol = document.getElementById(`kanban-col-${newStatus}`);
       const isMyTask = isAssignedToMe(assignedTo);
 
-      if (kanbanCard && targetKanbanCol) {
-        targetKanbanCol.prepend(kanbanCard);
+      if (targetKanbanCol) {
+        if (!kanbanCard) {
+          // Se o card não estava no DOM do Kanban ainda, cria ele diretamente no formato da coluna de destino
+          kanbanCard = document.createElement('div');
+          kanbanCard.id = `task-${taskId}`;
+          kanbanCard.className = "kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 shadow-2xs hover:shadow-sm transition space-y-2";
+          targetKanbanCol.prepend(kanbanCard);
+        } else {
+          targetKanbanCol.prepend(kanbanCard);
+        }
 
         if (newStatus === "Em Produção") {
           kanbanCard.className = "kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 border-l-blue-500 shadow-2xs cursor-grab active:cursor-grabbing hover:shadow-sm transition space-y-2";
@@ -1685,15 +1695,19 @@
             `;
           }
         } else if (newStatus === "Aprovado") {
+          // FORMATO VERDE COMPLETO E DEFINITIVO PARA A COLUNA 3
           kanbanCard.className = "kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 border-l-emerald-500 shadow-2xs hover:shadow-sm transition space-y-2";
           
           const title = kanbanCard.querySelector('h4');
           if (title) title.className = "text-xs font-bold text-slate-900 leading-snug line-through opacity-70";
 
-          const badgeStatus = kanbanCard.querySelector('span:last-child');
-          if (badgeStatus) {
-            badgeStatus.className = "text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded";
-            badgeStatus.textContent = "No Feed";
+          const headerDiv = kanbanCard.querySelector('.flex.items-center.justify-between');
+          if (headerDiv) {
+            const lastSpan = headerDiv.querySelector('span:last-child');
+            if (lastSpan) {
+              lastSpan.className = "text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded";
+              lastSpan.textContent = "No Feed";
+            }
           }
 
           const footer = kanbanCard.querySelector('.border-t');
@@ -1708,6 +1722,7 @@
         }
       }
 
+      // ATUALIZAÇÃO NO "MEU PERFIL & TAREFAS"
       const myCard = document.getElementById(`my-task-${taskId}`);
       if (myCard) {
         if (newStatus === "Em Produção") {
@@ -1878,14 +1893,13 @@
             }
           }
           else if (data.type === "TASK_STATUS_UPDATED") {
+            // MOVE O CARD VISUALMENTE NO KANBAN E NO PERFIL
             moveTaskVisual(data.task_id, data.new_status, data.assigned_to);
             
             // QUANDO CONCLUÍDO E ENVIADO AO FEED:
             if (data.published_to_feed && data.post) {
-              // 1. INJETA O POST EM TEMPO REAL NO FEED PARA TODOS OS USUÁRIOS
               insertPostToFeedDOM(data.post);
               
-              // 2. SE FOR O COLABORADOR DONO DA TAREFA, INJETA NO "MINHAS ENTREGAS"
               if (isAssignedToMe(data.assigned_to)) {
                 insertMyCompletedDOM(data.post);
               }
