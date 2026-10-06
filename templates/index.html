@@ -15,7 +15,7 @@
     body { font-family: 'Plus Jakarta Sans', sans-serif; }
     .font-mono { font-family: 'JetBrains Mono', monospace; }
     .kanban-dropzone.dragover {
-      background-color: #f1f5f9;
+      background-color: #f8fafc;
       border: 2px dashed #0284c7;
     }
   </style>
@@ -173,7 +173,7 @@
     <!-- ================= CONTEÚDO PRINCIPAL ================= -->
     <main class="lg:col-span-9 space-y-6">
 
-      <!-- ABA 0: MEU PERFIL & MINHAS TAREFAS -->
+      <!-- ================= ABA 0: MEU PERFIL & MINHAS TAREFAS ================= -->
       <section id="content-my-profile" class="space-y-6">
         <div class="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div class="flex items-center gap-4">
@@ -243,7 +243,7 @@
                 <p class="text-slate-500 text-[10px] pt-1 border-t border-slate-200/60 leading-relaxed">{{ task.instructions }}</p>
                 {% endif %}
               </div>
-              <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+              <div class="task-footer-actions flex items-center justify-between pt-2 border-t border-slate-100">
                 <button type="button" onclick="copyOrderText('{{ task.op_number }}', '{{ task.tool_type }}', '{{ task.title }}', '{{ task.supplier }}', '{{ task.due_date }}', `{{ task.instructions }}`)" class="text-slate-600 hover:text-amber-600 font-semibold flex items-center gap-1 text-[11px] transition">
                   <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Demanda
                 </button>
@@ -293,7 +293,7 @@
                 </p>
                 <p class="text-amber-700 font-semibold font-mono text-[10px]">📅 Previsão: {{ task.due_date }}</p>
               </div>
-              <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+              <div class="task-footer-actions flex items-center justify-between pt-2 border-t border-slate-100">
                 <span class="text-[11px] text-slate-400 font-medium">Serviço concluído?</span>
                 <button onclick="updateTaskStatusFast('{{ task.id }}', 'Aprovado')" class="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 px-3.5 py-1.5 rounded-xl transition shadow-xs flex items-center gap-1">
                   <i data-lucide="check" class="w-3.5 h-3.5"></i> Concluir & Publicar
@@ -304,7 +304,7 @@
           </div>
         </div>
 
-        <!-- BLOCO 3: HISTÓRICO CONCLUÍDO (HÍBRIDO COMPACTO + LATERAL VERDE) -->
+        <!-- BLOCO 3: HISTÓRICO CONCLUÍDO -->
         <div class="space-y-3 pt-2">
           <div class="flex items-center justify-between px-1">
             <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
@@ -357,7 +357,7 @@
         </div>
       </section>
 
-      <!-- ABA 1: FEED GERAL -->
+      <!-- ================= ABA 1: FEED GERAL ================= -->
       <section id="content-feed" class="hidden max-w-2xl mx-auto space-y-6">
         <div class="flex items-center justify-between px-1">
           <div>
@@ -452,7 +452,7 @@
         </div>
       </section>
 
-      <!-- ABA 2: QUADRO KANBAN GERAL -->
+      <!-- ================= ABA 2: QUADRO KANBAN GERAL (PADRÃO ELEGANTE IDENTICO AO VERDE) ================= -->
       <section id="content-kanban" class="hidden space-y-4">
         <div class="flex items-center justify-between px-1">
           <div>
@@ -465,6 +465,7 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+          
           <!-- COLUNA 1: ATRIBUÍDO -->
           <div class="bg-slate-100/90 rounded-2xl p-3 border border-slate-200/80 flex flex-col min-h-[520px]">
             <div class="flex items-center justify-between px-2 mb-3">
@@ -477,33 +478,42 @@
               </span>
             </div>
 
-            <div id="kanban-col-Atribuído" class="kanban-dropzone space-y-3 flex-1 p-1 rounded-xl" data-status="Atribuído" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Atribuído')">
+            <div id="kanban-col-Atribuído" class="kanban-dropzone space-y-2.5 flex-1 p-1 rounded-xl" data-status="Atribuído" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Atribuído')">
               {% for task in tasks if task.status == 'Atribuído' %}
-              <div id="task-{{ task.id }}" class="kanban-card bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md transition space-y-3" draggable="true" ondragstart="handleDragStart(event, '{{ task.id }}')">
+              <div id="task-{{ task.id }}" class="kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 border-l-amber-500 shadow-2xs cursor-grab active:cursor-grabbing hover:shadow-sm transition space-y-2" draggable="true" ondragstart="handleDragStart(event, '{{ task.id }}')">
                 <div class="flex items-center justify-between gap-2">
-                  <span class="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
-                    {{ task.tool_type }}
-                  </span>
-                  <span class="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
-                    Ref: {{ task.op_number }}
-                  </span>
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="text-[9px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                      {{ task.tool_type }}
+                    </span>
+                    {% if task.op_number %}
+                    <span class="text-[9px] font-mono text-slate-400 bg-slate-50 px-1 rounded">
+                      Ref: {{ task.op_number }}
+                    </span>
+                    {% endif %}
+                  </div>
+                  <span class="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Pendente</span>
                 </div>
+                
                 <h4 class="text-xs font-bold text-slate-900 leading-snug">{{ task.title }}</h4>
-                <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 space-y-1">
-                  <p class="flex items-center gap-1.5 font-semibold text-slate-700">
-                    <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-500"></i> {{ task.supplier }}
-                  </p>
-                  {% if task.instructions %}
-                  <p class="text-slate-500 line-clamp-2 text-[10px]">{{ task.instructions }}</p>
-                  {% endif %}
-                </div>
-                <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
-                  <span onclick="openUserProfileModal('{{ task.assigned_to }}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition">
-                    <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
+                
+                <p class="text-[10px] text-slate-500 truncate">
+                  Destino: <b>{{ task.supplier }}</b>
+                </p>
+
+                <div class="flex items-center justify-between pt-1.5 border-t border-slate-100 text-[10px]">
+                  <span onclick="openUserProfileModal('{{ task.assigned_to }}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
+                    <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
                   </span>
-                  <button type="button" onclick="copyOrderText('{{ task.op_number }}', '{{ task.tool_type }}', '{{ task.title }}', '{{ task.supplier }}', '{{ task.due_date }}', `{{ task.instructions }}`)" class="text-amber-600 hover:text-amber-800 font-semibold flex items-center gap-1 text-[10px] bg-amber-50 px-2 py-0.5 rounded transition">
-                    <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar
+
+                  <!-- BOTÃO DE INICIAR SOMENTE VISÍVEL PARA QUEM É O RESPONSÁVEL -->
+                  {% if task.assigned_to == current_user.full_name %}
+                  <button type="button" onclick="updateTaskStatusFast('{{ task.id }}', 'Em Produção')" class="text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded text-[10px] font-bold border border-blue-200 transition">
+                    Iniciar
                   </button>
+                  {% else %}
+                  <span class="text-[9px] text-slate-400 italic">Aguardando resp.</span>
+                  {% endif %}
                 </div>
               </div>
               {% endfor %}
@@ -522,38 +532,49 @@
               </span>
             </div>
 
-            <div id="kanban-col-Em Produção" class="kanban-dropzone space-y-3 flex-1 p-1 rounded-xl" data-status="Em Produção" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Em Produção')">
+            <div id="kanban-col-Em Produção" class="kanban-dropzone space-y-2.5 flex-1 p-1 rounded-xl" data-status="Em Produção" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Em Produção')">
               {% for task in tasks if task.status == 'Em Produção' %}
-              <div id="task-{{ task.id }}" class="kanban-card bg-white p-4 rounded-xl border border-blue-200 shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md transition space-y-3" draggable="true" ondragstart="handleDragStart(event, '{{ task.id }}')">
+              <div id="task-{{ task.id }}" class="kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 border-l-blue-500 shadow-2xs cursor-grab active:cursor-grabbing hover:shadow-sm transition space-y-2" draggable="true" ondragstart="handleDragStart(event, '{{ task.id }}')">
                 <div class="flex items-center justify-between gap-2">
-                  <span class="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
-                    {{ task.tool_type }}
-                  </span>
-                  <span class="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
-                    Ref: {{ task.op_number }}
-                  </span>
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="text-[9px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
+                      {{ task.tool_type }}
+                    </span>
+                    {% if task.op_number %}
+                    <span class="text-[9px] font-mono text-slate-400 bg-slate-50 px-1 rounded">
+                      Ref: {{ task.op_number }}
+                    </span>
+                    {% endif %}
+                  </div>
+                  <span class="text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">Em Andamento</span>
                 </div>
+                
                 <h4 class="text-xs font-bold text-slate-900 leading-snug">{{ task.title }}</h4>
-                <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 space-y-1">
-                  <p class="flex items-center gap-1.5 font-semibold text-blue-700">
-                    <i data-lucide="truck" class="w-3.5 h-3.5 text-blue-500"></i> Solicitante/Destino: {{ task.supplier }}
-                  </p>
-                  <p class="text-amber-600 font-mono text-[10px]">📅 Prazo: {{ task.due_date }}</p>
-                </div>
-                <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
-                  <span onclick="openUserProfileModal('{{ task.assigned_to }}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition">
-                    <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
+                
+                <p class="text-[10px] text-slate-500 truncate">
+                  Destino: <b>{{ task.supplier }}</b>
+                </p>
+
+                <div class="flex items-center justify-between pt-1.5 border-t border-slate-100 text-[10px]">
+                  <span onclick="openUserProfileModal('{{ task.assigned_to }}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
+                    <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
                   </span>
-                  <button type="button" onclick="updateTaskStatusFast('{{ task.id }}', 'Aprovado')" class="text-emerald-600 hover:text-emerald-800 font-semibold flex items-center gap-1 text-[10px] bg-emerald-50 px-2.5 py-1 rounded transition border border-emerald-200">
+
+                  <!-- BOTÃO DE CONCLUIR SOMENTE VISÍVEL PARA O RESPONSÁVEL DA TAREFA -->
+                  {% if task.assigned_to == current_user.full_name %}
+                  <button type="button" onclick="updateTaskStatusFast('${task.id}', 'Aprovado')" class="text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded text-[10px] font-bold border border-emerald-200 transition flex items-center gap-0.5">
                     <i data-lucide="check" class="w-3 h-3"></i> Concluir
                   </button>
+                  {% else %}
+                  <span class="text-[9px] text-blue-500 font-medium">Executando...</span>
+                  {% endif %}
                 </div>
               </div>
               {% endfor %}
             </div>
           </div>
 
-          <!-- COLUNA 3: CONCLUÍDO -->
+          <!-- COLUNA 3: CONCLUÍDO (CARD VERDE PADRÃO) -->
           <div class="bg-slate-100/90 rounded-2xl p-3 border border-slate-200/80 flex flex-col min-h-[520px]">
             <div class="flex items-center justify-between px-2 mb-3">
               <div class="flex items-center gap-2">
@@ -565,27 +586,44 @@
               </span>
             </div>
 
-            <div id="kanban-col-Aprovado" class="kanban-dropzone space-y-3 flex-1 p-1 rounded-xl" data-status="Aprovado" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Aprovado')">
+            <div id="kanban-col-Aprovado" class="kanban-dropzone space-y-2.5 flex-1 p-1 rounded-xl" data-status="Aprovado" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Aprovado')">
               {% for task in tasks if task.status == 'Aprovado' %}
-              <div id="task-{{ task.id }}" class="kanban-card bg-emerald-50/50 p-4 rounded-xl border border-emerald-200 shadow-xs space-y-2.5">
+              <div id="task-{{ task.id }}" class="kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 border-l-emerald-500 shadow-2xs hover:shadow-sm transition space-y-2">
                 <div class="flex items-center justify-between gap-2">
-                  <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
-                    {{ task.tool_type }}
-                  </span>
-                  <span class="text-[10px] font-bold text-emerald-700 bg-white px-2 py-0.5 rounded shadow-2xs">No Feed</span>
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                      {{ task.tool_type }}
+                    </span>
+                    {% if task.op_number %}
+                    <span class="text-[9px] font-mono text-slate-400 bg-slate-50 px-1 rounded">
+                      Ref: {{ task.op_number }}
+                    </span>
+                    {% endif %}
+                  </div>
+                  <span class="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">No Feed</span>
                 </div>
+                
                 <h4 class="text-xs font-bold text-slate-900 leading-snug line-through opacity-70">{{ task.title }}</h4>
-                <p class="text-[10px] text-slate-500 pt-2 border-t border-emerald-100">
-                  Destino: <b>{{ task.supplier }}</b> • Resp: <b>{{ task.assigned_to }}</b>
+                
+                <p class="text-[10px] text-slate-500 truncate">
+                  Destino: <b>{{ task.supplier }}</b>
                 </p>
+
+                <div class="flex items-center justify-between pt-1.5 border-t border-slate-100 text-[10px]">
+                  <span onclick="openUserProfileModal('{{ task.assigned_to }}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
+                    <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
+                  </span>
+                  <span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">✔ Entregue</span>
+                </div>
               </div>
               {% endfor %}
             </div>
           </div>
+
         </div>
       </section>
 
-      <!-- ABA 3: EQUIPE -->
+      <!-- ================= ABA 3: EQUIPE ================= -->
       <section id="content-profiles" class="hidden space-y-6">
         <div class="flex items-center justify-between px-1">
           <div>
@@ -630,7 +668,7 @@
         </div>
       </section>
 
-      <!-- ABA 4: NOVO FORMULÁRIO DE DEMANDA -->
+      <!-- ================= ABA 4: NOVO FORMULÁRIO DE DEMANDA ================= -->
       <section id="content-new-task" class="hidden max-w-2xl mx-auto space-y-4">
         
         <!-- SELEÇÃO RÁPIDA DE SETOR -->
@@ -991,7 +1029,12 @@
     let currentSelectedSectorId = SECTORS_DATA.length > 0 ? SECTORS_DATA[0].id : 0;
     let builderCurrentFields = [];
 
-    // Modal de Informações do Usuário
+    function isAssignedToMe(assignedTo) {
+      if (!assignedTo) return false;
+      const target = assignedTo.trim().toLowerCase();
+      return target === CURRENT_USER_NAME || target.includes(CURRENT_USER_NAME) || CURRENT_USER_NAME.includes(target);
+    }
+
     function openUserProfileModal(userName) {
       if (!userName) return;
       const user = ALL_USERS.find(u => u.full_name.toLowerCase() === userName.trim().toLowerCase());
@@ -1021,30 +1064,25 @@
       lucide.createIcons();
     }
 
-    // Busca Global
     function handleGlobalSearch(query) {
       const q = query.trim().toLowerCase();
       
-      // Filtra cards no Kanban
       document.querySelectorAll('.kanban-card').forEach(card => {
         const text = card.textContent.toLowerCase();
         card.style.display = (!q || text.includes(q)) ? '' : 'none';
       });
 
-      // Filtra cards no Meu Perfil
       document.querySelectorAll('#my-pending-container > div, #my-inprogress-container > div').forEach(card => {
         const text = card.textContent.toLowerCase();
         card.style.display = (!q || text.includes(q)) ? '' : 'none';
       });
 
-      // Filtra Feed
       document.querySelectorAll('#feed-posts-container > article').forEach(post => {
         const text = post.textContent.toLowerCase();
         post.style.display = (!q || text.includes(q)) ? '' : 'none';
       });
     }
 
-    // Atualiza nome do anexo
     function updateFileName(input) {
       const label = document.getElementById('anexo-label');
       if (input.files && input.files[0]) {
@@ -1056,7 +1094,6 @@
       }
     }
 
-    // Aplica Template Dinâmico do Setor
     function applySectorTemplate(sectorId) {
       const sector = SECTORS_DATA.find(s => s.id === sectorId);
       if (!sector) return;
@@ -1169,7 +1206,6 @@
       applySectorTemplate(sectorId);
     }
 
-    // Modal do Builder de Setores
     function openSectorBuilderModal() {
       const select = document.getElementById('builder-sector-select');
       select.innerHTML = '';
@@ -1314,7 +1350,6 @@
       if (res.ok) window.location.reload();
     }
 
-    // Cadastro de Colaborador
     async function submitCollaborator(e) {
       e.preventDefault();
       const form = e.target;
@@ -1339,7 +1374,6 @@
       }
     }
 
-    // Submissão de Demanda
     async function submitCreateTaskSmooth(e) {
       e.preventDefault();
       const form = e.target;
@@ -1383,6 +1417,7 @@
       }
     }
 
+    // INSERÇÃO NO KANBAN COM O DESIGN COMPACTO E ELEGANTE (IGUAL AO CONCLUÍDO)
     function insertTaskToKanbanDOM(task) {
       if (document.getElementById(`task-${task.id}`)) return;
 
@@ -1391,33 +1426,38 @@
 
       const card = document.createElement('div');
       card.id = `task-${task.id}`;
-      card.className = "kanban-card bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md transition space-y-3";
+      card.className = "kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 border-l-amber-500 shadow-2xs cursor-grab active:cursor-grabbing hover:shadow-sm transition space-y-2";
       card.draggable = true;
       card.ondragstart = (e) => handleDragStart(e, task.id);
 
+      const isMyTask = isAssignedToMe(task.assigned_to);
+
       card.innerHTML = `
         <div class="flex items-center justify-between gap-2">
-          <span class="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
-            ${task.tool_type}
-          </span>
-          <span class="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
-            Ref: ${task.op_number || 'S/N'}
-          </span>
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span class="text-[9px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+              ${task.tool_type || 'Geral'}
+            </span>
+            ${task.op_number ? `<span class="text-[9px] font-mono text-slate-400 bg-slate-50 px-1 rounded">Ref: ${task.op_number}</span>` : ''}
+          </div>
+          <span class="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Pendente</span>
         </div>
+        
         <h4 class="text-xs font-bold text-slate-900 leading-snug">${task.title}</h4>
-        <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 space-y-1">
-          <p class="flex items-center gap-1.5 font-semibold text-slate-700">
-            <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-500"></i> ${task.supplier}
-          </p>
-          ${task.instructions ? `<p class="text-slate-500 line-clamp-2 text-[10px]">${task.instructions}</p>` : ''}
-        </div>
-        <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
-          <span onclick="openUserProfileModal('${task.assigned_to}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition">
-            <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> <b>${task.assigned_to}</b>
+        
+        <p class="text-[10px] text-slate-500 truncate">
+          Destino: <b>${task.supplier || 'Interno'}</b>
+        </p>
+
+        <div class="flex items-center justify-between pt-1.5 border-t border-slate-100 text-[10px]">
+          <span onclick="openUserProfileModal('${task.assigned_to}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
+            <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>${task.assigned_to}</b>
           </span>
-          <button type="button" onclick="copyOrderText('${task.op_number}', '${task.tool_type}', '${task.title}', '${task.supplier}', '${task.due_date}', \`${task.instructions || ''}\`)" class="text-amber-600 hover:text-amber-800 font-semibold flex items-center gap-1 text-[10px] bg-amber-50 px-2 py-0.5 rounded transition">
-            <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar
+          ${isMyTask ? `
+          <button type="button" onclick="updateTaskStatusFast('${task.id}', 'Em Produção')" class="text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded text-[10px] font-bold border border-blue-200 transition">
+            Iniciar
           </button>
+          ` : `<span class="text-[9px] text-slate-400 italic">Aguardando resp.</span>`}
         </div>
       `;
 
@@ -1456,7 +1496,7 @@
           </p>
           ${task.instructions ? `<p class="text-slate-500 text-[10px] pt-1 border-t border-slate-200/60 leading-relaxed">${task.instructions}</p>` : ''}
         </div>
-        <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+        <div class="task-footer-actions flex items-center justify-between pt-2 border-t border-slate-100">
           <button type="button" onclick="copyOrderText('${task.op_number}', '${task.tool_type}', '${task.title}', '${task.supplier}', '${task.due_date}', \`${task.instructions || ''}\`)" class="text-slate-600 hover:text-amber-600 font-semibold flex items-center gap-1 text-[11px] transition">
             <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Demanda
           </button>
@@ -1471,7 +1511,6 @@
       lucide.createIcons();
     }
 
-    // Inserção em tempo real das entregas concluídas no perfil
     function insertMyCompletedDOM(post) {
       const compCont = document.getElementById('my-completed-container');
       const noMsg = document.getElementById('no-completed-msg');
@@ -1529,34 +1568,77 @@
       }
     }
 
+    // CONTROLE VISUAL BLINDADO: LIMPA BOTÕES ANTIGOS E RESPEITA QUEM É O RESPONSÁVEL
     function moveTaskVisual(taskId, newStatus, assignedTo) {
       const kanbanCard = document.getElementById(`task-${taskId}`);
       const targetKanbanCol = document.getElementById(`kanban-col-${newStatus}`);
+      const isMyTask = isAssignedToMe(assignedTo);
+
       if (kanbanCard && targetKanbanCol) {
         targetKanbanCol.prepend(kanbanCard);
-        const footer = kanbanCard.querySelector('.border-t');
-        if (newStatus === "Em Produção" && footer) {
-          footer.innerHTML = `
-            <span onclick="openUserProfileModal('${assignedTo}')" class="text-slate-600 font-bold cursor-pointer hover:text-amber-600">${assignedTo}</span>
-            <button type="button" onclick="updateTaskStatusFast('${taskId}', 'Aprovado')" class="text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded text-[10px] font-bold border border-emerald-200">
-              Concluir
-            </button>
-          `;
+
+        if (newStatus === "Em Produção") {
+          kanbanCard.className = "kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 border-l-blue-500 shadow-2xs cursor-grab active:cursor-grabbing hover:shadow-sm transition space-y-2";
+          
+          const badgeStatus = kanbanCard.querySelector('span:last-child');
+          if (badgeStatus) {
+            badgeStatus.className = "text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded";
+            badgeStatus.textContent = "Em Andamento";
+          }
+
+          const footer = kanbanCard.querySelector('.border-t');
+          if (footer) {
+            footer.innerHTML = `
+              <span onclick="openUserProfileModal('${assignedTo}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
+                <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>${assignedTo}</b>
+              </span>
+              ${isMyTask ? `
+              <button type="button" onclick="updateTaskStatusFast('${taskId}', 'Aprovado')" class="text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded text-[10px] font-bold border border-emerald-200 transition flex items-center gap-0.5">
+                <i data-lucide="check" class="w-3 h-3"></i> Concluir
+              </button>
+              ` : `<span class="text-[9px] text-blue-500 font-medium">Executando...</span>`}
+            `;
+          }
+        } else if (newStatus === "Aprovado") {
+          kanbanCard.className = "kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 border-l-emerald-500 shadow-2xs hover:shadow-sm transition space-y-2";
+          
+          const title = kanbanCard.querySelector('h4');
+          if (title) title.className = "text-xs font-bold text-slate-900 leading-snug line-through opacity-70";
+
+          const badgeStatus = kanbanCard.querySelector('span:last-child');
+          if (badgeStatus) {
+            badgeStatus.className = "text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded";
+            badgeStatus.textContent = "No Feed";
+          }
+
+          const footer = kanbanCard.querySelector('.border-t');
+          if (footer) {
+            footer.innerHTML = `
+              <span onclick="openUserProfileModal('${assignedTo}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
+                <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>${assignedTo}</b>
+              </span>
+              <span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">✔ Entregue</span>
+            `;
+          }
         }
       }
 
+      // ATUALIZAÇÃO NO "MEU PERFIL & TAREFAS"
       const myCard = document.getElementById(`my-task-${taskId}`);
       if (myCard) {
         if (newStatus === "Em Produção") {
           const inProgressCont = document.getElementById('my-inprogress-container');
           if (inProgressCont) {
-            myCard.className = "bg-white p-4 rounded-2xl border border-blue-200 shadow-xs space-y-3";
-            const myFooter = myCard.querySelector('.border-t');
-            if (myFooter) {
-              myFooter.innerHTML = `
+            myCard.className = "bg-white p-4 rounded-2xl border border-blue-200 shadow-xs space-y-3 hover:border-blue-300 transition";
+            
+            // SUBSTITUI O RODAPÉ POR COMPLETO (ELIMINA O BOTÃO INICIAR)
+            const footerActions = myCard.querySelector('.task-footer-actions') || myCard.querySelector('.border-t');
+            if (footerActions) {
+              footerActions.className = "task-footer-actions flex items-center justify-between pt-2 border-t border-slate-100";
+              footerActions.innerHTML = `
                 <span class="text-[11px] text-slate-400 font-medium">Serviço concluído?</span>
-                <button onclick="updateTaskStatusFast('${taskId}', 'Aprovado')" class="text-xs font-bold bg-emerald-600 text-white px-3.5 py-1.5 rounded-xl shadow-xs">
-                  Concluir & Publicar
+                <button onclick="updateTaskStatusFast('${taskId}', 'Aprovado')" class="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 px-3.5 py-1.5 rounded-xl transition shadow-xs flex items-center gap-1">
+                  <i data-lucide="check" class="w-3.5 h-3.5"></i> Concluir & Publicar
                 </button>
               `;
             }
@@ -1566,6 +1648,7 @@
           myCard.remove();
         }
       }
+
       recalculateKanbanBadges();
       recalculateMyProfileCounters();
       lucide.createIcons();
@@ -1669,12 +1752,6 @@
     function copyOrderText(op, tool, title, supplier, due, instructions) {
       const text = `*DEMANDA DE TRABALHO*\n• Ref/OP: ${op || 'S/N'}\n• Descrição: ${title}\n• Solicitante: ${supplier}\n• Prazo: ${due}\n• Detalhes: ${instructions || 'Nenhum'}`;
       navigator.clipboard.writeText(text).then(() => alert('📋 Demanda copiada com sucesso!'));
-    }
-
-    function isAssignedToMe(assignedTo) {
-      if (!assignedTo) return false;
-      const target = assignedTo.trim().toLowerCase();
-      return target === CURRENT_USER_NAME || target.includes(CURRENT_USER_NAME) || CURRENT_USER_NAME.includes(target);
     }
 
     let draggedTaskId = null;
