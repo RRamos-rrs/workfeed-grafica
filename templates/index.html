@@ -657,7 +657,7 @@
             <div id="kanban-col-Aprovado" class="kanban-dropzone space-y-2.5 flex-1 p-1 rounded-xl" data-status="Aprovado" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Aprovado')">
               {% for task in tasks if task.status == 'Aprovado' %}
               <div id="task-{{ task.id }}" class="kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 border-l-emerald-500 shadow-2xs hover:shadow-sm transition space-y-2">
-                <div class="flex items-center justify-between gap-2">
+                <div class="flex items-start justify-between gap-2">
                   <div class="flex items-center gap-1.5 flex-wrap">
                     <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
                       {{ task.tool_type }}
@@ -668,7 +668,7 @@
                     </span>
                     {% endif %}
                   </div>
-                  <span class="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">No Feed</span>
+                  <span class="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded text-center leading-tight">No<br>Feed</span>
                 </div>
                 
                 <h4 class="text-xs font-bold text-slate-900 leading-snug line-through opacity-70">{{ task.title }}</h4>
@@ -1800,10 +1800,14 @@
         if (newStatus === "Em Produção") {
           kanbanCard.className = "kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 border-l-blue-500 shadow-2xs cursor-grab active:cursor-grabbing hover:shadow-sm transition space-y-2";
           
-          const badgeStatus = kanbanCard.querySelector('span:last-child');
-          if (badgeStatus) {
-            badgeStatus.className = "text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded";
-            badgeStatus.textContent = "Em Andamento";
+          const headerDiv = kanbanCard.querySelector('.flex.items-center.justify-between') || kanbanCard.querySelector('.flex.items-start.justify-between');
+          if (headerDiv) {
+            headerDiv.className = "flex items-center justify-between gap-2";
+            const badgeStatus = headerDiv.querySelector('span:last-child');
+            if (badgeStatus) {
+              badgeStatus.className = "text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded";
+              badgeStatus.textContent = "Em Andamento";
+            }
           }
 
           const footer = kanbanCard.querySelector('.border-t');
@@ -1825,13 +1829,16 @@
           const title = kanbanCard.querySelector('h4');
           if (title) title.className = "text-xs font-bold text-slate-900 leading-snug line-through opacity-70";
 
-          const headerDiv = kanbanCard.querySelector('.flex.items-center.justify-between');
+          const headerDiv = kanbanCard.querySelector('.flex.items-center.justify-between') || kanbanCard.querySelector('.flex.items-start.justify-between');
           if (headerDiv) {
-            const lastSpan = headerDiv.querySelector('span:last-child');
-            if (lastSpan) {
-              lastSpan.className = "text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded";
-              lastSpan.textContent = "No Feed";
-            }
+            headerDiv.className = "flex items-start justify-between gap-2";
+            const tagsGroup = headerDiv.querySelector('div');
+            
+            // Substitui o cabeçalho garantindo que fique apenas a categoria/ref à esquerda e o No Feed à direita (sem a tag Pendente)
+            headerDiv.innerHTML = `
+              ${tagsGroup ? tagsGroup.outerHTML : ''}
+              <span class="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded text-center leading-tight">No<br>Feed</span>
+            `;
           }
 
           const footer = kanbanCard.querySelector('.border-t');
