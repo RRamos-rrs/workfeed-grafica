@@ -2,6 +2,7 @@ import os
 import shutil
 import json
 import asyncio
+import time
 from typing import List
 from fastapi import FastAPI, Depends, Request, Form, UploadFile, File, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -610,6 +611,68 @@ async def create_direct_post(
             "instructions": post.instructions,
             "image_url": post.image_url,
             "created_at": post.created_at.strftime('%d/%m/%Y %H:%M') if getattr(post, 'created_at', None) else "",
+            "likes": 0,
+            "comments": []
+        }
+    }
+    asyncio.create_task(manager.broadcast(post_payload))
+
+    return JSONResponse(content={"success": True, "post": post_payload["post"]})
+
+# =========================================================================
+# ROTA: CRIAÇÃO MANUAL DE POST NO FEED (ESTILO INSTAGRAM)
+# =========================================================================
+@app.post("/api/posts/create-manual")
+async def create_manual_post(
+    request: Request,
+    title: str = Form(...),
+    tool_type: str = Form("GERAL"),
+    op_number: str = Form(""),
+    instructions: str = Form(""),
+    image: UploadFile = File(None),
+    db: Session = Depends(get_db)
+):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Sessão expirada."})
+
+    image_url = None
+    if image and image.filename:
+        # Gera nome único para evitar sobreposição de ficheiros
+        safe_name = f"{int(time.time())}_{image.filename}"
+        file_path = f"uploads/{safe_name}"
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(image.file, buffer)
+        image_url = f"/{file_path}"
+
+    post = models.Post(
+        author=current_user.full_name,
+        delegated_by=current_user.full_name,
+        supplier=getattr(current_user, 'department', 'Operacional') or "Operacional",
+        tool_type=tool_type.strip() or "GERAL",
+        op_number=op_number.strip(),
+        title=title.strip(),
+        instructions=instructions.strip(),
+        due_date="Concluído",
+        image_url=image_url
+    )
+    db.add(post)
+    db.commit()
+    db.refresh(post)
+
+    post_payload = {
+        "type": "NEW_FEED_POST",
+        "post": {
+            "id": post.id,
+            "author": post.author,
+            "tool_type": post.tool_type,
+            "op_number": post.op_number,
+            "title": post.title,
+            "supplier": post.supplier,
+            "due_date": post.due_date,
+            "instructions": post.instructions,
+            "image_url": post.image_url,
+            "created_at": post.created_at.strftime('%d/%m/%Y %H:%M') if getattr(post, 'created_at', None) else "Agora",
             "likes": 0,
             "comments": []
         }
