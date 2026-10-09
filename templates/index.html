@@ -434,9 +434,20 @@
             <h2 class="text-base font-bold text-slate-900 tracking-tight">Feed de Conclusões & Entregas</h2>
             <p class="text-xs text-slate-500">Acompanhe as entregas homologadas pela equipe</p>
           </div>
-          <span id="badge-feed-total" class="text-xs font-mono font-bold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
-            {{ posts|length }} registro(s)
-          </span>
+          
+          <!-- BOTÕES DO TOPO DO FEED: NOVO POST INSTAGRAM + CONTADOR -->
+          <div class="flex items-center gap-2">
+            <button 
+              type="button" 
+              onclick="openCreatePostModal()" 
+              class="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl shadow-sm flex items-center gap-1.5 transition active:scale-95">
+              <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+              <span>Fazer Post</span>
+            </button>
+            <span id="badge-feed-total" class="text-xs font-mono font-bold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
+              {{ posts|length }} registro(s)
+            </span>
+          </div>
         </div>
 
         <div id="feed-posts-container" class="space-y-6">
@@ -493,6 +504,12 @@
               {% endif %}
             </div>
 
+            {% if post.image_url %}
+            <div class="bg-slate-950 flex items-center justify-center border-y border-slate-200 overflow-hidden">
+              <img src="{{ post.image_url }}" alt="Mídia do Post" class="w-full object-cover max-h-[460px]">
+            </div>
+            {% endif %}
+
             <div class="px-5 py-2.5 flex items-center gap-3 bg-white border-b border-slate-100">
               <button type="button" onclick="likePostSmooth('{{ post.id }}')" class="flex items-center gap-1.5 text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-lg hover:bg-rose-100 transition shadow-2xs">
                 <i data-lucide="heart" class="w-3.5 h-3.5 fill-rose-600"></i> 
@@ -502,7 +519,7 @@
 
             <div class="p-5 bg-slate-50/70 space-y-3">
               <span class="text-xs font-bold text-slate-700 block">Comentários e Pareceres Técnicos:</span>
-              <div id="comments-list-${post.id}" class="space-y-2">
+              <div id="comments-list-{{ post.id }}" class="space-y-2">
                 {% for c in post.comments %}
                 <div class="bg-white p-3 rounded-xl border border-slate-200/80 text-xs shadow-2xs">
                   <span class="font-bold text-slate-900">{{ c.author }}:</span> 
@@ -572,7 +589,7 @@
                 </p>
 
                 <div class="flex items-center justify-between pt-1.5 border-t border-slate-100 text-[10px]">
-                  <span onclick="openUserProfileModal('{{ task.assigned_to }}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
+                  <span onclick="openUserProfileModal('${task.assigned_to}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
                     <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
                   </span>
 
@@ -625,7 +642,7 @@
                 </p>
 
                 <div class="flex items-center justify-between pt-1.5 border-t border-slate-100 text-[10px]">
-                  <span onclick="openUserProfileModal('{{ task.assigned_to }}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
+                  <span onclick="openUserProfileModal('${task.assigned_to}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
                     <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
                   </span>
 
@@ -678,7 +695,7 @@
                 </p>
 
                 <div class="flex items-center justify-between pt-1.5 border-t border-slate-100 text-[10px]">
-                  <span onclick="openUserProfileModal('{{ task.assigned_to }}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
+                  <span onclick="openUserProfileModal('${task.assigned_to}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
                     <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
                   </span>
                   <span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">✔ Entregue</span>
@@ -739,7 +756,6 @@
       <!-- ================= ABA 4: NOVO FORMULÁRIO DE DEMANDA ================= -->
       <section id="content-new-task" class="hidden max-w-2xl mx-auto space-y-4">
         
-        <!-- SELEÇÃO RÁPIDA DE SETOR -->
         <div class="flex items-center justify-between px-1">
           <div class="flex items-center gap-2">
             <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Setor Ativo:</span>
@@ -763,7 +779,6 @@
           {% endif %}
         </div>
 
-        <!-- CARD PRINCIPAL -->
         <div class="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 sm:p-8 space-y-6">
           
           <div class="flex items-center gap-3.5 pb-2 border-b border-slate-100">
@@ -877,7 +892,6 @@
               </div>
             </div>
 
-            <!-- CAMPOS DINÂMICOS DO SETOR -->
             <div id="dynamic-fields-container" class="space-y-4 pt-1"></div>
 
             <!-- 4. DESCRIÇÃO -->
@@ -927,6 +941,128 @@
       </section>
 
     </main>
+  </div>
+
+  <!-- ================= MODAL: FAZER POST (ESTILO INSTAGRAM) ================= -->
+  <div id="modalCreatePost" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden p-4 backdrop-blur-xs">
+    <div class="bg-white rounded-3xl w-full max-w-lg shadow-2xl relative overflow-hidden flex flex-col max-h-[92vh]">
+      
+      <!-- Cabeçalho do Modal -->
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center text-white shadow-xs">
+            <i data-lucide="camera" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-extrabold text-slate-900 leading-tight">Criar Nova Publicação</h3>
+            <p class="text-[10px] text-slate-400">Compartilhe no Feed da gráfica</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeCreatePostModal()" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Formulário -->
+      <form id="form-create-manual-post" onsubmit="submitManualPost(event)" class="p-6 overflow-y-auto space-y-4 flex-1 text-xs">
+        
+        <!-- Área de Upload de Foto com Preview Instagram -->
+        <div>
+          <label class="block font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+            <span>Foto / Mídia do Trabalho</span>
+            <span class="text-[10px] text-slate-400 font-normal">Opcional</span>
+          </label>
+          
+          <div id="post-image-dropzone" class="border-2 border-dashed border-slate-200 hover:border-amber-400 rounded-2xl p-4 text-center cursor-pointer transition relative bg-slate-50/50 min-h-[170px] flex flex-col items-center justify-center overflow-hidden">
+            <input type="file" id="post-file-input" name="image" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" onchange="handlePostImageSelect(this)">
+            
+            <!-- Placeholder quando vazio -->
+            <div id="post-image-placeholder" class="space-y-1.5 flex flex-col items-center">
+              <div class="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-2xs">
+                <i data-lucide="image-plus" class="w-5 h-5"></i>
+              </div>
+              <p class="font-bold text-slate-700 text-xs">Selecione uma foto do seu dispositivo</p>
+              <p class="text-[10px] text-slate-400">Clique ou arraste a imagem aqui (JPG, PNG)</p>
+            </div>
+
+            <!-- Preview da Imagem -->
+            <div id="post-image-preview-wrapper" class="hidden w-full relative">
+              <img id="post-image-preview" src="#" alt="Prévia" class="w-full max-h-[260px] object-contain rounded-xl border border-slate-200 bg-black">
+              <button type="button" onclick="removePostImage(event)" class="absolute top-2 right-2 bg-rose-600 text-white rounded-lg p-1.5 shadow-md hover:bg-rose-700 transition z-20" title="Remover imagem">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Título / Chamada -->
+        <div>
+          <label class="block font-bold text-slate-700 mb-1.5">
+            Título ou Destaque da Publicação <span class="text-rose-500">*</span>
+          </label>
+          <input 
+            required 
+            type="text" 
+            name="title" 
+            placeholder="Ex.: Rodando Verniz Localizado na Heidelberg" 
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 font-semibold text-slate-900 bg-white"
+          >
+        </div>
+
+        <!-- Categoria / Tag + OP (Grid) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1.5">Setor / Tag</label>
+            <div class="relative">
+              <select name="tool_type" class="w-full pl-3 pr-8 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white font-semibold text-slate-700 appearance-none">
+                <option value="GERAL">📁 Geral / Oficina</option>
+                {% for sec in sectors %}
+                <option value="{{ sec.name }}">{{ sec.icon }} {{ sec.name }}</option>
+                {% endfor %}
+              </select>
+              <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-bold text-slate-700 mb-1.5">Nº OP ou Ref (opcional)</label>
+            <input 
+              type="text" 
+              name="op_number" 
+              placeholder="Ex: OP-5420" 
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono text-slate-800 bg-white"
+            >
+          </div>
+        </div>
+
+        <!-- Legenda / Descrição da Publicação -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="block font-bold text-slate-700">Legenda / Detalhes</label>
+            <span id="post-char-counter" class="text-[10px] font-mono text-slate-400">0/300</span>
+          </div>
+          <textarea 
+            name="instructions" 
+            rows="3" 
+            maxlength="300"
+            oninput="document.getElementById('post-char-counter').textContent = `${this.value.length}/300`"
+            placeholder="Escreva sobre o trabalho realizado, observações técnicas ou destaques..." 
+            class="w-full p-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white resize-none text-slate-700 font-medium leading-relaxed"></textarea>
+        </div>
+
+        <!-- Rodapé / Botões de Ação -->
+        <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+          <button type="button" onclick="closeCreatePostModal()" class="px-4 py-2.5 rounded-xl border border-slate-200 font-semibold text-slate-600 hover:bg-slate-50 transition">
+            Cancelar
+          </button>
+          <button id="btn-submit-manual-post" type="submit" class="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold px-5 py-2.5 rounded-xl shadow-xs transition flex items-center gap-1.5 active:scale-95">
+            <i data-lucide="send" class="w-3.5 h-3.5"></i>
+            <span>Compartilhar Post</span>
+          </button>
+        </div>
+      </form>
+
+    </div>
   </div>
 
   <!-- MODAL: SETOR BUILDER -->
@@ -1162,6 +1298,75 @@
       }
     }
 
+    // ==========================================
+    // FUNÇÕES DO MODAL DE POST ESTILO INSTAGRAM
+    // ==========================================
+    function openCreatePostModal() {
+      document.getElementById('modalCreatePost').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeCreatePostModal() {
+      document.getElementById('modalCreatePost').classList.add('hidden');
+      document.getElementById('form-create-manual-post').reset();
+      document.getElementById('post-char-counter').textContent = '0/300';
+      removePostImage();
+    }
+
+    function handlePostImageSelect(input) {
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const preview = document.getElementById('post-image-preview');
+          preview.src = e.target.result;
+          document.getElementById('post-image-preview-wrapper').classList.remove('hidden');
+          document.getElementById('post-image-placeholder').classList.add('hidden');
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+
+    function removePostImage(e) {
+      if (e) e.stopPropagation();
+      const input = document.getElementById('post-file-input');
+      input.value = '';
+      document.getElementById('post-image-preview').src = '#';
+      document.getElementById('post-image-preview-wrapper').classList.add('hidden');
+      document.getElementById('post-image-placeholder').classList.remove('hidden');
+    }
+
+    async function submitManualPost(e) {
+      e.preventDefault();
+      const form = e.target;
+      const btn = document.getElementById('btn-submit-manual-post');
+      btn.disabled = true;
+      btn.innerHTML = `<span class="animate-spin mr-1">🌀</span> Publicando...`;
+
+      const formData = new FormData(form);
+
+      try {
+        const res = await fetch('/api/posts/create-manual', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          closeCreatePostModal();
+          if (data.post) {
+            insertPostToFeedDOM(data.post);
+          }
+        } else {
+          alert(data.message || 'Erro ao publicar no feed.');
+        }
+      } catch (err) {
+        alert('Erro de conexão ao publicar.');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="send" class="w-3.5 h-3.5"></i> <span>Compartilhar Post</span>`;
+        lucide.createIcons();
+      }
+    }
+
     function applySectorTemplate(sectorId) {
       const sector = SECTORS_DATA.find(s => s.id === sectorId);
       if (!sector) return;
@@ -1366,7 +1571,7 @@
               <label class="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">Tipo</label>
               <select onchange="updateBuilderFieldType(${idx}, this.value)" class="w-full px-2.5 py-1.5 border rounded-lg text-xs font-semibold bg-slate-50">
                 <option value="text" ${f.type === 'text' ? 'selected' : ''}>Texto Curto</option>
-                <option value="select" ${f.type === 'select' ? 'select' : ''}>Lista / Opções</option>
+                <option value="select" ${f.type === 'select' ? 'selected' : ''}>Lista / Opções</option>
                 <option value="textarea" ${f.type === 'textarea' ? 'selected' : ''}>Texto Longo</option>
                 <option value="date" ${f.type === 'date' ? 'selected' : ''}>Data</option>
               </select>
@@ -1740,7 +1945,7 @@
           </div>
           ${post.instructions ? `<div class="p-3.5 bg-amber-50/30 rounded-xl border border-amber-100/70 text-xs space-y-1"><span class="font-bold text-amber-900 flex items-center gap-1 text-[11px]"><i data-lucide="file-text" class="w-3.5 h-3.5 text-amber-600"></i> Detalhes:</span><p class="text-slate-700 leading-relaxed">${post.instructions}</p></div>` : ''}
         </div>
-        ${post.image_url ? `<div class="bg-slate-950 flex items-center justify-center border-y border-slate-200 overflow-hidden"><img src="${post.image_url}" alt="Comprovante Concluído" class="w-full object-cover max-h-[460px]"></div>` : ''}
+        ${post.image_url ? `<div class="bg-slate-950 flex items-center justify-center border-y border-slate-200 overflow-hidden"><img src="${post.image_url}" alt="Mídia do Post" class="w-full object-cover max-h-[460px]"></div>` : ''}
         <div class="px-5 py-2.5 flex items-center gap-3 bg-white border-b border-slate-100">
           <button type="button" onclick="likePostSmooth('${post.id}')" class="flex items-center gap-1.5 text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-lg hover:bg-rose-100 transition shadow-2xs">
             <i data-lucide="heart" class="w-3.5 h-3.5 fill-rose-600"></i> 
@@ -2045,6 +2250,11 @@
               if (isAssignedToMe(data.assigned_to)) {
                 insertMyCompletedDOM(data.post);
               }
+            }
+          }
+          else if (data.type === "NEW_FEED_POST") {
+            if (data.post) {
+              insertPostToFeedDOM(data.post);
             }
           }
           else if (data.type === "NEW_COMMENT") {
