@@ -208,7 +208,7 @@
           </div>
         </div>
 
-        <!-- BLOCO 1: ATRIBUÍDAS A MIM -->
+        <!-- BLOCO 1: ATRIBUÍDAS A MIM (COM DESIGN FICHA TÉCNICA / ORDEM DE SERVIÇO) -->
         <div class="space-y-3">
           <div class="flex items-center justify-between px-1">
             <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
@@ -222,35 +222,76 @@
 
           <div id="my-pending-container" class="space-y-3">
             {% for task in my_pending_tasks %}
-            <div id="my-task-{{ task.id }}" class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3 hover:border-amber-300 transition">
+            <div id="my-task-{{ task.id }}" class="bg-white rounded-2xl border border-slate-200/90 border-l-4 border-l-amber-500 shadow-xs hover:shadow-md transition p-4 sm:p-5 space-y-3.5">
+              
+              <!-- TOPO DA FICHA: Categoria + Referência/OP em destaque -->
               <div class="flex items-center justify-between gap-2">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
-                  {{ task.tool_type }}
-                </span>
-                <span class="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-                  Ref/OP: {{ task.op_number }}
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-[10px] font-black uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
+                    {{ task.tool_type }}
+                  </span>
+                  {% if task.op_number %}
+                  <span class="text-[11px] font-mono font-bold text-slate-700 bg-slate-100 border border-slate-200/80 px-2.5 py-0.5 rounded-lg">
+                    OP: {{ task.op_number }}
+                  </span>
+                  {% endif %}
+                </div>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50/70 border border-amber-200/60 px-2 py-0.5 rounded-md flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Pendente
                 </span>
               </div>
-              <h4 class="text-sm font-bold text-slate-900 leading-snug">{{ task.title }}</h4>
-              <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1">
-                <p class="flex items-center gap-1.5 font-semibold text-slate-700">
-                  <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-600"></i> Solicitante/Destino: {{ task.supplier }}
-                </p>
-                <p class="text-amber-700 font-semibold font-mono text-[10px]">
-                  📅 Prazo Limite: {{ task.due_date }}
-                </p>
-                {% if task.instructions %}
-                <p class="text-slate-500 text-[10px] pt-1 border-t border-slate-200/60 leading-relaxed">{{ task.instructions }}</p>
-                {% endif %}
+
+              <!-- TÍTULO DA PEÇA / SERVIÇO -->
+              <div>
+                <h4 class="text-sm sm:text-base font-extrabold text-slate-900 leading-snug tracking-tight">
+                  {{ task.title }}
+                </h4>
               </div>
+
+              <!-- GRID TÉCNICO: SOLICITANTE & PRAZO -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 rounded-xl bg-slate-50/90 border border-slate-100 text-xs">
+                <div class="flex items-center gap-2 text-slate-700 min-w-0">
+                  <div class="w-7 h-7 rounded-lg bg-white border border-slate-200/80 flex items-center justify-center flex-shrink-0 text-amber-600 shadow-2xs">
+                    <i data-lucide="truck" class="w-3.5 h-3.5"></i>
+                  </div>
+                  <div class="truncate">
+                    <p class="text-[9px] uppercase font-bold text-slate-400 leading-tight">Solicitante</p>
+                    <p class="font-bold text-slate-800 truncate text-[11px]">{{ task.supplier }}</p>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-2 text-slate-700 min-w-0">
+                  <div class="w-7 h-7 rounded-lg bg-white border border-slate-200/80 flex items-center justify-center flex-shrink-0 text-rose-500 shadow-2xs">
+                    <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                  </div>
+                  <div class="truncate">
+                    <p class="text-[9px] uppercase font-bold text-slate-400 leading-tight">Prazo Limite</p>
+                    <p class="font-mono font-bold text-rose-600 text-[11px]">{{ task.due_date }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ESCOPO TÉCNICO / ESPECIFICAÇÕES -->
+              {% if task.instructions %}
+              <div class="p-3 bg-amber-50/40 rounded-xl border border-amber-100/80 text-xs space-y-1">
+                <span class="text-[10px] uppercase font-bold text-amber-900 tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="file-text" class="w-3 h-3 text-amber-600"></i> Especificações do Trabalho:
+                </span>
+                <p class="text-slate-700 leading-relaxed font-medium text-[11px] whitespace-pre-line">{{ task.instructions }}</p>
+              </div>
+              {% endif %}
+
+              <!-- AÇÕES: COPIAR E INICIAR -->
               <div class="task-footer-actions flex items-center justify-between pt-2 border-t border-slate-100">
-                <button type="button" onclick="copyOrderText('{{ task.op_number }}', '{{ task.tool_type }}', '{{ task.title }}', '{{ task.supplier }}', '{{ task.due_date }}', `{{ task.instructions }}`)" class="text-slate-600 hover:text-amber-600 font-semibold flex items-center gap-1 text-[11px] transition">
+                <button type="button" onclick="copyOrderText('{{ task.op_number }}', '{{ task.tool_type }}', '{{ task.title }}', '{{ task.supplier }}', '{{ task.due_date }}', `{{ task.instructions }}`)" class="text-slate-600 hover:text-amber-700 font-bold flex items-center gap-1.5 text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl transition shadow-2xs">
                   <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Demanda
                 </button>
-                <button onclick="updateTaskStatusFast('{{ task.id }}', 'Em Produção')" class="text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-xl transition border border-blue-200 flex items-center gap-1">
-                  Iniciar Execução <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                <button onclick="updateTaskStatusFast('{{ task.id }}', 'Em Produção')" class="text-xs font-bold bg-[#0284c7] hover:bg-[#0369a1] text-white px-4 py-2 rounded-xl transition shadow-xs flex items-center gap-1.5 active:scale-95">
+                  <span>Iniciar Execução</span>
+                  <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
                 </button>
               </div>
+
             </div>
             {% else %}
             <div id="no-pending-msg" class="p-8 bg-white rounded-2xl border border-slate-200/80 text-center space-y-2">
@@ -561,7 +602,7 @@
 
                   {% if task.assigned_to == current_user.full_name %}
                   <button type="button" onclick="updateTaskStatusFast('{{ task.id }}', 'Aprovado')" class="text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded text-[10px] font-bold border border-emerald-200 transition flex items-center gap-0.5">
-                    <i data-lucide="check" class="w-3 h-3"></i> Concluir
+                    <i data-lucide="check" class="w-3.5 h-3.5"></i> Concluir
                   </button>
                   {% else %}
                   <span class="text-[9px] text-blue-500 font-medium">Executando...</span>
@@ -990,7 +1031,7 @@
     </div>
   </div>
 
-  <!-- ================= JAVASCRIPT CORRIGIDO CIRURGICAMENTE ================= -->
+  <!-- ================= JAVASCRIPT ================= -->
   <script>
     lucide.createIcons();
     const CURRENT_USER_NAME = "{{ current_user.full_name }}".trim().toLowerCase();
@@ -1463,6 +1504,9 @@
       lucide.createIcons();
     }
 
+    // ==========================================
+    // INSERÇÃO DINÂMICA DA FICHA TÉCNICA / ORDEM DE SERVIÇO
+    // ==========================================
     function insertTaskToMyProfileDOM(task) {
       if (document.getElementById(`my-task-${task.id}`)) return;
 
@@ -1473,32 +1517,63 @@
 
       const div = document.createElement('div');
       div.id = `my-task-${task.id}`;
-      div.className = "bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3 hover:border-amber-300 transition";
+      div.className = "bg-white rounded-2xl border border-slate-200/90 border-l-4 border-l-amber-500 shadow-xs hover:shadow-md transition p-4 sm:p-5 space-y-3.5";
       div.innerHTML = `
         <div class="flex items-center justify-between gap-2">
-          <span class="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
-            ${task.tool_type}
-          </span>
-          <span class="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-            Ref: ${task.op_number || 'S/N'}
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-[10px] font-black uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
+              ${task.tool_type || 'Geral'}
+            </span>
+            ${task.op_number ? `<span class="text-[11px] font-mono font-bold text-slate-700 bg-slate-100 border border-slate-200/80 px-2.5 py-0.5 rounded-lg">OP: ${task.op_number}</span>` : ''}
+          </div>
+          <span class="text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50/70 border border-amber-200/60 px-2 py-0.5 rounded-md flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Pendente
           </span>
         </div>
-        <h4 class="text-sm font-bold text-slate-900 leading-snug">${task.title}</h4>
-        <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1">
-          <p class="flex items-center gap-1.5 font-semibold text-slate-700">
-            <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-600"></i> Solicitante/Destino: ${task.supplier}
-          </p>
-          <p class="text-amber-700 font-semibold font-mono text-[10px]">
-            📅 Prazo Limite: ${task.due_date}
-          </p>
-          ${task.instructions ? `<p class="text-slate-500 text-[10px] pt-1 border-t border-slate-200/60 leading-relaxed">${task.instructions}</p>` : ''}
+
+        <div>
+          <h4 class="text-sm sm:text-base font-extrabold text-slate-900 leading-snug tracking-tight">
+            ${task.title}
+          </h4>
         </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 rounded-xl bg-slate-50/90 border border-slate-100 text-xs">
+          <div class="flex items-center gap-2 text-slate-700 min-w-0">
+            <div class="w-7 h-7 rounded-lg bg-white border border-slate-200/80 flex items-center justify-center flex-shrink-0 text-amber-600 shadow-2xs">
+              <i data-lucide="truck" class="w-3.5 h-3.5"></i>
+            </div>
+            <div class="truncate">
+              <p class="text-[9px] uppercase font-bold text-slate-400 leading-tight">Solicitante</p>
+              <p class="font-bold text-slate-800 truncate text-[11px]">${task.supplier || 'Interno'}</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 text-slate-700 min-w-0">
+            <div class="w-7 h-7 rounded-lg bg-white border border-slate-200/80 flex items-center justify-center flex-shrink-0 text-rose-500 shadow-2xs">
+              <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+            </div>
+            <div class="truncate">
+              <p class="text-[9px] uppercase font-bold text-slate-400 leading-tight">Prazo Limite</p>
+              <p class="font-mono font-bold text-rose-600 text-[11px]">${task.due_date || 'A definir'}</p>
+            </div>
+          </div>
+        </div>
+
+        ${task.instructions ? `
+        <div class="p-3 bg-amber-50/40 rounded-xl border border-amber-100/80 text-xs space-y-1">
+          <span class="text-[10px] uppercase font-bold text-amber-900 tracking-wider flex items-center gap-1.5">
+            <i data-lucide="file-text" class="w-3 h-3 text-amber-600"></i> Especificações do Trabalho:
+          </span>
+          <p class="text-slate-700 leading-relaxed font-medium text-[11px] whitespace-pre-line">${task.instructions}</p>
+        </div>` : ''}
+
         <div class="task-footer-actions flex items-center justify-between pt-2 border-t border-slate-100">
-          <button type="button" onclick="copyOrderText('${task.op_number}', '${task.tool_type}', '${task.title}', '${task.supplier}', '${task.due_date}', \`${task.instructions || ''}\`)" class="text-slate-600 hover:text-amber-600 font-semibold flex items-center gap-1 text-[11px] transition">
+          <button type="button" onclick="copyOrderText('${task.op_number || ''}', '${task.tool_type || ''}', '${task.title || ''}', '${task.supplier || ''}', '${task.due_date || ''}', \`${task.instructions || ''}\`)" class="text-slate-600 hover:text-amber-700 font-bold flex items-center gap-1.5 text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl transition shadow-2xs">
             <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Demanda
           </button>
-          <button onclick="updateTaskStatusFast('${task.id}', 'Em Produção')" class="text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition border border-blue-200 flex items-center gap-1">
-            Iniciar Execução <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+          <button onclick="updateTaskStatusFast('${task.id}', 'Em Produção')" class="text-xs font-bold bg-[#0284c7] hover:bg-[#0369a1] text-white px-4 py-2 rounded-xl transition shadow-xs flex items-center gap-1.5 active:scale-95">
+            <span>Iniciar Execução</span>
+            <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
           </button>
         </div>
       `;
@@ -1653,9 +1728,6 @@
       }
     }
 
-    // ==========================================
-    // MOVIMENTAÇÃO DE CARDS NO KANBAN E NO PERFIL (CORRIGIDA)
-    // ==========================================
     function moveTaskVisual(taskId, newStatus, assignedTo) {
       let kanbanCard = document.getElementById(`task-${taskId}`);
       const targetKanbanCol = document.getElementById(`kanban-col-${newStatus}`);
@@ -1663,7 +1735,6 @@
 
       if (targetKanbanCol) {
         if (!kanbanCard) {
-          // Se o card não estava no DOM do Kanban ainda, cria ele diretamente no formato da coluna de destino
           kanbanCard = document.createElement('div');
           kanbanCard.id = `task-${taskId}`;
           kanbanCard.className = "kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 shadow-2xs hover:shadow-sm transition space-y-2";
@@ -1689,13 +1760,12 @@
               </span>
               ${isMyTask ? `
               <button type="button" onclick="updateTaskStatusFast('${taskId}', 'Aprovado')" class="text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded text-[10px] font-bold border border-emerald-200 transition flex items-center gap-0.5">
-                <i data-lucide="check" class="w-3 h-3"></i> Concluir
+                <i data-lucide="check" class="w-3.5 h-3.5"></i> Concluir
               </button>
               ` : `<span class="text-[9px] text-blue-500 font-medium">Executando...</span>`}
             `;
           }
         } else if (newStatus === "Aprovado") {
-          // FORMATO VERDE COMPLETO E DEFINITIVO PARA A COLUNA 3
           kanbanCard.className = "kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 border-l-emerald-500 shadow-2xs hover:shadow-sm transition space-y-2";
           
           const title = kanbanCard.querySelector('h4');
@@ -1893,10 +1963,8 @@
             }
           }
           else if (data.type === "TASK_STATUS_UPDATED") {
-            // MOVE O CARD VISUALMENTE NO KANBAN E NO PERFIL
             moveTaskVisual(data.task_id, data.new_status, data.assigned_to);
             
-            // QUANDO CONCLUÍDO E ENVIADO AO FEED:
             if (data.published_to_feed && data.post) {
               insertPostToFeedDOM(data.post);
               
