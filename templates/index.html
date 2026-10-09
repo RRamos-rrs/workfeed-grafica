@@ -208,7 +208,7 @@
           </div>
         </div>
 
-        <!-- BLOCO 1: ATRIBUÍDAS A MIM (COM DESIGN FICHA TÉCNICA / ORDEM DE SERVIÇO) -->
+        <!-- BLOCO 1: ATRIBUÍDAS A MIM -->
         <div class="space-y-3">
           <div class="flex items-center justify-between px-1">
             <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
@@ -222,10 +222,23 @@
 
           <div id="my-pending-container" class="space-y-3">
             {% for task in my_pending_tasks %}
+            {% set clean_inst = task.instructions or '' %}
+            {% set prio = 'Normal' %}
+            {% if '[Prioridade: Urgente]' in clean_inst %}
+              {% set prio = 'Urgente' %}
+              {% set clean_inst = clean_inst.replace('[Prioridade: Urgente]', '').strip() %}
+            {% elif '[Prioridade: Alta]' in clean_inst %}
+              {% set prio = 'Alta' %}
+              {% set clean_inst = clean_inst.replace('[Prioridade: Alta]', '').strip() %}
+            {% elif '[Prioridade: Normal]' in clean_inst %}
+              {% set prio = 'Normal' %}
+              {% set clean_inst = clean_inst.replace('[Prioridade: Normal]', '').strip() %}
+            {% endif %}
+
             <div id="my-task-{{ task.id }}" class="bg-white rounded-2xl border border-slate-200/90 border-l-4 border-l-amber-500 shadow-xs hover:shadow-md transition p-4 sm:p-5 space-y-3.5">
               
-              <!-- TOPO DA FICHA: Categoria + Referência/OP em destaque -->
-              <div class="flex items-center justify-between gap-2">
+              <!-- TOPO DA FICHA: Categoria + OP + Badge de Prioridade com Bolinha -->
+              <div class="flex items-center justify-between gap-2 flex-wrap">
                 <div class="flex items-center gap-2 flex-wrap">
                   <span class="text-[10px] font-black uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
                     {{ task.tool_type }}
@@ -235,7 +248,23 @@
                     OP: {{ task.op_number }}
                   </span>
                   {% endif %}
+
+                  <!-- BOLINHA E COR DA PRIORIDADE IGUAL AO FORMULÁRIO -->
+                  {% if prio == 'Urgente' %}
+                  <span class="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-200/80 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-rose-600"></span> Urgente
+                  </span>
+                  {% elif prio == 'Alta' %}
+                  <span class="text-[11px] font-bold text-amber-600 bg-amber-50 border border-amber-200/80 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-amber-500"></span> Alta
+                  </span>
+                  {% else %}
+                  <span class="text-[11px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Normal
+                  </span>
+                  {% endif %}
                 </div>
+
                 <span class="text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50/70 border border-amber-200/60 px-2 py-0.5 rounded-md flex items-center gap-1">
                   <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Pendente
                 </span>
@@ -271,19 +300,19 @@
                 </div>
               </div>
 
-              <!-- ESCOPO TÉCNICO / ESPECIFICAÇÕES -->
-              {% if task.instructions %}
+              <!-- ESCOPO TÉCNICO / INSTRUÇÕES LIMPAS -->
+              {% if clean_inst %}
               <div class="p-3 bg-amber-50/40 rounded-xl border border-amber-100/80 text-xs space-y-1">
                 <span class="text-[10px] uppercase font-bold text-amber-900 tracking-wider flex items-center gap-1.5">
                   <i data-lucide="file-text" class="w-3 h-3 text-amber-600"></i> Especificações do Trabalho:
                 </span>
-                <p class="text-slate-700 leading-relaxed font-medium text-[11px] whitespace-pre-line">{{ task.instructions }}</p>
+                <p class="text-slate-700 leading-relaxed font-medium text-[11px] whitespace-pre-line">{{ clean_inst }}</p>
               </div>
               {% endif %}
 
               <!-- AÇÕES: COPIAR E INICIAR -->
               <div class="task-footer-actions flex items-center justify-between pt-2 border-t border-slate-100">
-                <button type="button" onclick="copyOrderText('{{ task.op_number }}', '{{ task.tool_type }}', '{{ task.title }}', '{{ task.supplier }}', '{{ task.due_date }}', `{{ task.instructions }}`)" class="text-slate-600 hover:text-amber-700 font-bold flex items-center gap-1.5 text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl transition shadow-2xs">
+                <button type="button" onclick="copyOrderText('{{ task.op_number }}', '{{ task.tool_type }}', '{{ task.title }}', '{{ task.supplier }}', '{{ task.due_date }}', `{{ clean_inst }}`)" class="text-slate-600 hover:text-amber-700 font-bold flex items-center gap-1.5 text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl transition shadow-2xs">
                   <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Demanda
                 </button>
                 <button onclick="updateTaskStatusFast('{{ task.id }}', 'Em Produção')" class="text-xs font-bold bg-[#0284c7] hover:bg-[#0369a1] text-white px-4 py-2 rounded-xl transition shadow-xs flex items-center gap-1.5 active:scale-95">
@@ -473,7 +502,7 @@
 
             <div class="p-5 bg-slate-50/70 space-y-3">
               <span class="text-xs font-bold text-slate-700 block">Comentários e Pareceres Técnicos:</span>
-              <div id="comments-list-{{ post.id }}" class="space-y-2">
+              <div id="comments-list-${post.id}" class="space-y-2">
                 {% for c in post.comments %}
                 <div class="bg-white p-3 rounded-xl border border-slate-200/80 text-xs shadow-2xs">
                   <span class="font-bold text-slate-900">{{ c.author }}:</span> 
@@ -1505,7 +1534,7 @@
     }
 
     // ==========================================
-    // INSERÇÃO DINÂMICA DA FICHA TÉCNICA / ORDEM DE SERVIÇO
+    // INSERÇÃO DINÂMICA DA FICHA TÉCNICA COM PRIORIDADE EM BOLINHA E TEXTO LIMPO
     // ==========================================
     function insertTaskToMyProfileDOM(task) {
       if (document.getElementById(`my-task-${task.id}`)) return;
@@ -1515,16 +1544,41 @@
       if (noMsg) noMsg.remove();
       if (!pCont) return;
 
+      let rawInst = task.instructions || '';
+      let priority = 'Normal';
+      let cleanInstructions = rawInst;
+
+      if (rawInst.includes('[Prioridade: Urgente]')) {
+        priority = 'Urgente';
+        cleanInstructions = rawInst.replace('[Prioridade: Urgente]', '').trim();
+      } else if (rawInst.includes('[Prioridade: Alta]')) {
+        priority = 'Alta';
+        cleanInstructions = rawInst.replace('[Prioridade: Alta]', '').trim();
+      } else if (rawInst.includes('[Prioridade: Normal]')) {
+        priority = 'Normal';
+        cleanInstructions = rawInst.replace('[Prioridade: Normal]', '').trim();
+      }
+
+      let prioBadgeHtml = '';
+      if (priority === 'Urgente') {
+        prioBadgeHtml = `<span class="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-200/80 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-600"></span> Urgente</span>`;
+      } else if (priority === 'Alta') {
+        prioBadgeHtml = `<span class="text-[11px] font-bold text-amber-600 bg-amber-50 border border-amber-200/80 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Alta</span>`;
+      } else {
+        prioBadgeHtml = `<span class="text-[11px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Normal</span>`;
+      }
+
       const div = document.createElement('div');
       div.id = `my-task-${task.id}`;
       div.className = "bg-white rounded-2xl border border-slate-200/90 border-l-4 border-l-amber-500 shadow-xs hover:shadow-md transition p-4 sm:p-5 space-y-3.5";
       div.innerHTML = `
-        <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center justify-between gap-2 flex-wrap">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="text-[10px] font-black uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
               ${task.tool_type || 'Geral'}
             </span>
             ${task.op_number ? `<span class="text-[11px] font-mono font-bold text-slate-700 bg-slate-100 border border-slate-200/80 px-2.5 py-0.5 rounded-lg">OP: ${task.op_number}</span>` : ''}
+            ${prioBadgeHtml}
           </div>
           <span class="text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50/70 border border-amber-200/60 px-2 py-0.5 rounded-md flex items-center gap-1">
             <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Pendente
@@ -1559,16 +1613,16 @@
           </div>
         </div>
 
-        ${task.instructions ? `
+        ${cleanInstructions ? `
         <div class="p-3 bg-amber-50/40 rounded-xl border border-amber-100/80 text-xs space-y-1">
           <span class="text-[10px] uppercase font-bold text-amber-900 tracking-wider flex items-center gap-1.5">
             <i data-lucide="file-text" class="w-3 h-3 text-amber-600"></i> Especificações do Trabalho:
           </span>
-          <p class="text-slate-700 leading-relaxed font-medium text-[11px] whitespace-pre-line">${task.instructions}</p>
+          <p class="text-slate-700 leading-relaxed font-medium text-[11px] whitespace-pre-line">${cleanInstructions}</p>
         </div>` : ''}
 
         <div class="task-footer-actions flex items-center justify-between pt-2 border-t border-slate-100">
-          <button type="button" onclick="copyOrderText('${task.op_number || ''}', '${task.tool_type || ''}', '${task.title || ''}', '${task.supplier || ''}', '${task.due_date || ''}', \`${task.instructions || ''}\`)" class="text-slate-600 hover:text-amber-700 font-bold flex items-center gap-1.5 text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl transition shadow-2xs">
+          <button type="button" onclick="copyOrderText('${task.op_number || ''}', '${task.tool_type || ''}', '${task.title || ''}', '${task.supplier || ''}', '${task.due_date || ''}', \`${cleanInstructions}\`)" class="text-slate-600 hover:text-amber-700 font-bold flex items-center gap-1.5 text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl transition shadow-2xs">
             <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Demanda
           </button>
           <button onclick="updateTaskStatusFast('${task.id}', 'Em Produção')" class="text-xs font-bold bg-[#0284c7] hover:bg-[#0369a1] text-white px-4 py-2 rounded-xl transition shadow-xs flex items-center gap-1.5 active:scale-95">
