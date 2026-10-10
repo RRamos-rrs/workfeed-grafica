@@ -1888,10 +1888,14 @@
       }
     }
 
-    function renderMyTasks() {
+    let lastMyRenderSig = '';
+    function renderMyTasks(force) {
       const pend = document.getElementById('my-pending-container');
       const prog = document.getElementById('my-inprogress-container');
       if (!pend || !prog) return;
+      const sig = new Date().toDateString() + JSON.stringify(Array.from(MY_TASKS.values()));
+      if (!force && sig === lastMyRenderSig) return;   // nada mudou: não redesenha (evita piscar)
+      lastMyRenderSig = sig;
       pend.innerHTML = '';
       prog.innerHTML = '';
       MY_TASKS.forEach(t => {
@@ -2462,15 +2466,21 @@
     }
 
     // Setores, colaboradores e listas: troca só os blocos necessários, sem perder o que está digitado
+    const serverSnapshots = new Map();
     async function softRefresh() {
       const [state, pageRes] = await Promise.all([loadState(), fetch('/', { headers: { 'Accept': 'text/html' } })]);
       if (!state || !pageRes.ok || pageRes.redirected) { window.location.reload(); return; }
       const doc = new DOMParser().parseFromString(await pageRes.text(), 'text/html');
       // Só troca o bloco se o conteúdo mudou de verdade (evita a tela piscar)
+      // (compara com o último HTML recebido do servidor, não com a tela, que muda com ícones e scripts)
       const swap = (id) => {
         const cur = document.getElementById(id);
         const novo = doc.getElementById(id);
-        if (cur && novo && cur.innerHTML !== novo.innerHTML) cur.innerHTML = novo.innerHTML;
+        if (!cur || !novo) return;
+        const html = novo.innerHTML;
+        if (serverSnapshots.get(id) === html) return;
+        serverSnapshots.set(id, html);
+        cur.innerHTML = html;
       };
 
       SECTORS_DATA.splice(0, SECTORS_DATA.length, ...state.sectors);
