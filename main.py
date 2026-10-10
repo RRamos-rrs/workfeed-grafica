@@ -268,19 +268,34 @@ def get_team_owner_id(user):
     return user.id if is_manager_user(user) else user.manager_id
 
 def visible_sectors(db: Session, user):
-    """Setores da equipa do utilizador + o setor padrão de Pré-Impressão (partilhado)."""
+    """Só os setores da equipe do utilizador (cada gestor vê os que ele criou)."""
     owner_id = get_team_owner_id(user)
-    result = []
-    all_sectors = db.query(models.SectorConfig).order_by(models.SectorConfig.id).all()
-    # O setor padrão partilhado é o mais antigo sem dono (não depende do nome, que pode ser editado)
-    legacy_ids = [x.id for x in all_sectors if x.owner_id is None]
-    shared_id = legacy_ids[0] if legacy_ids else None
-    for sec in all_sectors:
+    if owner_id is None:
+        return []
+    return db.query(models.SectorConfig).filter(models.SectorConfig.owner_id == owner_id).order_by(models.SectorConfig.id).all()
+
+def claim_default_sectors(db: Session):
+    """O setor de Pré-Impressão criado antes das equipes passa a pertencer ao gestor mais antigo
+    (a equipe original). As outras equipes deixam de vê-lo."""
+    orphans = db.query(models.SectorConfig).filter(models.SectorConfig.owner_id.is_(None)).order_by(models.SectorConfig.id).all()
+    if not orphans:
+        return
+    first_manager = None
+    for u in db.query(models.User).order_by(models.User.id).all():
+        if is_manager_user(u) and u.manager_id is None:
+            first_manager = u
+            break
+    if not first_manager:
+        return
+    oldest_id = orphans[0].id
+    changed = False
+    for sec in orphans:
         name_norm = unicodedata.normalize("NFKD", sec.name or "").encode("ascii", "ignore").decode().lower()
-        shared_default = sec.owner_id is None and (sec.id == shared_id or "impress" in name_norm)
-        if shared_default or (owner_id is not None and sec.owner_id == owner_id):
-            result.append(sec)
-    return result
+        if sec.id == oldest_id or "impress" in name_norm:
+            sec.owner_id = first_manager.id
+            changed = True
+    if changed:
+        db.commit()
 
 def get_team_names(db: Session, user) -> List[str]:
     return [u.full_name for u in get_team_users(db, user)]
@@ -412,6 +427,7 @@ def home(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/login")
 
     ensure_default_sectors(db)
+    claim_default_sectors(db)
 
     role_normalized = (current_user.role or "").strip().lower()
     is_manager = role_normalized in ["gestor", "manager", "admin"]
