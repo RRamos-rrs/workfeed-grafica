@@ -231,7 +231,9 @@
               <p class="text-xs text-slate-500 mt-0.5">
                 Usuário: <span class="font-mono font-medium text-slate-700">@{{ current_user.username }}</span> • Função: <span class="font-semibold text-amber-600">{{ current_user.role }}</span>
               </p>
-              <p class="text-[11px] text-slate-400 mt-0.5">Setor: <span class="text-slate-600 font-medium">{{ current_user.department or 'Geral / Operacional' }}</span></p>
+              <p class="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">Setor: <span id="my-department-label" class="text-slate-600 font-medium">{{ current_user.department or 'Geral / Operacional' }}</span>
+                <button type="button" onclick='editDepartment({{ current_user.username|tojson }}, {{ (current_user.department or "")|tojson }})' title="Alterar meu setor" class="text-slate-400 hover:text-amber-600 p-0.5"><i data-lucide="pencil" class="w-3 h-3"></i></button>
+              </p>
             </div>
           </div>
           
@@ -664,7 +666,7 @@
         <div id="collaborators-grid" class="grid grid-cols-1 md:grid-cols-2 gap-5">
           {% for member in collaborators %}
           <div id="user-card-{{ member.username }}" class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-amber-300 transition">
-            <div class="flex items-start justify-between">
+            <div class="flex items-start justify-between gap-2">
               <div onclick='openUserProfileModal({{ member.name|tojson }})' class="flex items-center gap-3 cursor-pointer flex-1">
                 <div class="w-12 h-12 rounded-xl bg-amber-500 text-white font-black text-sm flex items-center justify-center shadow-sm">
                   {{ member.name[:2]|upper }}
@@ -677,6 +679,11 @@
                   </div>
                 </div>
               </div>
+              {% if current_user.role in ['Gestor', 'manager', 'admin'] or member.username == current_user.username %}
+              <button type="button" data-user="{{ member.username }}" data-dept="{{ member.department }}" onclick="editDepartment(this.dataset.user, this.dataset.dept)" title="Alterar setor" class="flex-shrink-0 w-7 h-7 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 flex items-center justify-center transition">
+                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+              </button>
+              {% endif %}
             </div>
 
             <div class="grid grid-cols-2 gap-2 text-center">
@@ -1107,7 +1114,7 @@
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Setor / Departamento</label>
-            <input type="text" name="department" required placeholder="Ex: Pré-Impressão" value="Pré-Impressão" class="w-full px-3.5 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0284c7]">
+            <input type="text" name="department" required placeholder="Ex: Pré-Impressão, Comercial, Expedição" class="w-full px-3.5 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0284c7]">
           </div>
         </div>
         <div>
@@ -1155,6 +1162,7 @@
   <script>
     lucide.createIcons();
     const CURRENT_USER_FULL = {{ current_user.full_name|tojson }};
+    const CURRENT_USER_USERNAME = {{ current_user.username.lower()|tojson }};
     const IS_MANAGER = {{ (current_user.role in ['Gestor', 'manager', 'admin'])|tojson }};
     const CURRENT_USER_NAME = CURRENT_USER_FULL.trim().toLowerCase();
 
@@ -2163,6 +2171,27 @@
       ensurePendingPlaceholder();
       recalculateMyProfileCounters();
       lucide.createIcons();
+    }
+
+    // ---------- Alterar o setor de um usuário ----------
+    async function editDepartment(username, current) {
+      const novo = prompt('Setor / Departamento:', current || '');
+      if (novo === null) return;
+      const value = novo.trim();
+      if (!value) { alert('Informe o setor.'); return; }
+      const fd = new FormData();
+      fd.append('department', value);
+      try {
+        const res = await fetch(`/api/users/${encodeURIComponent(username)}/department`, { method: 'POST', body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) { alert(data.message || 'Não foi possível alterar o setor.'); return; }
+        const me = CURRENT_USER_USERNAME === String(username).toLowerCase();
+        const label = document.getElementById('my-department-label');
+        if (me && label) label.textContent = data.department;
+        scheduleRefresh('team');
+      } catch (err) {
+        alert('Erro de conexão ao alterar o setor.');
+      }
     }
 
     // ---------- Alerta de prazos para o gestor ----------

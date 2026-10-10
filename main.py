@@ -673,7 +673,7 @@ async def register(
     full_name: str = Form(...),
     username: str = Form(...),
     role: str = Form("Gestor"),
-    department: str = Form("Produção / Pré-Impressão"),
+    department: str = Form("Geral / Operacional"),
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
@@ -690,7 +690,7 @@ async def register(
         full_name=full_name.strip(),
         username=clean_username,
         role=role if role in ALLOWED_ROLES else "Colaborador",
-        department=department.strip(),
+        department=department.strip() or "Geral / Operacional",
         password=password,
         manager_id=None
     )
@@ -709,7 +709,7 @@ async def add_collaborator(
     full_name: str = Form(...),
     username: str = Form(...),
     role: str = Form("Colaborador"),
-    department: str = Form("Produção / Pré-Impressão"),
+    department: str = Form("Geral / Operacional"),
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
@@ -756,6 +756,26 @@ async def add_collaborator(
 
     spawn_bg(manager.broadcast({"type": "REFRESH", "scope": "team"}))
     return JSONResponse(content={"success": True, "message": "Colaborador adicionado com sucesso!"})
+
+@app.post("/api/users/{username}/department")
+async def update_department(request: Request, username: str, department: str = Form(...), db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return unauthorized()
+    target = db.query(models.User).filter(func.lower(models.User.username) == username.strip().lower()).first()
+    if not target:
+        return JSONResponse(status_code=404, content={"success": False, "message": "Usuário não encontrado."})
+    is_self = target.id == current_user.id
+    manages = is_manager_user(current_user) and target.manager_id == current_user.id
+    if not (is_self or manages):
+        return JSONResponse(status_code=403, content={"success": False, "message": "Você não pode alterar o setor deste usuário."})
+    new_dept = department.strip()
+    if not new_dept:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Informe o setor."})
+    target.department = new_dept[:100]
+    db.commit()
+    spawn_bg(manager.broadcast({"type": "REFRESH", "scope": "team"}))
+    return JSONResponse(content={"success": True, "department": target.department})
 
 @app.delete("/api/users/{username}")
 async def delete_user(request: Request, username: str, db: Session = Depends(get_db)):
