@@ -3177,6 +3177,9 @@
     document.addEventListener('visibilitychange', () => { if (!document.hidden) syncMissed(); });
     window.addEventListener('online', () => { try { if (socket) socket.close(); } catch (_) {} syncMissed(true); });
 
+    // Rede de segurança: com o site aberto, confere a cada 60 s se perdeu algo (só mexe na tela se houver diferença)
+    setInterval(() => { if (!document.hidden) syncMissed(); }, 60000);
+
     // Se o servidor parou de responder (conexão "morta" sem avisar), derruba e reconecta
     setInterval(() => {
       if (socket && socket.readyState === WebSocket.OPEN && Date.now() - wsLastSeen > 75000) {
