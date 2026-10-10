@@ -31,6 +31,12 @@ try:
 except Exception as e:
     print(f"Aviso de migração automática: {e}")
 
+try:
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE sector_configs ADD COLUMN owner_id INTEGER;"))
+except Exception:
+    pass  # coluna já existe
+
 models.Base.metadata.create_all(bind=engine)
 
 # Diretórios necessários para uploads e ficheiros estáticos
@@ -99,6 +105,20 @@ def get_team_users(db: Session, user):
             or_(models.User.id == manager_ref_id, models.User.manager_id == manager_ref_id)
         ).all()
     return [user]
+
+def get_team_owner_id(user):
+    """Id do gestor que representa a equipa do utilizador."""
+    return user.id if is_manager_user(user) else user.manager_id
+
+def visible_sectors(db: Session, user):
+    """Setores da equipa do utilizador + o setor padrão de Pré-Impressão (partilhado)."""
+    owner_id = get_team_owner_id(user)
+    result = []
+    for sec in db.query(models.SectorConfig).order_by(models.SectorConfig.id).all():
+        shared_default = sec.owner_id is None and (sec.name or "").startswith("Ferramentais")
+        if shared_default or (owner_id is not None and sec.owner_id == owner_id):
+            result.append(sec)
+    return result
 
 def get_team_names(db: Session, user) -> List[str]:
     return [u.full_name for u in get_team_users(db, user)]
@@ -205,7 +225,7 @@ def ensure_default_sectors(db: Session):
                 fields_schema=json.dumps(default_schema_manutencao, ensure_ascii=False)
             )
         ]
-        db.add_all(default_sectors)
+        db.add_all(default_sectors[:1])  # só o setor de Pré-Impressão; cada equipa cria os seus
         db.commit()
     else:
         sectors = db.query(models.SectorConfig).all()
@@ -259,7 +279,7 @@ def home(request: Request, db: Session = Depends(get_db)):
         )
     ).order_by(models.Post.created_at.desc()).all()
 
-    sectors = db.query(models.SectorConfig).all()
+    sectors = visible_sectors(db, current_user)
 
     my_tasks = [t for t in all_tasks if (t.assigned_to or "").strip().lower() == current_user.full_name.strip().lower()]
     my_pending_tasks = [t for t in my_tasks if t.status == "Atribuído"]
@@ -326,10 +346,13 @@ async def save_sector(
         json.loads(fields_schema_json)
     except ValueError:
         return JSONResponse(status_code=400, content={"success": False, "message": "Campos do modelo inválidos."})
-    sector = db.query(models.SectorConfig).filter(models.SectorConfig.id == sector_id).first() if sector_id > 0 else None
+    sector = None
+    if sector_id > 0:
+        sector = next((x for x in visible_sectors(db, current_user) if x.id == sector_id), None)
 
     if not sector:
         sector = models.SectorConfig(
+            owner_id=get_team_owner_id(current_user),
             name=clean_name,
             icon=icon.strip() or "📁",
             fields_schema=fields_schema_json.strip()
@@ -358,7 +381,7 @@ async def delete_sector(request: Request, sector_id: int, db: Session = Depends(
     if role_normalized not in ["gestor", "manager", "admin"]:
         return JSONResponse(status_code=403, content={"success": False, "message": "Apenas gestores podem remover modelos de setores."})
 
-    sector = db.query(models.SectorConfig).filter(models.SectorConfig.id == sector_id).first()
+    sector = next((x for x in visible_sectors(db, current_user) if x.id == sector_id), None)
     if not sector:
         return JSONResponse(status_code=404, content={"success": False, "message": "Setor não encontrado."})
 
@@ -415,7 +438,7 @@ def get_state(request: Request, db: Session = Depends(get_db)):
         }
 
     sectors = []
-    for sec in db.query(models.SectorConfig).all():
+    for sec in visible_sectors(db, current_user):
         try:
             fields = json.loads(sec.fields_schema or "[]")
         except ValueError:

@@ -9,6 +9,7 @@ class SectorConfig(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False)
     icon = Column(String(20), default="📁")
+    owner_id = Column(Integer, nullable=True)  # gestor dono do setor (None = setor padrão partilhado)
     
     # Armazena a lista dinâmica de campos em JSON
     fields_schema = Column(Text, nullable=False)

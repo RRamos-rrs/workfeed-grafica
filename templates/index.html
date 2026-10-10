@@ -170,6 +170,10 @@
               <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-400"></i>
             </div>
           </div>
+          {% else %}
+          <p class="p-2 text-[11px] text-slate-400 leading-snug">
+            {% if current_user.role in ['Gestor', 'manager', 'admin'] %}Sua equipe ainda não tem setores. Crie o primeiro no editor de modelos.{% else %}Sua equipe ainda não tem setores.{% endif %}
+          </p>
           {% endfor %}
         </div>
       </div>
