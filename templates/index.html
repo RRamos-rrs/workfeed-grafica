@@ -2347,7 +2347,7 @@
               }
             }
           }
-          else if (data.type === "NEW_FEED_POST") {
+          else if (data.type === "NEW_FEED_POST" || data.type === "POST_CREATED") {
             if (data.post) {
               insertPostToFeedDOM(data.post);
             }
@@ -2355,7 +2355,11 @@
           else if (data.type === "NEW_COMMENT") {
             appendCommentToDOM(data.post_id, data.author, data.text);
           }
-          else if (data.type === "REFRESH") {
+          else if (data.type === "POST_LIKED") {
+            const likesElem = document.getElementById(`post-likes-${data.post_id}`);
+            if (likesElem) likesElem.textContent = data.likes;
+          }
+          else if (data.type === "REFRESH" || data.type === "USER_DELETED") {
             window.location.reload();
           }
         } catch (err) {

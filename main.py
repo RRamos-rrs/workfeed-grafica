@@ -1,4 +1,6 @@
 import os
+import re
+import uuid
 import shutil
 import json
 import asyncio
@@ -9,7 +11,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_, text
+from sqlalchemy import or_, text, func
+from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel
 
 import models
@@ -80,6 +83,65 @@ def get_current_user(request: Request, db: Session):
     if not username:
         return None
     return db.query(models.User).filter(models.User.username == username).first()
+
+MANAGER_ROLES = ["gestor", "manager", "admin"]
+ALLOWED_ROLES = ["Gestor", "Colaborador"]
+VALID_STATUSES = ["Atribuído", "Em Produção", "Aprovado"]
+
+def is_manager_user(user) -> bool:
+    return (user.role or "").strip().lower() in MANAGER_ROLES
+
+def get_team_names(db: Session, user) -> List[str]:
+    """Nomes da equipa do utilizador (mesma lógica da página inicial)."""
+    manager_ref_id = user.id if is_manager_user(user) else user.manager_id
+    if manager_ref_id:
+        team = db.query(models.User).filter(
+            or_(models.User.id == manager_ref_id, models.User.manager_id == manager_ref_id)
+        ).all()
+    else:
+        team = [user]
+    return [u.full_name for u in team]
+
+# Mantém referência às tarefas em segundo plano (evita que o Python as descarte a meio)
+_bg_tasks = set()
+
+def spawn_bg(coro):
+    task = asyncio.create_task(coro)
+    _bg_tasks.add(task)
+    task.add_done_callback(_bg_tasks.discard)
+    return task
+
+# Uploads: só extensões permitidas, nome sem caminho e único, tamanho limitado
+UPLOAD_DIR = "uploads"
+ALLOWED_UPLOAD_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf"}
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+
+def save_upload(upload: UploadFile) -> str:
+    """Grava o ficheiro e devolve a URL pública. Lança ValueError se for inválido."""
+    original = os.path.basename((upload.filename or "").replace("\\", "/"))
+    ext = os.path.splitext(original)[1].lower()
+    if ext not in ALLOWED_UPLOAD_EXT:
+        raise ValueError("Tipo de ficheiro não permitido. Use JPG, PNG, GIF, WEBP ou PDF.")
+    base = re.sub(r"[^A-Za-z0-9._-]", "_", os.path.splitext(original)[0])[:60] or "arquivo"
+    safe_name = f"{int(time.time())}_{uuid.uuid4().hex[:8]}_{base}{ext}"
+    file_path = os.path.join(UPLOAD_DIR, safe_name)
+
+    written = 0
+    with open(file_path, "wb") as buffer:
+        while True:
+            chunk = upload.file.read(1024 * 1024)
+            if not chunk:
+                break
+            written += len(chunk)
+            if written > MAX_UPLOAD_BYTES:
+                buffer.close()
+                os.remove(file_path)
+                raise ValueError("Ficheiro maior que 10 MB.")
+            buffer.write(chunk)
+    return f"/{UPLOAD_DIR}/{safe_name}"
+
+def unauthorized():
+    return JSONResponse(status_code=401, content={"success": False, "message": "Sessão expirada."})
 
 def ensure_default_sectors(db: Session):
     existing_count = db.query(models.SectorConfig).count()
@@ -253,8 +315,16 @@ async def save_sector(
     current_user = get_current_user(request, db)
     if not current_user:
         return JSONResponse(status_code=401, content={"success": False, "message": "Sessão expirada."})
+    if not is_manager_user(current_user):
+        return JSONResponse(status_code=403, content={"success": False, "message": "Apenas gestores podem editar modelos de setores."})
 
     clean_name = name.strip()
+    if not clean_name:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Informe o nome do setor."})
+    try:
+        json.loads(fields_schema_json)
+    except ValueError:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Campos do modelo inválidos."})
     sector = db.query(models.SectorConfig).filter(models.SectorConfig.id == sector_id).first() if sector_id > 0 else None
 
     if not sector:
@@ -269,8 +339,12 @@ async def save_sector(
         sector.icon = icon.strip() or "📁"
         sector.fields_schema = fields_schema_json.strip()
 
-    db.commit()
-    asyncio.create_task(manager.broadcast({"type": "REFRESH"}))
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return JSONResponse(status_code=400, content={"success": False, "message": "Já existe um setor com esse nome."})
+    spawn_bg(manager.broadcast({"type": "REFRESH"}))
     return JSONResponse(content={"success": True, "message": "Modelo de setor salvo com sucesso!"})
 
 @app.delete("/api/sectors/{sector_id}")
@@ -289,18 +363,21 @@ async def delete_sector(request: Request, sector_id: int, db: Session = Depends(
 
     db.delete(sector)
     db.commit()
-    asyncio.create_task(manager.broadcast({"type": "REFRESH"}))
+    spawn_bg(manager.broadcast({"type": "REFRESH"}))
     return JSONResponse(content={"success": True, "message": "Setor removido com sucesso!"})
 
 @app.get("/api/users/profile/{full_name}")
-def get_user_profile(full_name: str, db: Session = Depends(get_db)):
+def get_user_profile(request: Request, full_name: str, db: Session = Depends(get_db)):
+    if not get_current_user(request, db):
+        return JSONResponse(status_code=401, content={"message": "Sessão expirada."})
     clean_name = full_name.strip()
-    user = db.query(models.User).filter(models.User.full_name.ilike(clean_name)).first()
+    # Comparação exata (sem curingas % e _ do ILIKE)
+    user = db.query(models.User).filter(func.lower(models.User.full_name) == clean_name.lower()).first()
     if not user:
         return JSONResponse(status_code=404, content={"message": "Colaborador não encontrado"})
     
-    tasks = db.query(models.Task).filter(models.Task.assigned_to.ilike(clean_name)).all()
-    posts = db.query(models.Post).filter(models.Post.author.ilike(clean_name)).all()
+    tasks = db.query(models.Task).filter(func.lower(models.Task.assigned_to) == clean_name.lower()).all()
+    posts = db.query(models.Post).filter(func.lower(models.Post.author) == clean_name.lower()).all()
     
     return {
         "full_name": user.full_name,
@@ -330,7 +407,7 @@ def login(request: Request, response: Response, username: str = Form(...), passw
         )
     
     redirect = RedirectResponse(url="/", status_code=303)
-    redirect.set_cookie(key="user_session", value=user.username, httponly=True)
+    redirect.set_cookie(key="user_session", value=user.username, httponly=True, samesite="lax")
     return redirect
 
 @app.post("/register")
@@ -344,7 +421,7 @@ async def register(
     db: Session = Depends(get_db)
 ):
     clean_username = username.strip()
-    existing = db.query(models.User).filter(models.User.username.ilike(clean_username)).first()
+    existing = db.query(models.User).filter(func.lower(models.User.username) == clean_username.lower()).first()
     if existing:
         return templates.TemplateResponse(
             request=request,
@@ -355,7 +432,7 @@ async def register(
     new_user = models.User(
         full_name=full_name.strip(),
         username=clean_username,
-        role=role,
+        role=role if role in ALLOWED_ROLES else "Colaborador",
         department=department.strip(),
         password=password,
         manager_id=None
@@ -363,10 +440,10 @@ async def register(
     db.add(new_user)
     db.commit()
 
-    asyncio.create_task(manager.broadcast({"type": "REFRESH"}))
+    spawn_bg(manager.broadcast({"type": "REFRESH"}))
 
     redirect = RedirectResponse(url="/", status_code=303)
-    redirect.set_cookie(key="user_session", value=clean_username, httponly=True)
+    redirect.set_cookie(key="user_session", value=clean_username, httponly=True, samesite="lax")
     return redirect
 
 @app.post("/api/users/add-collaborator")
@@ -383,15 +460,22 @@ async def add_collaborator(
     if not current_user:
         return JSONResponse(status_code=401, content={"success": False, "message": "Sessão expirada."})
 
-    role_normalized = (current_user.role or "").strip().lower()
-    is_manager = role_normalized in ["gestor", "manager", "admin"]
-    manager_ref_id = current_user.id if is_manager else current_user.manager_id
+    if not is_manager_user(current_user):
+        return JSONResponse(status_code=403, content={"success": False, "message": "Apenas gestores podem cadastrar colaboradores."})
+
+    manager_ref_id = current_user.id
     clean_username = username.strip()
     clean_full_name = full_name.strip()
+    if role not in ALLOWED_ROLES:
+        role = "Colaborador"
 
-    existing = db.query(models.User).filter(models.User.username.ilike(clean_username)).first()
+    existing = db.query(models.User).filter(func.lower(models.User.username) == clean_username.lower()).first()
     
     if existing:
+        # Só vincula colaboradores sem gestor (ou já da sua equipe). Nunca altera
+        # a conta de outro gestor nem de quem pertence a outra equipe.
+        if existing.id == current_user.id or is_manager_user(existing) or existing.manager_id not in (None, current_user.id):
+            return JSONResponse(status_code=403, content={"success": False, "message": "Este usuário já existe e não pode ser alterado por você."})
         existing.full_name = clean_full_name
         existing.role = role
         existing.department = department.strip()
@@ -399,7 +483,7 @@ async def add_collaborator(
         existing.manager_id = manager_ref_id
         db.commit()
 
-        asyncio.create_task(manager.broadcast({"type": "REFRESH"}))
+        spawn_bg(manager.broadcast({"type": "REFRESH"}))
         return JSONResponse(content={"success": True, "message": "Colaborador vinculado com sucesso!"})
 
     new_user = models.User(
@@ -413,7 +497,7 @@ async def add_collaborator(
     db.add(new_user)
     db.commit()
 
-    asyncio.create_task(manager.broadcast({"type": "REFRESH"}))
+    spawn_bg(manager.broadcast({"type": "REFRESH"}))
     return JSONResponse(content={"success": True, "message": "Colaborador adicionado com sucesso!"})
 
 @app.delete("/api/users/{username}")
@@ -430,7 +514,7 @@ async def delete_user(request: Request, username: str, db: Session = Depends(get
     if current_user.username.lower() == clean_username.lower():
         return JSONResponse(status_code=400, content={"success": False, "message": "Não pode remover a sua própria conta."})
 
-    user_to_delete = db.query(models.User).filter(models.User.username.ilike(clean_username)).first()
+    user_to_delete = db.query(models.User).filter(func.lower(models.User.username) == clean_username.lower()).first()
     if not user_to_delete:
         return JSONResponse(status_code=404, content={"success": False, "message": "Colaborador não encontrado."})
 
@@ -443,7 +527,7 @@ async def delete_user(request: Request, username: str, db: Session = Depends(get
     db.delete(user_to_delete)
     db.commit()
 
-    asyncio.create_task(manager.broadcast({
+    spawn_bg(manager.broadcast({
         "type": "USER_DELETED",
         "username": del_username,
         "full_name": del_full_name
@@ -474,7 +558,9 @@ async def create_task(
     db: Session = Depends(get_db)
 ):
     current_user = get_current_user(request, db)
-    delegator = current_user.full_name.strip() if current_user else "Gestão"
+    if not current_user:
+        return unauthorized()
+    delegator = current_user.full_name.strip()
 
     form_data = await request.form()
 
@@ -516,10 +602,10 @@ async def create_task(
 
     image_url = None
     if image and image.filename:
-        file_path = f"uploads/{image.filename}"
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(image.file, buffer)
-        image_url = f"/{file_path}"
+        try:
+            image_url = save_upload(image)
+        except ValueError as err:
+            return JSONResponse(status_code=400, content={"success": False, "message": str(err)})
 
     new_task = models.Task(
         sector_id=sector_id if sector_id > 0 else None,
@@ -528,7 +614,7 @@ async def create_task(
         tool_type=final_tool,
         title=final_title,
         delegated_by=delegator,
-        assigned_to=assigned_to.strip() or (current_user.full_name if current_user else "Equipe"),
+        assigned_to=assigned_to.strip() or current_user.full_name,
         supplier=final_supplier,
         instructions=clean_instructions,
         due_date=final_due,
@@ -557,7 +643,7 @@ async def create_task(
             "image_url": new_task.image_url
         }
     }
-    asyncio.create_task(manager.broadcast(task_payload))
+    spawn_bg(manager.broadcast(task_payload))
 
     return JSONResponse(content={"success": True, "task": task_payload["task"]})
 
@@ -578,10 +664,10 @@ async def create_direct_post(
 
     image_url = None
     if image and image.filename:
-        file_path = f"uploads/{image.filename}"
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(image.file, buffer)
-        image_url = f"/{file_path}"
+        try:
+            image_url = save_upload(image)
+        except ValueError as err:
+            return JSONResponse(status_code=400, content={"success": False, "message": str(err)})
 
     post = models.Post(
         author=current_user.full_name,
@@ -615,7 +701,7 @@ async def create_direct_post(
             "comments": []
         }
     }
-    asyncio.create_task(manager.broadcast(post_payload))
+    spawn_bg(manager.broadcast(post_payload))
 
     return JSONResponse(content={"success": True, "post": post_payload["post"]})
 
@@ -638,12 +724,10 @@ async def create_manual_post(
 
     image_url = None
     if image and image.filename:
-        # Gera nome único para evitar sobreposição de ficheiros
-        safe_name = f"{int(time.time())}_{image.filename}"
-        file_path = f"uploads/{safe_name}"
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(image.file, buffer)
-        image_url = f"/{file_path}"
+        try:
+            image_url = save_upload(image)
+        except ValueError as err:
+            return JSONResponse(status_code=400, content={"success": False, "message": str(err)})
 
     post = models.Post(
         author=current_user.full_name,
@@ -677,7 +761,7 @@ async def create_manual_post(
             "comments": []
         }
     }
-    asyncio.create_task(manager.broadcast(post_payload))
+    spawn_bg(manager.broadcast(post_payload))
 
     return JSONResponse(content={"success": True, "post": post_payload["post"]})
 
@@ -686,10 +770,21 @@ class StatusUpdate(BaseModel):
 
 # ROTA DE ATUALIZAÇÃO BLINDADA COM ROLLBACK SEGURO
 @app.put("/api/tasks/{task_id}/status")
-async def update_task_status_api(task_id: int, payload: StatusUpdate, db: Session = Depends(get_db)):
+async def update_task_status_api(request: Request, task_id: int, payload: StatusUpdate, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Sessão expirada."})
+
+    if payload.status not in VALID_STATUSES:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Status inválido."})
+
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task:
         return JSONResponse(status_code=404, content={"message": "Tarefa não encontrada"})
+
+    team_names = get_team_names(db, current_user)
+    if task.assigned_to not in team_names and task.delegated_by not in team_names:
+        return JSONResponse(status_code=403, content={"success": False, "message": "Esta demanda não pertence à sua equipe."})
 
     old_status = task.status
     new_status = payload.status
@@ -742,7 +837,7 @@ async def update_task_status_api(task_id: int, payload: StatusUpdate, db: Sessio
     else:
         db.commit()
 
-    asyncio.create_task(manager.broadcast({
+    spawn_bg(manager.broadcast({
         "type": "TASK_STATUS_UPDATED",
         "task_id": task_id,
         "old_status": old_status,
@@ -755,7 +850,9 @@ async def update_task_status_api(task_id: int, payload: StatusUpdate, db: Sessio
     return {"success": True, "published_to_feed": published, "new_status": new_status}
 
 @app.post("/posts/{post_id}/like")
-async def like_post(post_id: int, db: Session = Depends(get_db)):
+async def like_post(request: Request, post_id: int, db: Session = Depends(get_db)):
+    if not get_current_user(request, db):
+        return JSONResponse(status_code=401, content={"success": False, "message": "Sessão expirada."})
     post = db.query(models.Post).filter(models.Post.id == post_id).first()
     if not post:
         return JSONResponse(status_code=404, content={"success": False, "message": "Post não encontrado"})
@@ -763,7 +860,7 @@ async def like_post(post_id: int, db: Session = Depends(get_db)):
     post.likes = (post.likes or 0) + 1
     db.commit()
     
-    asyncio.create_task(manager.broadcast({
+    spawn_bg(manager.broadcast({
         "type": "POST_LIKED",
         "post_id": post_id,
         "likes": post.likes
@@ -775,11 +872,16 @@ async def like_post(post_id: int, db: Session = Depends(get_db)):
 @app.post("/posts/{post_id}/comment")
 async def add_comment(request: Request, post_id: int, text: str = Form(...), db: Session = Depends(get_db)):
     current_user = get_current_user(request, db)
-    author_name = current_user.full_name.strip() if current_user else "Colaborador"
+    if not current_user:
+        return unauthorized()
+    author_name = current_user.full_name.strip()
 
     clean_text = text.strip()
     if not clean_text:
         return JSONResponse(status_code=400, content={"success": False, "message": "Comentário vazio."})
+
+    if not db.query(models.Post.id).filter(models.Post.id == post_id).first():
+        return JSONResponse(status_code=404, content={"success": False, "message": "Post não encontrado."})
 
     comment = models.Comment(post_id=post_id, author=author_name, text=clean_text)
     db.add(comment)
@@ -792,6 +894,6 @@ async def add_comment(request: Request, post_id: int, text: str = Form(...), db:
         "author": author_name,
         "text": clean_text
     }
-    asyncio.create_task(manager.broadcast(comment_data))
+    spawn_bg(manager.broadcast(comment_data))
 
     return JSONResponse(content={"success": True, "comment": comment_data})
