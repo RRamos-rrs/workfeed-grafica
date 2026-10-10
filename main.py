@@ -36,7 +36,10 @@ except Exception as e:
 for _ddl in ("ALTER TABLE sector_configs ADD COLUMN owner_id INTEGER;",
              "ALTER TABLE posts ADD COLUMN image_urls TEXT;",
              "ALTER TABLE tasks ADD COLUMN priority VARCHAR(20);",
-             "ALTER TABLE posts ADD COLUMN priority VARCHAR(20);"):
+             "ALTER TABLE posts ADD COLUMN priority VARCHAR(20);",
+             "ALTER TABLE tasks ADD COLUMN started_at TIMESTAMP;",
+             "ALTER TABLE tasks ADD COLUMN completed_at TIMESTAMP;",
+             "ALTER TABLE tasks ADD COLUMN post_id INTEGER;"):
     try:
         with engine.begin() as conn:
             conn.execute(text(_ddl))
@@ -56,6 +59,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 templates = Jinja2Templates(directory="templates")
 templates.env.globals["post_images"] = lambda p: post_images(p)
+templates.env.globals["done_info"] = lambda t: done_info(t)
 templates.env.globals["prio_of"] = lambda o: prio_of(o)
 templates.env.globals["clean_inst"] = lambda o: clean_inst(o)
 templates.env.filters["localtime"] = lambda dt, fmt="%d/%m/%Y %H:%M": fmt_dt(dt, fmt)
@@ -156,6 +160,45 @@ def prio_of(obj) -> str:
 
 def clean_inst(obj) -> str:
     return split_priority(getattr(obj, "instructions", ""))[1]
+
+def _fmt_duration(delta) -> str:
+    minutes = int(delta.total_seconds() // 60)
+    if minutes < 1:
+        return "menos de 1 min"
+    if minutes < 60:
+        return f"{minutes} min"
+    hours, mins = divmod(minutes, 60)
+    if hours < 24:
+        return f"{hours} h" + (f" {mins} min" if mins else "")
+    days, hrs = divmod(hours, 24)
+    return f"{days} d" + (f" {hrs} h" if hrs else "")
+
+def done_info(task):
+    """Dados do card concluído: quando, se foi no prazo, quanto tempo levou, solicitante e link do post."""
+    if getattr(task, "status", None) != "Aprovado":
+        return None
+    done_local = to_local_time(getattr(task, "completed_at", None))
+    punctuality, late = None, False
+    if done_local:
+        try:
+            due = datetime.strptime((task.due_date or "").strip(), "%Y-%m-%d").date()
+            days = (done_local.date() - due).days
+            if days <= 0:
+                punctuality = "no prazo"
+            else:
+                late = True
+                punctuality = f"{days} dia{'s' if days > 1 else ''} de atraso"
+        except ValueError:
+            pass
+    duration = None
+    if getattr(task, "started_at", None) and getattr(task, "completed_at", None):
+        duration = _fmt_duration(task.completed_at - task.started_at)
+    return {
+        "done_at": done_local.strftime("%d/%m às %H:%M") if done_local else None,
+        "punctuality": punctuality, "late": late, "duration": duration,
+        "supplier": task.supplier or "", "delegated_by": task.delegated_by or "",
+        "post_id": getattr(task, "post_id", None),
+    }
 
 def post_images(post) -> List[str]:
     """Todas as fotos do post (carrossel). Posts antigos têm só image_url."""
@@ -1013,6 +1056,13 @@ async def update_task_status_api(request: Request, task_id: int, payload: Status
     old_status = task.status
     new_status = payload.status
     task.status = new_status
+    now_utc = datetime.utcnow()
+    if new_status == "Em Produção" and not task.started_at:
+        task.started_at = now_utc
+    if new_status == "Aprovado":
+        task.completed_at = now_utc
+    elif old_status == "Aprovado":
+        task.completed_at = None
 
     published = False
     new_post_payload = None
@@ -1036,6 +1086,8 @@ async def update_task_status_api(request: Request, task_id: int, payload: Status
             db.add(post)
             db.commit()
             db.refresh(post)
+            task.post_id = post.id
+            db.commit()
             published = True
 
             new_post_payload = serialize_post(post)
@@ -1054,7 +1106,8 @@ async def update_task_status_api(request: Request, task_id: int, payload: Status
         "new_status": new_status,
         "assigned_to": task.assigned_to,
         "published_to_feed": published,
-        "post": new_post_payload
+        "post": new_post_payload,
+        "done": done_info(task)
     }))
 
     actor = current_user.full_name
@@ -1065,7 +1118,7 @@ async def update_task_status_api(request: Request, task_id: int, payload: Status
         push_notification(db, task.delegated_by, "task_done", f"{task.assigned_to} concluiu: {task.title}",
                           actor=actor, task_id=task.id, post_id=(new_post_payload or {}).get("id"))
 
-    return {"success": True, "published_to_feed": published, "new_status": new_status}
+    return {"success": True, "published_to_feed": published, "new_status": new_status, "done": done_info(task)}
 
 @app.post("/posts/{post_id}/like")
 async def like_post(request: Request, post_id: int, db: Session = Depends(get_db)):

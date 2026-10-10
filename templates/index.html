@@ -508,7 +508,7 @@
                 <h4 class="text-xs font-bold text-slate-900 leading-snug">{{ task.title }}</h4>
                 
                 <p class="text-[10px] text-slate-500 truncate">
-                  Destino: <b>{{ task.supplier }}</b>
+                  Solicitante: <b>{{ task.supplier }}</b>
                 </p>
 
                 <div class="flex items-center justify-between pt-1.5 border-t border-slate-100 text-[10px]">
@@ -562,7 +562,7 @@
                 <h4 class="text-xs font-bold text-slate-900 leading-snug">{{ task.title }}</h4>
                 
                 <p class="text-[10px] text-slate-500 truncate">
-                  Destino: <b>{{ task.supplier }}</b>
+                  Solicitante: <b>{{ task.supplier }}</b>
                 </p>
 
                 <div class="flex items-center justify-between pt-1.5 border-t border-slate-100 text-[10px]">
@@ -615,15 +615,27 @@
                 
                 <h4 class="text-xs font-bold text-slate-900 leading-snug line-through opacity-70">{{ task.title }}</h4>
                 
-                <p class="text-[10px] text-slate-500 truncate">
-                  Destino: <b>{{ task.supplier }}</b>
-                </p>
+                <div id="task-done-info-{{ task.id }}" class="done-info text-[10px] text-slate-500 space-y-1">
+                  {% set d = done_info(task) %}
+                  {% if d.done_at %}
+                  <p class="flex items-center gap-1.5 flex-wrap text-slate-600"><i data-lucide="calendar-check" class="w-3 h-3 text-emerald-500"></i> Concluído em <b>{{ d.done_at }}</b>
+                    {% if d.punctuality %}<span class="font-bold px-1.5 py-0.5 rounded border {{ 'text-rose-700 bg-rose-50 border-rose-200' if d.late else 'text-emerald-700 bg-emerald-50 border-emerald-200' }}">{{ d.punctuality }}</span>{% endif %}
+                  </p>
+                  {% endif %}
+                  {% if d.duration %}<p class="flex items-center gap-1.5"><i data-lucide="timer" class="w-3 h-3 text-slate-400"></i> Levou <b class="text-slate-700">{{ d.duration }}</b></p>{% endif %}
+                  <p class="flex items-center gap-1.5 truncate"><i data-lucide="user-round" class="w-3 h-3 text-slate-400"></i> Solicitante: <b class="text-slate-700">{{ task.supplier }}</b></p>
+                  {% if task.delegated_by %}<p class="flex items-center gap-1.5 truncate"><i data-lucide="user-check" class="w-3 h-3 text-slate-400"></i> Delegado por <b class="text-slate-700">{{ task.delegated_by }}</b></p>{% endif %}
+                </div>
 
                 <div class="flex items-center justify-between pt-1.5 border-t border-slate-100 text-[10px]">
                   <span onclick='openUserProfileModal({{ task.assigned_to|tojson }})' class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
                     <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
                   </span>
+                  {% if task.post_id %}
+                  <button type="button" onclick="goToFeedPost({{ task.post_id }})" class="done-feed-link text-[9px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded transition">Ver no feed</button>
+                  {% else %}
                   <span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">✔ Entregue</span>
+                  {% endif %}
                 </div>
               </div>
               {% endfor %}
@@ -1825,7 +1837,7 @@
         <h4 class="text-xs font-bold text-slate-900 leading-snug">${esc(task.title)}</h4>
         
         <p class="text-[10px] text-slate-500 truncate">
-          Destino: <b>${esc(task.supplier || 'Interno')}</b>
+          Solicitante: <b>${esc(task.supplier || 'Interno')}</b>
         </p>
 
         <div class="flex items-center justify-between pt-1.5 border-t border-slate-100 text-[10px]">
@@ -2664,11 +2676,51 @@
           body: JSON.stringify({ status: newStatus })
         });
         // Se o servidor recusar, recarrega para a tela voltar a refletir o banco
-        if (!res.ok) window.location.reload();
+        if (!res.ok) { window.location.reload(); return; }
+        if (newStatus === 'Aprovado') {
+          const body = await res.json().catch(() => null);
+          if (body) applyDoneInfo(taskId, body.done);
+        }
       } catch (err) {
         console.error(err);
         window.location.reload();
       }
+    }
+
+    // Preenche o card concluído com data/hora, prazo, tempo de execução, solicitante e link do feed
+    function applyDoneInfo(taskId, info) {
+      if (!info) return;
+      const card = document.getElementById(`task-${taskId}`);
+      if (!card) return;
+      const holder = card.querySelector('.done-info');
+      if (holder) {
+        const chip = info.punctuality
+          ? `<span class="font-bold px-1.5 py-0.5 rounded border ${info.late ? 'text-rose-700 bg-rose-50 border-rose-200' : 'text-emerald-700 bg-emerald-50 border-emerald-200'}">${esc(info.punctuality)}</span>` : '';
+        holder.innerHTML = `
+          ${info.done_at ? `<p class="flex items-center gap-1.5 flex-wrap text-slate-600"><i data-lucide="calendar-check" class="w-3 h-3 text-emerald-500"></i> Concluído em <b>${esc(info.done_at)}</b> ${chip}</p>` : ''}
+          ${info.duration ? `<p class="flex items-center gap-1.5"><i data-lucide="timer" class="w-3 h-3 text-slate-400"></i> Levou <b class="text-slate-700">${esc(info.duration)}</b></p>` : ''}
+          <p class="flex items-center gap-1.5 truncate"><i data-lucide="user-round" class="w-3 h-3 text-slate-400"></i> Solicitante: <b class="text-slate-700">${esc(info.supplier || 'Interno')}</b></p>
+          ${info.delegated_by ? `<p class="flex items-center gap-1.5 truncate"><i data-lucide="user-check" class="w-3 h-3 text-slate-400"></i> Delegado por <b class="text-slate-700">${esc(info.delegated_by)}</b></p>` : ''}`;
+      }
+      const slot = card.querySelector('.done-feed-slot');
+      if (slot && info.post_id) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'done-feed-link text-[9px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded transition';
+        btn.textContent = 'Ver no feed';
+        btn.onclick = () => goToFeedPost(info.post_id);
+        slot.replaceWith(btn);
+      }
+      lucide.createIcons();
+    }
+
+    function goToFeedPost(postId) {
+      switchTab('feed');
+      const art = document.getElementById(`feed-post-${postId}`);
+      if (!art) return;
+      art.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      art.classList.add('ring-2', 'ring-emerald-400');
+      setTimeout(() => art.classList.remove('ring-2', 'ring-emerald-400'), 2500);
     }
 
     function moveTaskVisual(taskId, newStatus, assignedTo) {
@@ -2773,13 +2825,23 @@
             `;
           }
 
+          // troca a linha "Solicitante/Destino" pelo bloco de conclusão (preenchido por applyDoneInfo)
+          const oldLine = kanbanCard.querySelector('p.truncate');
+          if (oldLine) {
+            const holder = document.createElement('div');
+            holder.id = `task-done-info-${taskId}`;
+            holder.className = 'done-info text-[10px] text-slate-500 space-y-1';
+            holder.innerHTML = '<p class="flex items-center gap-1.5 text-slate-600"><i data-lucide="calendar-check" class="w-3 h-3 text-emerald-500"></i> Concluído agora</p>';
+            oldLine.replaceWith(holder);
+          }
+
           const footer = kanbanCard.querySelector('.border-t');
           if (footer) {
             footer.innerHTML = `
               <span onclick="openUserProfileModal(this.dataset.user)" data-user="${esc(assignedTo)}" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
-                <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>${assignedTo}</b>
+                <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>${esc(assignedTo)}</b>
               </span>
-              <span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">✔ Entregue</span>
+              <span class="done-feed-slot text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">✔ Entregue</span>
             `;
           }
         }
@@ -3097,6 +3159,7 @@
           }
           else if (data.type === "TASK_STATUS_UPDATED") {
             moveTaskVisual(data.task_id, data.new_status, data.assigned_to);
+            if (data.new_status === "Aprovado") applyDoneInfo(data.task_id, data.done);
             
             if (data.published_to_feed && data.post) {
               insertPostToFeedDOM(data.post);

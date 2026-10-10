@@ -53,6 +53,9 @@ class Task(Base):
     status = Column(String(50), default="Atribuído")
     image_url = Column(String(500), nullable=True)
     priority = Column(String(20), nullable=True)  # Normal | Alta | Urgente
+    started_at = Column(DateTime, nullable=True)    # quando foi iniciada
+    completed_at = Column(DateTime, nullable=True)  # quando foi concluída
+    post_id = Column(Integer, nullable=True)        # post criado no feed ao concluir
 
 class Post(Base):
     __tablename__ = "posts"
