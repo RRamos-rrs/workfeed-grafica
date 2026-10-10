@@ -122,6 +122,7 @@
           <div class="flex items-center gap-3">
             <i data-lucide="kanban" class="w-4 h-4"></i>
             <span>Quadro Geral (Kanban)</span>
+            <span id="badge-overdue-nav" class="hidden text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-rose-600 text-white" title="Demandas atrasadas"></span>
           </div>
           <span id="badge-kanban-total" class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
             {{ tasks|length }}
@@ -430,6 +431,8 @@
 
       <!-- ================= ABA 2: QUADRO KANBAN GERAL ================= -->
       <section id="content-kanban" class="hidden space-y-4">
+        <!-- ALERTA DE PRAZOS (gestor): atrasadas e que vencem hoje -->
+        <div id="overdue-alert" class="hidden rounded-2xl border border-rose-200 bg-rose-50/70 p-4 space-y-2.5"></div>
         <div class="flex items-center justify-between px-1">
           <div>
             <h2 class="text-base font-bold text-slate-900 tracking-tight">Quadro Geral de Demandas</h2>
@@ -1120,6 +1123,20 @@
       {% endfor %}
     ];
 
+    const TEAM_OPEN_DATA = [
+      {% for task in tasks if task.status != 'Aprovado' %}
+      {
+        id: {{ task.id }},
+        status: {{ task.status|tojson }},
+        title: {{ task.title|tojson }},
+        tool_type: {{ task.tool_type|tojson }},
+        op_number: {{ task.op_number|tojson }},
+        assigned_to: {{ task.assigned_to|tojson }},
+        due_date: {{ task.due_date|tojson }}
+      }{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ];
+
     const MY_TASKS_DATA = [
       {% for task in my_pending_tasks + my_in_progress_tasks %}
       {
@@ -1746,6 +1763,7 @@
     }
 
     function insertTaskToKanbanDOM(task) {
+      trackTeamTask(task);
       if (document.getElementById(`task-${task.id}`)) return;
 
       const col = document.getElementById('kanban-col-Atribuído');
@@ -2066,6 +2084,93 @@
       lucide.createIcons();
     }
 
+    // ---------- Alerta de prazos para o gestor ----------
+    const TEAM_OPEN = new Map();
+    TEAM_OPEN_DATA.forEach(t => TEAM_OPEN.set(Number(t.id), t));
+    let overdueExpanded = false;
+
+    function trackTeamTask(task) {
+      if (!task || task.id === undefined) return;
+      const id = Number(task.id);
+      const prev = TEAM_OPEN.get(id) || {};
+      TEAM_OPEN.set(id, { ...prev, ...task, id: id });
+      renderOverdueAlert();
+    }
+
+    function untrackTeamTask(taskId) {
+      TEAM_OPEN.delete(Number(taskId));
+      renderOverdueAlert();
+    }
+
+    function goToKanbanTask(taskId) {
+      switchTab('kanban');
+      const card = document.getElementById(`task-${taskId}`);
+      if (!card) return;
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      card.classList.add('ring-2', 'ring-rose-400');
+      setTimeout(() => card.classList.remove('ring-2', 'ring-rose-400'), 2500);
+    }
+
+    function renderOverdueAlert() {
+      const box = document.getElementById('overdue-alert');
+      const navBadge = document.getElementById('badge-overdue-nav');
+      if (!box || !IS_MANAGER) return;
+
+      const late = [], today = [];
+      TEAM_OPEN.forEach(t => {
+        if (t.status === 'Aprovado') return;
+        const info = dueInfo(t.due_date);
+        if (!info.valid) return;
+        if (info.days < 0) late.push({ t, info });
+        else if (info.days === 0) today.push({ t, info });
+      });
+      late.sort((a, b) => a.info.days - b.info.days);   // a mais atrasada primeiro
+
+      if (navBadge) {
+        navBadge.textContent = late.length;
+        navBadge.classList.toggle('hidden', late.length === 0);
+      }
+      if (!late.length && !today.length) {
+        box.classList.add('hidden');
+        box.innerHTML = '';
+        return;
+      }
+
+      const all = late.concat(today);
+      const LIMIT = 5;
+      const shown = overdueExpanded ? all : all.slice(0, LIMIT);
+      const rows = shown.map(({ t, info }) => `
+        <button type="button" data-task="${Number(t.id)}" class="overdue-row w-full text-left flex items-center justify-between gap-3 bg-white rounded-xl border ${info.days < 0 ? 'border-rose-200' : 'border-amber-200'} px-3 py-2 hover:shadow-sm transition">
+          <div class="min-w-0">
+            <p class="text-xs font-bold text-slate-900 truncate">${esc(t.title)}</p>
+            <p class="text-[10px] text-slate-500 truncate">${esc(t.tool_type || 'Geral')}${t.op_number ? ' · Ref: ' + esc(t.op_number) : ''} · Responsável: <b>${esc(t.assigned_to || '—')}</b> · ${t.status === 'Em Produção' ? 'Em andamento' : 'Pendente'}</p>
+          </div>
+          <span class="flex-shrink-0 text-[10px] font-bold border px-2 py-0.5 rounded-md ${info.days < 0 ? DUE_TONES.late : DUE_TONES.today}">${esc(info.days < 0 ? info.label : 'Vence hoje')}</span>
+        </button>`).join('');
+
+      const more = all.length > LIMIT
+        ? `<button type="button" id="overdue-toggle" class="text-[11px] font-bold text-rose-700 hover:underline">${overdueExpanded ? 'Mostrar menos' : `Ver todas (${all.length})`}</button>`
+        : '';
+
+      box.classList.remove('hidden');
+      box.innerHTML = `
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <h3 class="text-xs font-extrabold text-rose-800 flex items-center gap-2">
+            <i data-lucide="alarm-clock" class="w-4 h-4"></i> Atenção aos prazos da equipe
+          </h3>
+          <div class="flex items-center gap-2 text-[11px] font-bold">
+            ${late.length ? `<span class="text-rose-700 bg-white border border-rose-200 px-2 py-0.5 rounded-full">${late.length} atrasada(s)</span>` : ''}
+            ${today.length ? `<span class="text-amber-700 bg-white border border-amber-200 px-2 py-0.5 rounded-full">${today.length} vence(m) hoje</span>` : ''}
+          </div>
+        </div>
+        <div class="space-y-1.5">${rows}</div>
+        ${more}`;
+      box.querySelectorAll('.overdue-row').forEach(b => { b.onclick = () => goToKanbanTask(b.dataset.task); });
+      const tog = document.getElementById('overdue-toggle');
+      if (tog) tog.onclick = () => { overdueExpanded = !overdueExpanded; renderOverdueAlert(); };
+      lucide.createIcons();
+    }
+
     // ---------- Avisos de demanda nova ----------
     function updateDocTitle() {
       document.title = unreadNew > 0 ? `(${unreadNew}) ${BASE_TITLE}` : BASE_TITLE;
@@ -2105,9 +2210,10 @@
       if (document.hidden) return;
       if (currentTab === 'my-profile') resetUnread();
       renderMyTasks();   // reavalia "vence hoje" / "atrasada" ao voltar para a aba
+      renderOverdueAlert();
     });
     setInterval(() => {
-      if (new Date().toDateString() !== lastRenderDay) renderMyTasks();   // virou o dia
+      if (new Date().toDateString() !== lastRenderDay) { renderMyTasks(); renderOverdueAlert(); }   // virou o dia
     }, 60000);
 
     MY_TASKS_DATA.forEach(raw => MY_TASKS.set(Number(raw.id), normalizeTask(raw)));
@@ -2404,6 +2510,8 @@
     }
 
     function moveTaskVisual(taskId, newStatus, assignedTo) {
+      if (newStatus === 'Aprovado') untrackTeamTask(taskId);
+      else trackTeamTask({ id: taskId, status: newStatus });
       let kanbanCard = document.getElementById(`task-${taskId}`);
       const targetKanbanCol = document.getElementById(`kanban-col-${newStatus}`);
       const isMyTask = isAssignedToMe(assignedTo);
@@ -2873,6 +2981,7 @@
     window.addEventListener('DOMContentLoaded', () => {
       hydrateCarousels(document);
       renderMyTasks();
+      renderOverdueAlert();
       switchTab(sessionStorage.getItem('aba_ativa') || 'my-profile');
       if (SECTORS_DATA.length > 0) applySectorTemplate(SECTORS_DATA[0].id);
     });
