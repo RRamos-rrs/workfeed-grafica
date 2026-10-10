@@ -114,8 +114,12 @@ def visible_sectors(db: Session, user):
     """Setores da equipa do utilizador + o setor padrão de Pré-Impressão (partilhado)."""
     owner_id = get_team_owner_id(user)
     result = []
-    for sec in db.query(models.SectorConfig).order_by(models.SectorConfig.id).all():
-        shared_default = sec.owner_id is None and (sec.name or "").startswith("Ferramentais")
+    all_sectors = db.query(models.SectorConfig).order_by(models.SectorConfig.id).all()
+    # O setor padrão partilhado é o mais antigo sem dono (não depende do nome, que pode ser editado)
+    legacy_ids = [x.id for x in all_sectors if x.owner_id is None]
+    shared_id = legacy_ids[0] if legacy_ids else None
+    for sec in all_sectors:
+        shared_default = sec.id == shared_id
         if shared_default or (owner_id is not None and sec.owner_id == owner_id):
             result.append(sec)
     return result
