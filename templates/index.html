@@ -191,7 +191,7 @@
         </div>
         <div id="sidebar-sectors-list" class="space-y-1.5 text-xs text-slate-600">
           {% for sec in sectors %}
-          <div data-sector-name="{{ sec.name }}" onclick="openSectorTeam({{ sec.id }})" class="p-2 rounded-xl bg-slate-50 hover:bg-blue-50 hover:border-blue-200 border border-slate-100 font-medium flex items-center justify-between cursor-pointer transition group">
+          <div data-sector-name="{{ sec.name }}" data-sector-id="{{ sec.id }}" onclick="openSectorTeam({{ sec.id }})" class="p-2 rounded-xl bg-slate-50 hover:bg-blue-50 hover:border-blue-200 border border-slate-100 font-medium flex items-center justify-between cursor-pointer transition group">
             <span class="flex items-center gap-2">
               <span>{{ sec.icon }}</span> {{ sec.name }}
             </span>
@@ -211,6 +211,9 @@
           {% endfor %}
         </div>
         <div id="sidebar-dept-list" class="space-y-1.5 text-xs text-slate-600"></div>
+        {% if current_user.role in ['Gestor', 'manager', 'admin'] %}
+        <button type="button" id="btn-purge-empty" onclick="purgeEmptySectors()" class="hidden w-full text-[11px] font-bold py-2 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 transition">Apagar setores sem ninguém</button>
+        {% endif %}
       </div>
     </aside>
 
@@ -1638,6 +1641,8 @@
       document.querySelectorAll('#sidebar-sectors-list [data-sector-name]').forEach(row => {
         row.classList.toggle('hidden', !hasPeople(nn(row.dataset.sectorName)));
       });
+      const purgeBtn = document.getElementById('btn-purge-empty');
+      if (purgeBtn) purgeBtn.classList.toggle('hidden', !document.querySelector('#sidebar-sectors-list [data-sector-name].hidden'));
       const mine = SECTORS_DATA.map(s => nn(s.name));
       const seen = new Set();
       DEPT_LIST.length = 0;
@@ -1853,6 +1858,22 @@
       } catch (err) {
         alert('Não foi possível falar com o servidor: ' + err);
       }
+    }
+
+    async function purgeEmptySectors() {
+      const rows = [...document.querySelectorAll('#sidebar-sectors-list [data-sector-name].hidden')];
+      if (!rows.length) return;
+      const names = rows.map(r => r.dataset.sectorName).join(', ');
+      if (!confirm(`Apagar DEFINITIVAMENTE estes setores sem ninguém?\n\n${names}`)) return;
+      let failed = 0;
+      for (const r of rows) {
+        try {
+          const res = await fetch(`/api/sectors/${r.dataset.sectorId}`, { method: 'DELETE' });
+          if (!res.ok) failed++;
+        } catch (_) { failed++; }
+      }
+      if (failed) alert(`${failed} setor(es) não puderam ser apagados.`);
+      window.location.reload();
     }
 
     async function deleteSectorFromBuilder() {
