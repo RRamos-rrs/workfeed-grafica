@@ -52,6 +52,7 @@ class Task(Base):
     due_date = Column(String(50), nullable=True, default="A definir")
     status = Column(String(50), default="Atribuído")
     image_url = Column(String(500), nullable=True)
+    priority = Column(String(20), nullable=True)  # Normal | Alta | Urgente
 
 class Post(Base):
     __tablename__ = "posts"
@@ -68,6 +69,7 @@ class Post(Base):
     instructions = Column(Text, nullable=True)
     due_date = Column(String(50), nullable=True)
     image_url = Column(String(500), nullable=True)
+    priority = Column(String(20), nullable=True)
     image_urls = Column(Text, nullable=True)  # lista JSON com todas as fotos do post (carrossel)
     likes = Column(Integer, default=0, server_default="0")
     created_at = Column(DateTime, default=datetime.utcnow)

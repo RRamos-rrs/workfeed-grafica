@@ -34,7 +34,9 @@ except Exception as e:
     print(f"Aviso de migração automática: {e}")
 
 for _ddl in ("ALTER TABLE sector_configs ADD COLUMN owner_id INTEGER;",
-             "ALTER TABLE posts ADD COLUMN image_urls TEXT;"):
+             "ALTER TABLE posts ADD COLUMN image_urls TEXT;",
+             "ALTER TABLE tasks ADD COLUMN priority VARCHAR(20);",
+             "ALTER TABLE posts ADD COLUMN priority VARCHAR(20);"):
     try:
         with engine.begin() as conn:
             conn.execute(text(_ddl))
@@ -54,6 +56,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 templates = Jinja2Templates(directory="templates")
 templates.env.globals["post_images"] = lambda p: post_images(p)
+templates.env.globals["prio_of"] = lambda o: prio_of(o)
+templates.env.globals["clean_inst"] = lambda o: clean_inst(o)
 templates.env.filters["localtime"] = lambda dt, fmt="%d/%m/%Y %H:%M": fmt_dt(dt, fmt)
 
 class ConnectionManager:
@@ -132,6 +136,27 @@ def fmt_dt(dt, fmt="%d/%m/%Y %H:%M", default=""):
 
 MAX_POST_IMAGES = 6
 
+VALID_PRIORITIES = ["Normal", "Alta", "Urgente"]
+_PRIO_RE = re.compile(r"^\s*\[Prioridade:\s*(Urgente|Alta|Normal)\]\s*", re.IGNORECASE)
+
+def split_priority(text):
+    """Separa o prefixo antigo '[Prioridade: X]' da descrição. Devolve (prioridade|None, texto limpo)."""
+    text = text or ""
+    m = _PRIO_RE.match(text)
+    if m:
+        return m.group(1).capitalize(), text[m.end():].strip()
+    return None, text.strip()
+
+def prio_of(obj) -> str:
+    p = getattr(obj, "priority", None)
+    if p in VALID_PRIORITIES:
+        return p
+    legacy, _ = split_priority(getattr(obj, "instructions", ""))
+    return legacy or "Normal"
+
+def clean_inst(obj) -> str:
+    return split_priority(getattr(obj, "instructions", ""))[1]
+
 def post_images(post) -> List[str]:
     """Todas as fotos do post (carrossel). Posts antigos têm só image_url."""
     urls = []
@@ -156,7 +181,8 @@ def serialize_post(post, created_default="") -> dict:
         "title": post.title,
         "supplier": post.supplier,
         "due_date": post.due_date,
-        "instructions": post.instructions,
+        "instructions": clean_inst(post),
+        "priority": prio_of(post) if getattr(post, "priority", None) or split_priority(post.instructions)[0] else None,
         "image_url": post.image_url,
         "images": post_images(post),
         "created_at": fmt_dt(getattr(post, "created_at", None), default=created_default),
@@ -547,7 +573,7 @@ def get_state(request: Request, db: Session = Depends(get_db)):
     my_tasks = [{
         "id": t.id, "status": t.status, "tool_type": t.tool_type, "op_number": t.op_number,
         "title": t.title, "supplier": t.supplier, "due_date": t.due_date,
-        "instructions": t.instructions, "delegated_by": t.delegated_by, "image_url": t.image_url,
+        "instructions": clean_inst(t), "priority": prio_of(t), "delegated_by": t.delegated_by, "image_url": t.image_url,
     } for t in db.query(models.Task).filter(
         func.lower(models.Task.assigned_to) == me,
         models.Task.status.in_(["Atribuído", "Em Produção"])
@@ -723,6 +749,7 @@ async def create_task(
     supplier: str = Form("Interno"),
     instructions: str = Form(""),
     due_date: str = Form("A definir"),
+    priority: str = Form("Normal"),
     image: UploadFile = File(None),
     db: Session = Depends(get_db)
 ):
@@ -738,11 +765,12 @@ async def create_task(
     clean_supplier = supplier.strip() if supplier and supplier != "Interno" else ""
     clean_op = op_number.strip()
     clean_due = due_date.strip() if due_date and due_date != "A definir" else ""
-    clean_instructions = instructions.strip()
+    legacy_prio, clean_instructions = split_priority(instructions)
+    final_priority = priority.strip().capitalize() if priority.strip().capitalize() in VALID_PRIORITIES else (legacy_prio or "Normal")
 
     extra_details = []
     for key, value in form_data.items():
-        if key not in ['sector_id', 'sector_name', 'image', 'assigned_to'] and isinstance(value, str):
+        if key not in ['sector_id', 'sector_name', 'image', 'assigned_to', 'priority'] and isinstance(value, str):
             val_str = value.strip()
             if not val_str:
                 continue
@@ -786,6 +814,7 @@ async def create_task(
         assigned_to=assigned_to.strip() or current_user.full_name,
         supplier=final_supplier,
         instructions=clean_instructions,
+        priority=final_priority,
         due_date=final_due,
         status="Atribuído",
         image_url=image_url
@@ -807,6 +836,7 @@ async def create_task(
             "assigned_to": new_task.assigned_to,
             "supplier": new_task.supplier,
             "instructions": new_task.instructions,
+            "priority": final_priority,
             "due_date": new_task.due_date,
             "status": new_task.status,
             "image_url": new_task.image_url
@@ -933,6 +963,9 @@ async def update_post(
     post.title = clean_title
     post.tool_type = tool_type.strip() or "GERAL"
     post.op_number = op_number.strip()
+    if not post.priority:
+        legacy_p, _ = split_priority(post.instructions)
+        post.priority = legacy_p  # guarda a prioridade antiga antes de limpar o texto
     post.instructions = instructions.strip()
     db.commit()
     db.refresh(post)
@@ -995,7 +1028,8 @@ async def update_task_status_api(request: Request, task_id: int, payload: Status
                 tool_type=task.tool_type or "Geral",
                 op_number=task.op_number or "",
                 title=task.title or "Demanda Concluída",
-                instructions=task.instructions or "",
+                instructions=clean_inst(task),
+                priority=prio_of(task),
                 due_date=task.due_date or "Concluído",
                 image_url=task.image_url
             )

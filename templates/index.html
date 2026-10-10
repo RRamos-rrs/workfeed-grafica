@@ -1,3 +1,9 @@
+{% macro prio_dot(p) -%}
+  {%- if p == 'Urgente' -%}<span class="text-[9px] font-bold text-rose-600 bg-rose-50 border border-rose-200/80 px-1.5 py-0.5 rounded flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-rose-600"></span> Urgente</span>
+  {%- elif p == 'Alta' -%}<span class="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-200/80 px-1.5 py-0.5 rounded flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Alta</span>
+  {%- else -%}<span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Normal</span>
+  {%- endif -%}
+{%- endmacro %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -343,7 +349,7 @@
 
         <div id="feed-posts-container" class="space-y-6">
           {% for post in posts %}
-          <article id="feed-post-{{ post.id }}" data-id="{{ post.id }}" data-title="{{ post.title }}" data-tool="{{ post.tool_type }}" data-op="{{ post.op_number or '' }}" data-inst="{{ post.instructions or '' }}" class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <article id="feed-post-{{ post.id }}" data-id="{{ post.id }}" data-title="{{ post.title }}" data-tool="{{ post.tool_type }}" data-op="{{ post.op_number or '' }}" data-inst="{{ clean_inst(post) }}" class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
             <!-- CABEÇALHO DO POST -->
             <div class="p-5 border-b border-slate-100 flex items-start justify-between gap-4">
               <div class="space-y-1.5">
@@ -356,6 +362,7 @@
                     Ref: {{ post.op_number }}
                   </span>
                   {% endif %}
+                  {% if post.priority or clean_inst(post) != (post.instructions or '').strip() %}{{ prio_dot(prio_of(post)) }}{% endif %}
                 </div>
                 <h3 class="text-sm sm:text-base font-bold text-slate-900 leading-snug">{{ post.title }}</h3>
               </div>
@@ -411,12 +418,12 @@
                 </div>
               </div>
 
-              {% if post.instructions %}
+              {% if clean_inst(post) %}
               <div class="p-3.5 bg-amber-50/30 rounded-xl border border-amber-100/70 text-xs space-y-1">
                 <span class="font-bold text-amber-900 flex items-center gap-1 text-[11px]">
                   <i data-lucide="file-text" class="w-3.5 h-3.5 text-amber-600"></i> Descrição:
                 </span>
-                <p class="text-slate-700 leading-relaxed font-medium whitespace-pre-line">{{ post.instructions }}</p>
+                <p class="text-slate-700 leading-relaxed font-medium whitespace-pre-line">{{ clean_inst(post) }}</p>
               </div>
               {% endif %}
             </div>
@@ -493,6 +500,7 @@
                       Ref: {{ task.op_number }}
                     </span>
                     {% endif %}
+                    {{ prio_dot(prio_of(task)) }}
                   </div>
                   <span class="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Pendente</span>
                 </div>
@@ -546,6 +554,7 @@
                       Ref: {{ task.op_number }}
                     </span>
                     {% endif %}
+                    {{ prio_dot(prio_of(task)) }}
                   </div>
                   <span class="text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">Em Andamento</span>
                 </div>
@@ -599,6 +608,7 @@
                       Ref: {{ task.op_number }}
                     </span>
                     {% endif %}
+                    {{ prio_dot(prio_of(task)) }}
                   </div>
                   <span class="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded text-center leading-tight">No<br>Feed</span>
                 </div>
@@ -1170,7 +1180,8 @@
         title: {{ task.title|tojson }},
         supplier: {{ task.supplier|tojson }},
         due_date: {{ task.due_date|tojson }},
-        instructions: {{ task.instructions|tojson }},
+        instructions: {{ clean_inst(task)|tojson }},
+        priority: {{ prio_of(task)|tojson }},
         delegated_by: {{ task.delegated_by|tojson }},
         image_url: {{ task.image_url|tojson }}
       }{% if not loop.last %},{% endif %}
@@ -1752,9 +1763,7 @@
       }
 
       const formData = new FormData(form);
-      const priority = formData.get('priority') || 'Normal';
-      let instructions = formData.get('instructions') || '';
-      formData.set('instructions', `[Prioridade: ${priority}] ${instructions}`);
+      // a prioridade segue no campo próprio "priority" (não mistura mais com a descrição)
 
       try {
         const res = await fetch('/tasks/create', { method: 'POST', body: formData });
@@ -1808,6 +1817,7 @@
               ${esc(task.tool_type || 'Geral')}
             </span>
             ${task.op_number ? `<span class="text-[9px] font-mono text-slate-400 bg-slate-50 px-1 rounded">Ref: ${esc(task.op_number)}</span>` : ''}
+            ${priorityDotHtml(task.priority || 'Normal')}
           </div>
           <span class="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Pendente</span>
         </div>
@@ -1856,10 +1866,10 @@
 
     function normalizeTask(raw) {
       let inst = raw.instructions || '';
-      let priority = 'Normal';
+      let priority = ['Urgente', 'Alta', 'Normal'].includes(raw.priority) ? raw.priority : 'Normal';
       const m = inst.match(/\[Prioridade: (Urgente|Alta|Normal)\]/);
       if (m) {
-        priority = m[1];
+        if (!['Urgente', 'Alta', 'Normal'].includes(raw.priority)) priority = m[1];
         inst = inst.replace(m[0], '').trim();
       }
       return {
@@ -1892,6 +1902,16 @@
       else if (days <= 3) { label = `Vence em ${days} dias`; tone = 'soon'; }
       else { label = `Em ${days} dias`; tone = 'ok'; }
       return { valid: true, text: `${m[3]}/${m[2]}/${m[1]}`, days: days, label: label, tone: tone };
+    }
+
+    function priorityDotHtml(priority) {
+      const map = {
+        'Urgente': ['text-rose-600 bg-rose-50 border-rose-200/80', 'bg-rose-600'],
+        'Alta': ['text-amber-600 bg-amber-50 border-amber-200/80', 'bg-amber-500']
+      };
+      const [box, dot] = map[priority] || ['text-emerald-600 bg-emerald-50 border-emerald-200/80', 'bg-emerald-500'];
+      const label = map[priority] ? priority : 'Normal';
+      return `<span class="text-[9px] font-bold border px-1.5 py-0.5 rounded flex items-center gap-1 ${box}"><span class="w-1.5 h-1.5 rounded-full ${dot}"></span> ${label}</span>`;
     }
 
     function priorityBadgeHtml(priority) {
@@ -2506,6 +2526,7 @@
                 ${esc(post.tool_type || 'Geral')}
               </span>
               ${post.op_number ? `<span class="text-[11px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">Ref: ${esc(post.op_number)}</span>` : ''}
+              ${post.priority ? priorityDotHtml(post.priority) : ''}
             </div>
             <h3 class="text-sm sm:text-base font-bold text-slate-900 leading-snug">${esc(post.title)}</h3>
           </div>
