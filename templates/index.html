@@ -191,7 +191,7 @@
         </div>
         <div id="sidebar-sectors-list" class="space-y-1.5 text-xs text-slate-600">
           {% for sec in sectors %}
-          <div onclick="openSectorTeam({{ sec.id }})" class="p-2 rounded-xl bg-slate-50 hover:bg-blue-50 hover:border-blue-200 border border-slate-100 font-medium flex items-center justify-between cursor-pointer transition group">
+          <div data-sector-name="{{ sec.name }}" onclick="openSectorTeam({{ sec.id }})" class="p-2 rounded-xl bg-slate-50 hover:bg-blue-50 hover:border-blue-200 border border-slate-100 font-medium flex items-center justify-between cursor-pointer transition group">
             <span class="flex items-center gap-2">
               <span>{{ sec.icon }}</span> {{ sec.name }}
             </span>
@@ -1634,6 +1634,10 @@
       const box = document.getElementById('sidebar-dept-list');
       if (!box) return;
       const nn = t => (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      const hasPeople = k => ASSIGNEE_USERS.some(u => { const d = nn(u.department); return d && k && (d.includes(k) || k.includes(d)); });
+      document.querySelectorAll('#sidebar-sectors-list [data-sector-name]').forEach(row => {
+        row.classList.toggle('hidden', !hasPeople(nn(row.dataset.sectorName)));
+      });
       const mine = SECTORS_DATA.map(s => nn(s.name));
       const seen = new Set();
       DEPT_LIST.length = 0;
