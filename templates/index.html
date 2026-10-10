@@ -1641,6 +1641,18 @@
       document.querySelectorAll('#sidebar-sectors-list [data-sector-name]').forEach(row => {
         row.classList.toggle('hidden', !hasPeople(nn(row.dataset.sectorName)));
       });
+      let pillChanged = false;
+      SECTORS_DATA.forEach(sec => {
+        const pill = document.getElementById(`sector-pill-btn-${sec.id}`);
+        if (!pill) return;
+        const empty = !hasPeople(nn(sec.name));
+        pill.classList.toggle('hidden', empty);
+        if (empty && sec.id === currentSelectedSectorId) pillChanged = true;
+      });
+      if (pillChanged) {
+        const firstOk = SECTORS_DATA.find(sec => { const el = document.getElementById(`sector-pill-btn-${sec.id}`); return el && !el.classList.contains('hidden'); });
+        if (firstOk) { currentSelectedSectorId = firstOk.id; applySectorTemplate(firstOk.id); }
+      }
       const purgeBtn = document.getElementById('btn-purge-empty');
       if (purgeBtn) purgeBtn.classList.toggle('hidden', !document.querySelector('#sidebar-sectors-list [data-sector-name].hidden'));
       const mine = SECTORS_DATA.map(s => nn(s.name));
