@@ -191,7 +191,7 @@
         </div>
         <div id="sidebar-sectors-list" class="space-y-1.5 text-xs text-slate-600">
           {% for sec in sectors %}
-          <div onclick="selectSectorAndGoToForm({{ sec.id }})" class="p-2 rounded-xl bg-slate-50 hover:bg-blue-50 hover:border-blue-200 border border-slate-100 font-medium flex items-center justify-between cursor-pointer transition group">
+          <div onclick="openSectorTeam({{ sec.id }})" class="p-2 rounded-xl bg-slate-50 hover:bg-blue-50 hover:border-blue-200 border border-slate-100 font-medium flex items-center justify-between cursor-pointer transition group">
             <span class="flex items-center gap-2">
               <span>{{ sec.icon }}</span> {{ sec.name }}
             </span>
@@ -1124,6 +1124,21 @@
     </div>
   </div>
 
+  <!-- MODAL EQUIPE DO SETOR -->
+  <div id="modalSectorTeam" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4" onclick="if(event.target===this)this.classList.add('hidden')">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl relative space-y-4 max-h-[85vh] overflow-y-auto">
+      <div class="flex justify-between items-start border-b pb-3">
+        <div>
+          <p class="text-[10px] font-black uppercase tracking-wider text-slate-400">Equipe do setor</p>
+          <h3 id="sectorTeamTitle" class="text-sm font-bold text-slate-900 leading-snug">Setor</h3>
+        </div>
+        <button type="button" onclick="document.getElementById('modalSectorTeam').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+      </div>
+      <div id="sectorTeamBody" class="space-y-2"></div>
+      <button type="button" id="sectorTeamDelegate" class="w-full text-xs font-bold py-3 rounded-xl bg-[#0284c7] text-white hover:bg-sky-700 transition">Delegar demanda neste setor</button>
+    </div>
+  </div>
+
   <!-- MODAL DETALHES DO PERFIL -->
   <div id="modalUserProfile" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl relative space-y-4">
@@ -1607,6 +1622,56 @@
         });
       }
       lucide.createIcons();
+    }
+
+    function openSectorTeam(sectorId) {
+      const sec = SECTORS_DATA.find(s => s.id === sectorId);
+      if (!sec) return;
+      const norm = t => (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      const modal = document.getElementById('modalSectorTeam');
+      document.getElementById('sectorTeamTitle').textContent = `${sec.icon || ''} ${sec.name}`;
+      const goDelegate = (name) => {
+        modal.classList.add('hidden');
+        selectSectorAndGoToForm(sectorId);
+        if (name) {
+          const hidden = document.getElementById('task-input-assigned');
+          const input = document.getElementById('assignee-search');
+          if (hidden) hidden.value = name;
+          if (input) input.value = name;
+        }
+      };
+      document.getElementById('sectorTeamDelegate').onclick = () => goDelegate('');
+      const render = () => {
+        const sn = norm(sec.name);
+        const members = ASSIGNEE_USERS.filter(u => {
+          const dn = norm(u.department);
+          return sn && dn && (dn.includes(sn) || sn.includes(dn));
+        });
+        const body = document.getElementById('sectorTeamBody');
+        if (!members.length) {
+          body.innerHTML = `<p class="text-xs text-slate-400 leading-snug">Ninguém está cadastrado com o departamento "${esc(sec.name)}" ainda.</p>`;
+          return;
+        }
+        body.innerHTML = members.map((u, i) => `
+          <div class="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div class="w-8 h-8 rounded-lg bg-amber-500 text-white font-black text-xs flex items-center justify-center shrink-0">${esc((u.full_name || '?').trim().charAt(0).toUpperCase())}</div>
+              <div class="min-w-0">
+                <p class="text-xs font-bold text-slate-800 truncate">${esc(u.full_name)}</p>
+                <p class="text-[10px] text-slate-400 truncate">${esc(u.role || '')} · ${esc(u.department || '')}</p>
+              </div>
+            </div>
+            <button type="button" data-i="${i}" class="sector-member-go text-[10px] font-bold px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-sky-700 hover:bg-sky-50 shrink-0">Delegar</button>
+          </div>`).join('');
+        body.querySelectorAll('.sector-member-go').forEach(b => {
+          b.onclick = () => goDelegate(members[+b.dataset.i].full_name);
+        });
+      };
+      render();
+      modal.classList.remove('hidden');
+      fetch('/api/assignees', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(d => {
+        if (d && d.users) { ASSIGNEE_USERS.splice(0, ASSIGNEE_USERS.length, ...d.users); render(); }
+      }).catch(() => {});
     }
 
     function selectSectorAndGoToForm(sectorId) {
