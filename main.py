@@ -15,6 +15,7 @@ from sqlalchemy import or_, text, func
 from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel
 
+import unicodedata
 import models
 from database import engine, get_db
 
@@ -119,7 +120,8 @@ def visible_sectors(db: Session, user):
     legacy_ids = [x.id for x in all_sectors if x.owner_id is None]
     shared_id = legacy_ids[0] if legacy_ids else None
     for sec in all_sectors:
-        shared_default = sec.id == shared_id
+        name_norm = unicodedata.normalize("NFKD", sec.name or "").encode("ascii", "ignore").decode().lower()
+        shared_default = sec.owner_id is None and (sec.id == shared_id or "impress" in name_norm)
         if shared_default or (owner_id is not None and sec.owner_id == owner_id):
             result.append(sec)
     return result
