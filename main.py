@@ -33,11 +33,13 @@ try:
 except Exception as e:
     print(f"Aviso de migração automática: {e}")
 
-try:
-    with engine.begin() as conn:
-        conn.execute(text("ALTER TABLE sector_configs ADD COLUMN owner_id INTEGER;"))
-except Exception:
-    pass  # coluna já existe
+for _ddl in ("ALTER TABLE sector_configs ADD COLUMN owner_id INTEGER;",
+             "ALTER TABLE posts ADD COLUMN image_urls TEXT;"):
+    try:
+        with engine.begin() as conn:
+            conn.execute(text(_ddl))
+    except Exception:
+        pass  # coluna já existe
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -51,6 +53,7 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 templates = Jinja2Templates(directory="templates")
+templates.env.globals["post_images"] = lambda p: post_images(p)
 templates.env.filters["localtime"] = lambda dt, fmt="%d/%m/%Y %H:%M": fmt_dt(dt, fmt)
 
 class ConnectionManager:
@@ -126,6 +129,45 @@ def to_local_time(dt):
 def fmt_dt(dt, fmt="%d/%m/%Y %H:%M", default=""):
     local = to_local_time(dt)
     return local.strftime(fmt) if local else default
+
+MAX_POST_IMAGES = 6
+
+def post_images(post) -> List[str]:
+    """Todas as fotos do post (carrossel). Posts antigos têm só image_url."""
+    urls = []
+    raw = getattr(post, "image_urls", None)
+    if raw:
+        try:
+            urls = [u for u in json.loads(raw) if isinstance(u, str)]
+        except ValueError:
+            urls = []
+    if not urls and getattr(post, "image_url", None):
+        urls = [post.image_url]
+    return urls
+
+def serialize_post(post, created_default="") -> dict:
+    return {
+        "id": post.id,
+        "sector_id": getattr(post, "sector_id", None),
+        "sector_name": getattr(post, "sector_name", None),
+        "author": post.author,
+        "tool_type": post.tool_type,
+        "op_number": post.op_number,
+        "title": post.title,
+        "supplier": post.supplier,
+        "due_date": post.due_date,
+        "instructions": post.instructions,
+        "image_url": post.image_url,
+        "images": post_images(post),
+        "created_at": fmt_dt(getattr(post, "created_at", None), default=created_default),
+        "likes": post.likes or 0,
+        "comments": [{"author": c.author, "text": c.text} for c in (post.comments or [])],
+    }
+
+def can_manage_post(db: Session, user, post) -> bool:
+    if (post.author or "").strip().lower() == (user.full_name or "").strip().lower():
+        return True
+    return is_manager_user(user) and post.author in get_team_names(db, user)
 
 def get_team_owner_id(user):
     """Id do gestor que representa a equipa do utilizador."""
@@ -788,26 +830,10 @@ async def create_direct_post(
     db.commit()
     db.refresh(post)
 
-    post_payload = {
-        "type": "POST_CREATED",
-        "post": {
-            "id": post.id,
-            "author": post.author,
-            "tool_type": post.tool_type,
-            "op_number": post.op_number,
-            "title": post.title,
-            "supplier": post.supplier,
-            "due_date": post.due_date,
-            "instructions": post.instructions,
-            "image_url": post.image_url,
-            "created_at": fmt_dt(getattr(post, 'created_at', None)),
-            "likes": 0,
-            "comments": []
-        }
-    }
-    spawn_bg(manager.broadcast(post_payload))
+    post_data = serialize_post(post, created_default="Agora")
+    spawn_bg(manager.broadcast({"type": "POST_CREATED", "post": post_data}))
 
-    return JSONResponse(content={"success": True, "post": post_payload["post"]})
+    return JSONResponse(content={"success": True, "post": post_data})
 
 # =========================================================================
 # ROTA: CRIAÇÃO MANUAL DE POST NO FEED (ESTILO INSTAGRAM)
@@ -819,17 +845,21 @@ async def create_manual_post(
     tool_type: str = Form("GERAL"),
     op_number: str = Form(""),
     instructions: str = Form(""),
-    image: UploadFile = File(None),
+    images: List[UploadFile] = File(default=[]),
     db: Session = Depends(get_db)
 ):
     current_user = get_current_user(request, db)
     if not current_user:
         return JSONResponse(status_code=401, content={"success": False, "message": "Sessão expirada."})
 
-    image_url = None
-    if image and image.filename:
+    files = [f for f in (images or []) if f and f.filename]
+    if len(files) > MAX_POST_IMAGES:
+        return JSONResponse(status_code=400, content={"success": False, "message": f"Máximo de {MAX_POST_IMAGES} fotos por post."})
+
+    urls = []
+    for f in files:
         try:
-            image_url = save_upload(image)
+            urls.append(save_upload(f))
         except ValueError as err:
             return JSONResponse(status_code=400, content={"success": False, "message": str(err)})
 
@@ -842,32 +872,64 @@ async def create_manual_post(
         title=title.strip(),
         instructions=instructions.strip(),
         due_date="Concluído",
-        image_url=image_url
+        image_url=urls[0] if urls else None,
+        image_urls=json.dumps(urls) if urls else None
     )
     db.add(post)
     db.commit()
     db.refresh(post)
 
-    post_payload = {
-        "type": "NEW_FEED_POST",
-        "post": {
-            "id": post.id,
-            "author": post.author,
-            "tool_type": post.tool_type,
-            "op_number": post.op_number,
-            "title": post.title,
-            "supplier": post.supplier,
-            "due_date": post.due_date,
-            "instructions": post.instructions,
-            "image_url": post.image_url,
-            "created_at": fmt_dt(getattr(post, 'created_at', None), default="Agora"),
-            "likes": 0,
-            "comments": []
-        }
-    }
-    spawn_bg(manager.broadcast(post_payload))
+    post_data = serialize_post(post, created_default="Agora")
+    spawn_bg(manager.broadcast({"type": "NEW_FEED_POST", "post": post_data}))
+    return JSONResponse(content={"success": True, "post": post_data})
 
-    return JSONResponse(content={"success": True, "post": post_payload["post"]})
+@app.put("/api/posts/{post_id}")
+async def update_post(
+    request: Request,
+    post_id: int,
+    title: str = Form(...),
+    tool_type: str = Form("GERAL"),
+    op_number: str = Form(""),
+    instructions: str = Form(""),
+    db: Session = Depends(get_db)
+):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return unauthorized()
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post:
+        return JSONResponse(status_code=404, content={"success": False, "message": "Post não encontrado."})
+    if not can_manage_post(db, current_user, post):
+        return JSONResponse(status_code=403, content={"success": False, "message": "Só o autor ou o gestor pode editar este post."})
+    clean_title = title.strip()
+    if not clean_title:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Informe o título."})
+
+    post.title = clean_title
+    post.tool_type = tool_type.strip() or "GERAL"
+    post.op_number = op_number.strip()
+    post.instructions = instructions.strip()
+    db.commit()
+    db.refresh(post)
+
+    post_data = serialize_post(post)
+    spawn_bg(manager.broadcast({"type": "POST_UPDATED", "post": post_data}))
+    return JSONResponse(content={"success": True, "post": post_data})
+
+@app.delete("/api/posts/{post_id}")
+async def delete_post(request: Request, post_id: int, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return unauthorized()
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post:
+        return JSONResponse(status_code=404, content={"success": False, "message": "Post não encontrado."})
+    if not can_manage_post(db, current_user, post):
+        return JSONResponse(status_code=403, content={"success": False, "message": "Só o autor ou o gestor pode apagar este post."})
+    db.delete(post)
+    db.commit()
+    spawn_bg(manager.broadcast({"type": "POST_DELETED", "post_id": post_id}))
+    return JSONResponse(content={"success": True})
 
 class StatusUpdate(BaseModel):
     status: str
@@ -917,22 +979,7 @@ async def update_task_status_api(request: Request, task_id: int, payload: Status
             db.refresh(post)
             published = True
 
-            new_post_payload = {
-                "id": post.id,
-                "sector_id": getattr(post, 'sector_id', None),
-                "sector_name": getattr(post, 'sector_name', None),
-                "author": post.author,
-                "tool_type": post.tool_type,
-                "op_number": post.op_number,
-                "title": post.title,
-                "supplier": post.supplier,
-                "due_date": post.due_date,
-                "instructions": post.instructions,
-                "image_url": post.image_url,
-                "created_at": fmt_dt(getattr(post, 'created_at', None)),
-                "likes": 0,
-                "comments": []
-            }
+            new_post_payload = serialize_post(post)
         except Exception as err:
             db.rollback()
             print(f"Aviso: Erro ao duplicar Post no Feed, mantendo status da Task: {err}")

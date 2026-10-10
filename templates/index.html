@@ -13,6 +13,8 @@
 
   <style>
     body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
     .font-mono { font-family: 'JetBrains Mono', monospace; }
     .kanban-dropzone.dragover {
       background-color: #f8fafc;
@@ -261,7 +263,7 @@
 
           <div id="my-completed-container" class="space-y-2.5">
             {% for post in my_completed_posts %}
-            <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 border-l-4 border-l-emerald-500 shadow-xs hover:shadow-sm transition flex items-center justify-between gap-3">
+            <div id="my-done-{{ post.id }}" class="bg-white p-3.5 rounded-2xl border border-slate-200/80 border-l-4 border-l-emerald-500 shadow-xs hover:shadow-sm transition flex items-center justify-between gap-3">
               <div class="flex items-center gap-3 min-w-0">
                 <div class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex-shrink-0 flex items-center justify-center font-bold">
                   <i data-lucide="check" class="w-4 h-4"></i>
@@ -325,7 +327,7 @@
 
         <div id="feed-posts-container" class="space-y-6">
           {% for post in posts %}
-          <article id="feed-post-{{ post.id }}" class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <article id="feed-post-{{ post.id }}" data-id="{{ post.id }}" data-title="{{ post.title }}" data-tool="{{ post.tool_type }}" data-op="{{ post.op_number or '' }}" data-inst="{{ post.instructions or '' }}" class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
             <!-- CABEÇALHO DO POST -->
             <div class="p-5 border-b border-slate-100 flex items-start justify-between gap-4">
               <div class="space-y-1.5">
@@ -341,16 +343,25 @@
                 </div>
                 <h3 class="text-sm sm:text-base font-bold text-slate-900 leading-snug">{{ post.title }}</h3>
               </div>
-              <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
-                <i data-lucide="check-check" class="w-3.5 h-3.5 text-emerald-600"></i> Concluído
-              </span>
+              <div class="flex items-center gap-1.5 flex-shrink-0">
+                {% if post.author == current_user.full_name or current_user.role in ['Gestor', 'manager', 'admin'] %}
+                <button type="button" onclick="openEditPostModal({{ post.id }})" title="Editar post" class="w-7 h-7 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 flex items-center justify-center transition">
+                  <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                </button>
+                <button type="button" onclick="deletePost({{ post.id }})" title="Apagar post" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+                {% endif %}
+                <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
+                  <i data-lucide="check-check" class="w-3.5 h-3.5 text-emerald-600"></i> Concluído
+                </span>
+              </div>
             </div>
 
-            <!-- FOTO / MÍDIA EM DESTAQUE NO TOPO -->
-            {% if post.image_url %}
-            <div class="bg-slate-950 flex items-center justify-center border-b border-slate-200 overflow-hidden">
-              <img src="{{ post.image_url }}" alt="Mídia do Post" class="w-full object-cover max-h-[480px]">
-            </div>
+            <!-- FOTOS EM CARROSSEL (puxe para o lado) -->
+            {% set imgs = post_images(post) %}
+            {% if imgs %}
+            <div class="post-carousel" data-images='{{ imgs|tojson }}'></div>
             {% endif %}
 
             <!-- CORPO DO POST: DADOS TÉCNICOS + DESCRIÇÃO ABAIXO DA FOTO -->
@@ -832,7 +843,7 @@
             <i data-lucide="camera" class="w-4 h-4"></i>
           </div>
           <div>
-            <h3 class="text-sm font-extrabold text-slate-900 leading-tight">Criar Nova Publicação</h3>
+            <h3 id="post-modal-title" class="text-sm font-extrabold text-slate-900 leading-tight">Criar Nova Publicação</h3>
             <p class="text-[10px] text-slate-400">Compartilhe no Feed da gráfica</p>
           </div>
         </div>
@@ -844,33 +855,25 @@
       <!-- Formulário -->
       <form id="form-create-manual-post" onsubmit="submitManualPost(event)" class="p-6 overflow-y-auto space-y-4 flex-1 text-xs">
         
-        <!-- Área de Upload de Foto com Preview Instagram -->
-        <div>
+        <!-- Fotos do post (carrossel): clique, arraste ou cole com Ctrl+V -->
+        <div id="post-media-section">
           <label class="block font-bold text-slate-700 mb-1.5 flex items-center justify-between">
-            <span>Foto / Mídia do Trabalho</span>
-            <span class="text-[10px] text-slate-400 font-normal">Opcional</span>
+            <span>Fotos do Trabalho</span>
+            <span id="post-photo-count" class="text-[10px] text-slate-400 font-normal">Opcional · até 6 fotos</span>
           </label>
-          
-          <div id="post-image-dropzone" class="border-2 border-dashed border-slate-200 hover:border-amber-400 rounded-2xl p-4 text-center cursor-pointer transition relative bg-slate-50/50 min-h-[170px] flex flex-col items-center justify-center overflow-hidden">
-            <input type="file" id="post-file-input" name="image" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" onchange="handlePostImageSelect(this)">
-            
-            <!-- Placeholder quando vazio -->
-            <div id="post-image-placeholder" class="space-y-1.5 flex flex-col items-center">
+
+          <div id="post-image-dropzone" onclick="document.getElementById('post-file-input').click()" class="border-2 border-dashed border-slate-200 hover:border-amber-400 rounded-2xl p-4 text-center cursor-pointer transition bg-slate-50/50 flex flex-col items-center justify-center">
+            <input type="file" id="post-file-input" accept="image/*" multiple class="hidden" onchange="handlePostImageSelect(this)">
+            <div class="space-y-1.5 flex flex-col items-center pointer-events-none">
               <div class="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-2xs">
                 <i data-lucide="image-plus" class="w-5 h-5"></i>
               </div>
-              <p class="font-bold text-slate-700 text-xs">Selecione uma foto do seu dispositivo</p>
-              <p class="text-[10px] text-slate-400">Clique ou arraste a imagem aqui (JPG, PNG)</p>
-            </div>
-
-            <!-- Preview da Imagem -->
-            <div id="post-image-preview-wrapper" class="hidden w-full relative">
-              <img id="post-image-preview" src="#" alt="Prévia" class="w-full max-h-[260px] object-contain rounded-xl border border-slate-200 bg-black">
-              <button type="button" onclick="removePostImage(event)" class="absolute top-2 right-2 bg-rose-600 text-white rounded-lg p-1.5 shadow-md hover:bg-rose-700 transition z-20" title="Remover imagem">
-                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-              </button>
+              <p class="font-bold text-slate-700 text-xs">Clique, arraste ou cole (Ctrl+V) as fotos aqui</p>
+              <p class="text-[10px] text-slate-400">JPG, PNG ou WEBP. Elas são reduzidas automaticamente antes de enviar.</p>
             </div>
           </div>
+
+          <div id="post-previews" class="hidden mt-2.5 flex gap-2 overflow-x-auto no-scrollbar pb-1"></div>
         </div>
 
         <!-- Título / Chamada -->
@@ -935,7 +938,7 @@
           </button>
           <button id="btn-submit-manual-post" type="submit" class="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold px-5 py-2.5 rounded-xl shadow-xs transition flex items-center gap-1.5 active:scale-95">
             <i data-lucide="send" class="w-3.5 h-3.5"></i>
-            <span>Compartilhar Post</span>
+            <span id="post-submit-label">Compartilhar Post</span>
           </button>
         </div>
       </form>
@@ -1078,6 +1081,7 @@
   <script>
     lucide.createIcons();
     const CURRENT_USER_FULL = {{ current_user.full_name|tojson }};
+    const IS_MANAGER = {{ (current_user.role in ['Gestor', 'manager', 'admin'])|tojson }};
     const CURRENT_USER_NAME = CURRENT_USER_FULL.trim().toLowerCase();
 
     // Escapa texto antes de usar dentro de innerHTML (evita XSS e quebra de HTML)
@@ -1204,7 +1208,43 @@
     // ==========================================
     // FUNÇÕES DO MODAL DE POST ESTILO INSTAGRAM
     // ==========================================
+    let postFiles = [];          // fotos escolhidas (já reduzidas)
+    let postPreviewUrls = [];
+    let postEditId = null;       // id do post em edição (null = criando)
+    const MAX_POST_PHOTOS = 6;
+
+    function setPostModalMode(editing) {
+      document.getElementById('post-media-section').classList.toggle('hidden', editing);
+      document.getElementById('post-modal-title').textContent = editing ? 'Editar Publicação' : 'Criar Nova Publicação';
+      document.getElementById('post-submit-label').textContent = editing ? 'Salvar Alterações' : 'Compartilhar Post';
+    }
+
     function openCreatePostModal() {
+      postEditId = null;
+      setPostModalMode(false);
+      document.getElementById('modalCreatePost').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function openEditPostModal(id) {
+      const art = document.getElementById(`feed-post-${id}`);
+      if (!art) return;
+      postEditId = id;
+      clearPostFiles();
+      const form = document.getElementById('form-create-manual-post');
+      form.elements['title'].value = art.dataset.title || '';
+      form.elements['op_number'].value = art.dataset.op || '';
+      form.elements['instructions'].value = art.dataset.inst || '';
+      const sel = form.elements['tool_type'];
+      const tool = art.dataset.tool || 'GERAL';
+      if (![...sel.options].some(o => o.value === tool)) {
+        const opt = document.createElement('option');
+        opt.value = tool; opt.textContent = tool;
+        sel.appendChild(opt);
+      }
+      sel.value = tool;
+      document.getElementById('post-char-counter').textContent = `${form.elements['instructions'].value.length}/300`;
+      setPostModalMode(true);
       document.getElementById('modalCreatePost').classList.remove('hidden');
       lucide.createIcons();
     }
@@ -1213,50 +1253,148 @@
       document.getElementById('modalCreatePost').classList.add('hidden');
       document.getElementById('form-create-manual-post').reset();
       document.getElementById('post-char-counter').textContent = '0/300';
-      removePostImage();
+      clearPostFiles();
+      postEditId = null;
+      setPostModalMode(false);
     }
 
-    function handlePostImageSelect(input) {
-      if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          const preview = document.getElementById('post-image-preview');
-          preview.src = e.target.result;
-          document.getElementById('post-image-preview-wrapper').classList.remove('hidden');
-          document.getElementById('post-image-placeholder').classList.add('hidden');
-        };
-        reader.readAsDataURL(input.files[0]);
+    async function deletePost(id) {
+      if (!confirm('Apagar esta publicação do feed? Essa ação não pode ser desfeita.')) return;
+      try {
+        const res = await fetch(`/api/posts/${id}`, { method: 'DELETE' });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success) removePostFromDOM(id);
+        else alert(data.message || 'Não foi possível apagar o post.');
+      } catch (err) {
+        alert('Erro de conexão ao apagar.');
       }
     }
 
-    function removePostImage(e) {
-      if (e) e.stopPropagation();
-      const input = document.getElementById('post-file-input');
-      input.value = '';
-      document.getElementById('post-image-preview').src = '#';
-      document.getElementById('post-image-preview-wrapper').classList.add('hidden');
-      document.getElementById('post-image-placeholder').classList.remove('hidden');
+    // Reduz a foto (máx. 1600 px) antes de enviar: o post sobe e carrega bem mais rápido
+    async function compressImage(file) {
+      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return file;
+      try {
+        const url = URL.createObjectURL(file);
+        const img = await new Promise((resolve, reject) => {
+          const im = new Image();
+          im.onload = () => resolve(im);
+          im.onerror = reject;
+          im.src = url;
+        });
+        URL.revokeObjectURL(url);
+        const MAX = 1600;
+        const scale = Math.min(1, MAX / Math.max(img.naturalWidth, img.naturalHeight));
+        if (scale === 1 && file.size < 800 * 1024) return file;
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.naturalWidth * scale);
+        canvas.height = Math.round(img.naturalHeight * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.82));
+        if (!blob || blob.size >= file.size) return file;
+        return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+      } catch (err) {
+        return file;
+      }
     }
+
+    async function addPostFiles(fileList) {
+      const incoming = Array.from(fileList || []).filter(f => f.type && f.type.startsWith('image/'));
+      if (!incoming.length) return;
+      let skipped = false;
+      for (const f of incoming) {
+        if (postFiles.length >= MAX_POST_PHOTOS) { skipped = true; break; }
+        postFiles.push(await compressImage(f));
+      }
+      if (skipped) alert(`Máximo de ${MAX_POST_PHOTOS} fotos por post.`);
+      renderPostPreviews();
+    }
+
+    function handlePostImageSelect(input) {
+      addPostFiles(input.files);
+      input.value = '';
+    }
+
+    function clearPostFiles() {
+      postPreviewUrls.forEach(u => URL.revokeObjectURL(u));
+      postPreviewUrls = [];
+      postFiles = [];
+      renderPostPreviews();
+    }
+
+    function removePostPhoto(idx) {
+      postFiles.splice(idx, 1);
+      renderPostPreviews();
+    }
+
+    function renderPostPreviews() {
+      postPreviewUrls.forEach(u => URL.revokeObjectURL(u));
+      postPreviewUrls = [];
+      const strip = document.getElementById('post-previews');
+      const counter = document.getElementById('post-photo-count');
+      if (!strip) return;
+      strip.innerHTML = '';
+      if (!postFiles.length) {
+        strip.classList.add('hidden');
+        counter.textContent = `Opcional · até ${MAX_POST_PHOTOS} fotos`;
+        return;
+      }
+      strip.classList.remove('hidden');
+      counter.textContent = `${postFiles.length}/${MAX_POST_PHOTOS} fotos`;
+      postFiles.forEach((f, idx) => {
+        const url = URL.createObjectURL(f);
+        postPreviewUrls.push(url);
+        const item = document.createElement('div');
+        item.className = 'relative flex-shrink-0';
+        item.innerHTML = `<img src="${url}" alt="Foto ${idx + 1}" class="w-20 h-20 object-cover rounded-xl border border-slate-200 bg-slate-100">
+          <button type="button" title="Remover foto" class="absolute -top-1.5 -right-1.5 bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[11px] font-bold shadow hover:bg-rose-700">&times;</button>`;
+        item.querySelector('button').onclick = () => removePostPhoto(idx);
+        strip.appendChild(item);
+      });
+    }
+
+    // Arrastar fotos para a caixa e colar (Ctrl+V) com o modal aberto
+    (function setupPostDropzone() {
+      const dz = document.getElementById('post-image-dropzone');
+      if (dz) {
+        ['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('border-amber-400', 'bg-amber-50/40'); }));
+        ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('border-amber-400', 'bg-amber-50/40'); }));
+        dz.addEventListener('drop', e => addPostFiles(e.dataTransfer && e.dataTransfer.files));
+      }
+      document.addEventListener('paste', e => {
+        const modal = document.getElementById('modalCreatePost');
+        if (!modal || modal.classList.contains('hidden') || postEditId !== null) return;
+        const files = Array.from((e.clipboardData && e.clipboardData.items) || [])
+          .filter(it => it.kind === 'file' && it.type.startsWith('image/'))
+          .map(it => it.getAsFile()).filter(Boolean);
+        if (files.length) { e.preventDefault(); addPostFiles(files); }
+      });
+    })();
 
     async function submitManualPost(e) {
       e.preventDefault();
       const form = e.target;
       const btn = document.getElementById('btn-submit-manual-post');
+      const editing = postEditId !== null;
       btn.disabled = true;
-      btn.innerHTML = `<span class="animate-spin mr-1">🌀</span> Publicando...`;
+      btn.innerHTML = `<span class="animate-spin mr-1">🌀</span> ${editing ? 'Salvando...' : 'Publicando...'}`;
 
       const formData = new FormData(form);
+      if (!editing) postFiles.forEach(f => formData.append('images', f, f.name));
 
       try {
-        const res = await fetch('/api/posts/create-manual', {
-          method: 'POST',
+        const res = await fetch(editing ? `/api/posts/${postEditId}` : '/api/posts/create-manual', {
+          method: editing ? 'PUT' : 'POST',
           body: formData
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         if (res.ok && data.success) {
           closeCreatePostModal();
           if (data.post) {
-            insertPostToFeedDOM(data.post);
+            if (editing) updatePostInDOM(data.post);
+            else insertPostToFeedDOM(data.post);
           }
         } else {
           alert(data.message || 'Erro ao publicar no feed.');
@@ -1265,7 +1403,7 @@
         alert('Erro de conexão ao publicar.');
       } finally {
         btn.disabled = false;
-        btn.innerHTML = `<i data-lucide="send" class="w-3.5 h-3.5"></i> <span>Compartilhar Post</span>`;
+        btn.innerHTML = `<i data-lucide="send" class="w-3.5 h-3.5"></i> <span id="post-submit-label">${postEditId !== null ? 'Salvar Alterações' : 'Compartilhar Post'}</span>`;
         lucide.createIcons();
       }
     }
@@ -1981,6 +2119,7 @@
       if (!compCont) return;
 
       const div = document.createElement('div');
+      div.id = `my-done-${post.id}`;
       div.className = "bg-white p-3.5 rounded-2xl border border-slate-200/80 border-l-4 border-l-emerald-500 shadow-xs hover:shadow-sm transition flex items-center justify-between gap-3";
       div.innerHTML = `
         <div class="flex items-center gap-3 min-w-0">
@@ -2022,13 +2161,84 @@
     // INSERÇÃO DINÂMICA DO POST NO FEED (ESTILO INSTAGRAM)
     // FOTO NO TOPO -> DADOS (AUTOR/SETOR/DATA) -> DESCRIÇÃO ABAIXO DA FOTO
     // ==========================================
-    function insertPostToFeedDOM(post) {
-      if (!post || document.getElementById(`feed-post-${post.id}`)) return;
+    // ---------- Carrossel de fotos (puxe para o lado, setas ou arraste com o mouse) ----------
+    function buildCarousel(images) {
+      const wrap = document.createElement('div');
+      wrap.className = 'relative bg-slate-950 border-b border-slate-200 group select-none';
+      const track = document.createElement('div');
+      track.className = 'flex overflow-x-auto snap-x snap-mandatory no-scrollbar';
+      images.forEach((url, i) => {
+        const slide = document.createElement('div');
+        slide.className = 'snap-center flex-shrink-0 w-full flex items-center justify-center';
+        if (/\.pdf$/i.test(url)) {
+          slide.innerHTML = `<a href="${esc(url)}" target="_blank" rel="noopener" class="flex flex-col items-center gap-2 py-16 text-slate-200 hover:text-white"><i data-lucide="file-text" class="w-10 h-10"></i><span class="text-xs font-bold">Abrir PDF</span></a>`;
+        } else {
+          slide.innerHTML = `<img src="${esc(url)}" alt="Foto ${i + 1} do post" loading="lazy" draggable="false" class="w-full max-h-[480px] object-contain">`;
+        }
+        track.appendChild(slide);
+      });
+      wrap.appendChild(track);
 
-      const container = document.getElementById('feed-posts-container');
-      const noFeedMsg = document.getElementById('no-feed-msg');
-      if (noFeedMsg) noFeedMsg.remove();
-      if (!container) return;
+      if (images.length > 1) {
+        const counter = document.createElement('span');
+        counter.className = 'absolute top-3 right-3 bg-black/60 text-white text-[11px] font-bold px-2 py-0.5 rounded-full';
+        counter.textContent = `1/${images.length}`;
+        const dots = document.createElement('div');
+        dots.className = 'absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 pointer-events-none';
+        dots.innerHTML = images.map((_, i) => `<span class="w-1.5 h-1.5 rounded-full ${i === 0 ? 'bg-white' : 'bg-white/40'}"></span>`).join('');
+        const arrow = (dir) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.title = dir < 0 ? 'Foto anterior' : 'Próxima foto';
+          b.className = `absolute top-1/2 -translate-y-1/2 ${dir < 0 ? 'left-2' : 'right-2'} w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 text-white text-lg font-bold leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition`;
+          b.innerHTML = dir < 0 ? '&#8249;' : '&#8250;';
+          b.onclick = () => track.scrollBy({ left: dir * track.clientWidth, behavior: 'smooth' });
+          return b;
+        };
+        wrap.append(counter, dots, arrow(-1), arrow(1));
+
+        track.addEventListener('scroll', () => {
+          const idx = Math.round(track.scrollLeft / (track.clientWidth || 1));
+          counter.textContent = `${idx + 1}/${images.length}`;
+          [...dots.children].forEach((d, i) => { d.className = `w-1.5 h-1.5 rounded-full ${i === idx ? 'bg-white' : 'bg-white/40'}`; });
+        }, { passive: true });
+
+        // arrastar com o mouse (no celular o dedo já funciona nativamente)
+        let down = false, startX = 0, startLeft = 0;
+        track.addEventListener('pointerdown', e => {
+          if (e.pointerType !== 'mouse' || e.button !== 0) return;
+          down = true; startX = e.clientX; startLeft = track.scrollLeft;
+          track.style.scrollSnapType = 'none';
+          track.style.cursor = 'grabbing';
+        });
+        window.addEventListener('pointermove', e => { if (down) track.scrollLeft = startLeft - (e.clientX - startX); });
+        window.addEventListener('pointerup', () => {
+          if (!down) return;
+          down = false;
+          track.style.cursor = '';
+          const idx = Math.round(track.scrollLeft / (track.clientWidth || 1));
+          track.scrollTo({ left: idx * track.clientWidth, behavior: 'smooth' });
+          setTimeout(() => { track.style.scrollSnapType = ''; }, 350);
+        });
+      }
+      return wrap;
+    }
+
+    function hydrateCarousels(root) {
+      (root || document).querySelectorAll('.post-carousel:not([data-ready])').forEach(el => {
+        el.dataset.ready = '1';
+        let imgs = [];
+        try { imgs = JSON.parse(el.dataset.images || '[]'); } catch (_) {}
+        imgs = imgs.filter(u => typeof u === 'string' && u.startsWith('/uploads/'));
+        if (!imgs.length) { el.remove(); return; }
+        el.replaceWith(buildCarousel(imgs));
+      });
+      lucide.createIcons();
+    }
+
+    function buildPostArticle(post) {
+      const canManage = IS_MANAGER || (post.author || '').trim().toLowerCase() === CURRENT_USER_NAME;
+      const images = (post.images && post.images.length) ? post.images : (post.image_url ? [post.image_url] : []);
 
       let commentsHtml = '';
       if (post.comments && Array.isArray(post.comments)) {
@@ -2042,6 +2252,11 @@
 
       const article = document.createElement('article');
       article.id = `feed-post-${post.id}`;
+      article.dataset.id = post.id;
+      article.dataset.title = post.title || '';
+      article.dataset.tool = post.tool_type || '';
+      article.dataset.op = post.op_number || '';
+      article.dataset.inst = post.instructions || '';
       article.className = "bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden";
       article.innerHTML = `
         <div class="p-5 border-b border-slate-100 flex items-start justify-between gap-4">
@@ -2054,15 +2269,21 @@
             </div>
             <h3 class="text-sm sm:text-base font-bold text-slate-900 leading-snug">${esc(post.title)}</h3>
           </div>
-          <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
-            <i data-lucide="check-check" class="w-3.5 h-3.5 text-emerald-600"></i> Concluído
-          </span>
+          <div class="flex items-center gap-1.5 flex-shrink-0">
+            ${canManage ? `
+            <button type="button" onclick="openEditPostModal(${Number(post.id)})" title="Editar post" class="w-7 h-7 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 flex items-center justify-center transition">
+              <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+            </button>
+            <button type="button" onclick="deletePost(${Number(post.id)})" title="Apagar post" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>` : ''}
+            <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
+              <i data-lucide="check-check" class="w-3.5 h-3.5 text-emerald-600"></i> Concluído
+            </span>
+          </div>
         </div>
 
-        ${post.image_url ? `
-        <div class="bg-slate-950 flex items-center justify-center border-b border-slate-200 overflow-hidden">
-          <img src="${esc(post.image_url)}" alt="Mídia do Post" class="w-full object-cover max-h-[480px]">
-        </div>` : ''}
+        <div class="post-carousel" data-images="${esc(JSON.stringify(images))}"></div>
 
         <div class="p-5 space-y-4">
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 bg-slate-50/80 rounded-xl border border-slate-100 text-xs">
@@ -2098,7 +2319,7 @@
         <div class="px-5 py-2.5 flex items-center gap-3 bg-white border-b border-slate-100">
           <button type="button" onclick="likePostSmooth('${post.id}')" class="flex items-center gap-1.5 text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-lg hover:bg-rose-100 transition shadow-2xs">
             <i data-lucide="heart" class="w-3.5 h-3.5 fill-rose-600"></i> 
-            <span id="post-likes-${post.id}">0</span> Validações
+            <span id="post-likes-${post.id}">${Number(post.likes) || 0}</span> Validações
           </button>
         </div>
 
@@ -2115,13 +2336,52 @@
           </form>
         </div>
       `;
+      return article;
+    }
 
-      container.prepend(article);
-
+    function updateFeedBadge() {
+      const container = document.getElementById('feed-posts-container');
       const fBadge = document.getElementById('badge-feed-total');
-      if (fBadge) fBadge.textContent = `${container.querySelectorAll('article').length} registro(s)`;
+      if (container && fBadge) fBadge.textContent = `${container.querySelectorAll('article').length} registro(s)`;
+    }
 
+    function insertPostToFeedDOM(post) {
+      if (!post || document.getElementById(`feed-post-${post.id}`)) return;
+
+      const container = document.getElementById('feed-posts-container');
+      const noFeedMsg = document.getElementById('no-feed-msg');
+      if (noFeedMsg) noFeedMsg.remove();
+      if (!container) return;
+
+      const article = buildPostArticle(post);
+      container.prepend(article);
+      hydrateCarousels(article);
+      updateFeedBadge();
       lucide.createIcons();
+    }
+
+    function updatePostInDOM(post) {
+      const old = post && document.getElementById(`feed-post-${post.id}`);
+      if (!old) return;
+      const article = buildPostArticle(post);
+      old.replaceWith(article);
+      hydrateCarousels(article);
+      lucide.createIcons();
+    }
+
+    function removePostFromDOM(postId) {
+      const art = document.getElementById(`feed-post-${postId}`);
+      if (art) art.remove();
+      const done = document.getElementById(`my-done-${postId}`);
+      if (done) {
+        done.remove();
+        const left = document.querySelectorAll('#my-completed-container > [id^="my-done-"]').length;
+        const c1 = document.getElementById('my-profile-completed-counter');
+        const c2 = document.getElementById('badge-my-completed');
+        if (c1) c1.textContent = left;
+        if (c2) c2.textContent = `${left} concluído(s)`;
+      }
+      updateFeedBadge();
     }
 
     async function updateTaskStatusFast(taskId, newStatus) {
@@ -2583,6 +2843,12 @@
             }
             scheduleRefresh(false);
           }
+          else if (data.type === "POST_UPDATED") {
+            updatePostInDOM(data.post);
+          }
+          else if (data.type === "POST_DELETED") {
+            removePostFromDOM(data.post_id);
+          }
           else if (data.type === "NEW_COMMENT") {
             appendCommentToDOM(data.post_id, data.author, data.text);
           }
@@ -2605,6 +2871,7 @@
     conectarWebSocket();
 
     window.addEventListener('DOMContentLoaded', () => {
+      hydrateCarousels(document);
       renderMyTasks();
       switchTab(sessionStorage.getItem('aba_ativa') || 'my-profile');
       if (SECTORS_DATA.length > 0) applySectorTemplate(SECTORS_DATA[0].id);
