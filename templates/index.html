@@ -3121,18 +3121,83 @@
     let socket;
     let wsPingTimer = null;
     let wsEverConnected = false;
+    let wsLastSeen = Date.now();
+
+    // Atualiza em silêncio o que foi perdido durante uma queda de conexão (só mexe no que mudou)
+    let syncing = false, lastSync = 0;
+    async function syncMissed(force) {
+      if (syncing || (!force && Date.now() - lastSync < 3000)) return;
+      syncing = true;
+      try {
+        const state = await loadState();
+        if (!state) return;
+        lastSync = Date.now();
+
+        // demandas da equipe: aparecem as novas e acompanham as que mudaram de coluna
+        const openIds = new Set();
+        (state.team_tasks || []).forEach(t => {
+          const id = Number(t.id);
+          openIds.add(id);
+          const card = document.getElementById(`task-${id}`);
+          if (!card) {
+            insertTaskToKanbanDOM(t);
+            if (t.status === 'Em Produção') moveTaskVisual(id, 'Em Produção', t.assigned_to);
+          } else {
+            const col = card.parentElement ? card.parentElement.id.replace('kanban-col-', '') : '';
+            if (col && col !== t.status) moveTaskVisual(id, t.status, t.assigned_to);
+          }
+        });
+        document.querySelectorAll('#kanban-col-Atribuído .kanban-card, [id="kanban-col-Em Produção"] .kanban-card').forEach(c => {
+          const id = Number((c.id || '').replace('task-', ''));
+          if (id && !openIds.has(id)) moveTaskVisual(id, 'Aprovado', c.dataset.assigned || '');
+        });
+
+        // minhas tarefas: refaz só se mudou
+        const byId = (a, b) => a.id - b.id;
+        const incoming = (state.my_tasks || []).map(normalizeTask).sort(byId);
+        const current = Array.from(MY_TASKS.values()).sort(byId);
+        if (JSON.stringify(incoming) !== JSON.stringify(current)) {
+          MY_TASKS.clear();
+          incoming.forEach(t => MY_TASKS.set(t.id, t));
+          renderMyTasks();
+        }
+
+        // posts que chegaram enquanto estava fora (do mais antigo para o mais novo)
+        (state.recent_posts || []).slice().reverse().forEach(p => insertPostToFeedDOM(p));
+
+        applyMetrics(state.metrics);
+        recalculateKanbanBadges();
+        loadNotifications();
+      } catch (err) {
+        console.error('Erro ao sincronizar:', err);
+      } finally {
+        syncing = false;
+      }
+    }
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) syncMissed(); });
+    window.addEventListener('online', () => { try { if (socket) socket.close(); } catch (_) {} syncMissed(true); });
+
+    // Se o servidor parou de responder (conexão "morta" sem avisar), derruba e reconecta
+    setInterval(() => {
+      if (socket && socket.readyState === WebSocket.OPEN && Date.now() - wsLastSeen > 75000) {
+        try { socket.close(); } catch (_) {}
+      }
+    }, 15000);
+
     function conectarWebSocket() {
       socket = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
       socket.onopen = function() {
+        wsLastSeen = Date.now();
         // Mantém a conexão viva (evita queda por inatividade)
         clearInterval(wsPingTimer);
         wsPingTimer = setInterval(() => {
           if (socket.readyState === WebSocket.OPEN) socket.send('ping');
-        }, 25000);
-        if (wsEverConnected) loadNotifications();   // pega o que chegou enquanto estava desconectado
+        }, 20000);
+        if (wsEverConnected) syncMissed(true);   // pega o que chegou enquanto estava desconectado
         wsEverConnected = true;
       };
       socket.onmessage = function(event) {
+        wsLastSeen = Date.now();
         if (event.data === 'pong') return;
         try {
           const data = JSON.parse(event.data);

@@ -622,7 +622,26 @@ def get_state(request: Request, db: Session = Depends(get_db)):
         models.Task.status.in_(["Atribuído", "Em Produção"])
     ).order_by(models.Task.id).all()]
 
-    response = JSONResponse(content={"sectors": sectors, "users": users, "metrics": metrics, "my_tasks": my_tasks})
+    def _task_dict(t):
+        return {
+            "id": t.id, "sector_id": t.sector_id, "sector_name": t.sector_name,
+            "op_number": t.op_number, "tool_type": t.tool_type, "title": t.title,
+            "delegated_by": t.delegated_by, "assigned_to": t.assigned_to, "supplier": t.supplier,
+            "instructions": clean_inst(t), "priority": prio_of(t), "due_date": t.due_date,
+            "status": t.status, "image_url": t.image_url,
+        }
+
+    # Dados para o site "se atualizar" depois de uma queda de conexão, sem recarregar a página
+    team_tasks = [_task_dict(t) for t in db.query(models.Task).filter(
+        or_(models.Task.assigned_to.in_(names), models.Task.delegated_by.in_(names)),
+        models.Task.status != "Aprovado"
+    ).order_by(models.Task.id).all()]
+    recent_posts = [serialize_post(p) for p in db.query(models.Post).options(joinedload(models.Post.comments)).filter(
+        or_(models.Post.author.in_(names), models.Post.delegated_by.in_(names))
+    ).order_by(models.Post.created_at.desc()).limit(20).all()]
+
+    response = JSONResponse(content={"sectors": sectors, "users": users, "metrics": metrics, "my_tasks": my_tasks,
+                                     "team_tasks": team_tasks, "recent_posts": recent_posts})
     response.headers["Cache-Control"] = "no-store"
     return response
 
