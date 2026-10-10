@@ -320,28 +320,49 @@ UPLOAD_DIR = "uploads"
 ALLOWED_UPLOAD_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf"}
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
+def _supabase_cfg():
+    url = (os.getenv("SUPABASE_URL") or "").strip().rstrip("/")
+    key = (os.getenv("SUPABASE_SERVICE_KEY") or "").strip()
+    bucket = (os.getenv("SUPABASE_BUCKET") or "uploads").strip()
+    return (url, key, bucket) if url and key else None
+
+_CONTENT_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+                  ".gif": "image/gif", ".webp": "image/webp", ".pdf": "application/pdf"}
+
 def save_upload(upload: UploadFile) -> str:
-    """Grava o ficheiro e devolve a URL pública. Lança ValueError se for inválido."""
+    """Grava o ficheiro (Supabase Storage se configurado, senão pasta local) e devolve a URL.
+    Lança ValueError se for inválido."""
     original = os.path.basename((upload.filename or "").replace("\\", "/"))
     ext = os.path.splitext(original)[1].lower()
     if ext not in ALLOWED_UPLOAD_EXT:
         raise ValueError("Tipo de ficheiro não permitido. Use JPG, PNG, GIF, WEBP ou PDF.")
     base = re.sub(r"[^A-Za-z0-9._-]", "_", os.path.splitext(original)[0])[:60] or "arquivo"
     safe_name = f"{int(time.time())}_{uuid.uuid4().hex[:8]}_{base}{ext}"
-    file_path = os.path.join(UPLOAD_DIR, safe_name)
 
-    written = 0
-    with open(file_path, "wb") as buffer:
-        while True:
-            chunk = upload.file.read(1024 * 1024)
-            if not chunk:
-                break
-            written += len(chunk)
-            if written > MAX_UPLOAD_BYTES:
-                buffer.close()
-                os.remove(file_path)
-                raise ValueError("Ficheiro maior que 10 MB.")
-            buffer.write(chunk)
+    data = upload.file.read(MAX_UPLOAD_BYTES + 1)
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise ValueError("Ficheiro maior que 10 MB.")
+
+    cfg = _supabase_cfg()
+    if cfg:
+        import urllib.request, urllib.error
+        url, key, bucket = cfg
+        req = urllib.request.Request(
+            f"{url}/storage/v1/object/{bucket}/{safe_name}", data=data, method="POST",
+            headers={"Authorization": f"Bearer {key}", "apikey": key,
+                     "Content-Type": _CONTENT_TYPES.get(ext, "application/octet-stream"),
+                     "x-upsert": "true"})
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                resp.read()
+        except Exception as err:
+            print(f"Erro ao enviar para o Supabase Storage: {err}")
+            raise ValueError("Não foi possível guardar a imagem agora. Tente novamente.")
+        return f"{url}/storage/v1/object/public/{bucket}/{safe_name}"
+
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    with open(os.path.join(UPLOAD_DIR, safe_name), "wb") as buffer:
+        buffer.write(data)
     return f"/{UPLOAD_DIR}/{safe_name}"
 
 def unauthorized():
