@@ -357,9 +357,11 @@
                 <span class="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
                   {{ task.tool_type }}
                 </span>
+                {% if task.op_number %}
                 <span class="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
                   Ref/OP: {{ task.op_number }}
                 </span>
+                {% endif %}
               </div>
               <h4 class="text-sm font-bold text-slate-900 leading-snug">{{ task.title }}</h4>
               <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1">
@@ -2285,7 +2287,7 @@
     }
 
     function copyOrderText(op, tool, title, supplier, due, instructions) {
-      const text = `*DEMANDA DE TRABALHO*\n• Ref/OP: ${op || 'S/N'}\n• Descrição: ${title}\n• Solicitante: ${supplier}\n• Prazo: ${due}\n• Detalhes: ${instructions || 'Nenhum'}`;
+      const text = `*DEMANDA DE TRABALHO*\n${op ? `• Ref/OP: ${op}\n` : ''}• Descrição: ${title}\n• Solicitante: ${supplier}\n• Prazo: ${due}\n• Detalhes: ${instructions || 'Nenhum'}`;
       copyText(text).then(() => alert('📋 Demanda copiada com sucesso!'));
     }
 

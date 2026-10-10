@@ -638,7 +638,7 @@ async def create_task(
     final_title = clean_title or f"Demanda - {clean_tool or 'Geral'}"
     final_tool = clean_tool or "Geral"
     final_supplier = clean_supplier or "Interno"
-    final_op = clean_op or "S/N"
+    final_op = clean_op  # vazio quando o setor não tem o campo (o cartão não mostra "OP")
     final_due = clean_due or "A definir"
 
     if extra_details:
