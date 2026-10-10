@@ -91,16 +91,17 @@ VALID_STATUSES = ["Atribuído", "Em Produção", "Aprovado"]
 def is_manager_user(user) -> bool:
     return (user.role or "").strip().lower() in MANAGER_ROLES
 
-def get_team_names(db: Session, user) -> List[str]:
-    """Nomes da equipa do utilizador (mesma lógica da página inicial)."""
+def get_team_users(db: Session, user):
+    """Utilizadores da equipa (mesma lógica da página inicial)."""
     manager_ref_id = user.id if is_manager_user(user) else user.manager_id
     if manager_ref_id:
-        team = db.query(models.User).filter(
+        return db.query(models.User).filter(
             or_(models.User.id == manager_ref_id, models.User.manager_id == manager_ref_id)
         ).all()
-    else:
-        team = [user]
-    return [u.full_name for u in team]
+    return [user]
+
+def get_team_names(db: Session, user) -> List[str]:
+    return [u.full_name for u in get_team_users(db, user)]
 
 # Mantém referência às tarefas em segundo plano (evita que o Python as descarte a meio)
 _bg_tasks = set()
@@ -387,6 +388,50 @@ def get_user_profile(request: Request, full_name: str, db: Session = Depends(get
         "pending_tasks": len([t for t in tasks if t.status != "Aprovado"]),
         "completed_tasks": len(posts)
     }
+
+@app.get("/api/state")
+def get_state(request: Request, db: Session = Depends(get_db)):
+    """Dados atuais da equipe (setores, utilizadores e métricas) para o site atualizar sem recarregar."""
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Sessão expirada."})
+
+    team_users = get_team_users(db, current_user)
+    names = [u.full_name for u in team_users]
+
+    task_rows = db.query(models.Task.assigned_to, models.Task.status).filter(
+        or_(models.Task.assigned_to.in_(names), models.Task.delegated_by.in_(names))
+    ).all()
+    post_authors = [a for (a,) in db.query(models.Post.author).filter(
+        or_(models.Post.author.in_(names), models.Post.delegated_by.in_(names))
+    ).all()]
+
+    metrics = {}
+    for u in team_users:
+        key = (u.full_name or "").strip().lower()
+        metrics[u.username] = {
+            "active_tasks": len([1 for assigned, status in task_rows if (assigned or "").strip().lower() == key and status != "Aprovado"]),
+            "approved_tasks": len([1 for author in post_authors if (author or "").strip().lower() == key]),
+        }
+
+    sectors = []
+    for sec in db.query(models.SectorConfig).all():
+        try:
+            fields = json.loads(sec.fields_schema or "[]")
+        except ValueError:
+            fields = []
+        sectors.append({"id": sec.id, "name": sec.name, "icon": sec.icon, "fields": fields})
+
+    users = [{
+        "full_name": u.full_name,
+        "username": u.username,
+        "role": u.role,
+        "department": u.department or "Operacional",
+    } for u in team_users]
+
+    response = JSONResponse(content={"sectors": sectors, "users": users, "metrics": metrics})
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):

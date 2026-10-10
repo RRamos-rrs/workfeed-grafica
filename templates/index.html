@@ -153,9 +153,9 @@
           <h4 class="font-bold text-slate-800 text-xs tracking-tight flex items-center gap-2">
             <i data-lucide="building-2" class="w-4 h-4 text-slate-400"></i> Setores Ativos
           </h4>
-          <span class="text-[10px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md font-bold">{{ sectors|length }}</span>
+          <span id="sidebar-sectors-count" class="text-[10px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md font-bold">{{ sectors|length }}</span>
         </div>
-        <div class="space-y-1.5 text-xs text-slate-600">
+        <div id="sidebar-sectors-list" class="space-y-1.5 text-xs text-slate-600">
           {% for sec in sectors %}
           <div onclick="selectSectorAndGoToForm({{ sec.id }})" class="p-2 rounded-xl bg-slate-50 hover:bg-blue-50 hover:border-blue-200 border border-slate-100 font-medium flex items-center justify-between cursor-pointer transition group">
             <span class="flex items-center gap-2">
@@ -751,11 +751,11 @@
             <div class="grid grid-cols-2 gap-2 text-center">
               <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
                 <p class="text-slate-400 font-semibold text-[10px] uppercase">Em Execução</p>
-                <p class="text-lg font-bold text-amber-600 font-mono">{{ member.active_tasks }}</p>
+                <p data-metric="active" class="text-lg font-bold text-amber-600 font-mono">{{ member.active_tasks }}</p>
               </div>
               <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
                 <p class="text-slate-400 font-semibold text-[10px] uppercase">Concluídos</p>
-                <p class="text-lg font-bold text-emerald-600 font-mono">{{ member.approved_tasks }}</p>
+                <p data-metric="approved" class="text-lg font-bold text-emerald-600 font-mono">{{ member.approved_tasks }}</p>
               </div>
             </div>
           </div>
@@ -851,7 +851,7 @@
                 </label>
                 <div class="relative">
                   <i data-lucide="user-check" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
-                  <select required name="assigned_to" class="w-full text-xs pl-10 pr-8 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] bg-white transition font-medium appearance-none">
+                  <select required id="task-input-assigned" name="assigned_to" class="w-full text-xs pl-10 pr-8 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] bg-white transition font-medium appearance-none">
                     <option value="" disabled selected>Selecione o responsável</option>
                     {% for u in users %}
                     <option value="{{ u.full_name }}">{{ u.full_name }} ({{ u.role }})</option>
@@ -1024,7 +1024,7 @@
           <div>
             <label class="block font-bold text-slate-700 mb-1.5">Setor / Tag</label>
             <div class="relative">
-              <select name="tool_type" class="w-full pl-3 pr-8 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white font-semibold text-slate-700 appearance-none">
+              <select name="tool_type" id="post-tool-type-select" class="w-full pl-3 pr-8 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white font-semibold text-slate-700 appearance-none">
                 <option value="GERAL">📁 Geral / Oficina</option>
                 {% for sec in sectors %}
                 <option value="{{ sec.name }}">{{ sec.icon }} {{ sec.name }}</option>
@@ -2321,12 +2321,120 @@
       if (e.target && e.target.classList.contains('kanban-card')) e.target.style.opacity = '1';
     });
 
+    // ================= ATUALIZAÇÃO AO VIVO (sem recarregar a página) =================
+    const PILL_ACTIVE = "sector-pill-btn px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 bg-blue-50 border-blue-400 text-blue-900 shadow-xs";
+    const PILL_INACTIVE = "sector-pill-btn px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 bg-white border-slate-200 text-slate-600 hover:bg-slate-50";
+
+    function hasUnsavedInput() {
+      const t = document.getElementById('task-input-title');
+      const i = document.getElementById('task-input-instructions');
+      const p = document.querySelector('#form-create-manual-post input[name="title"]');
+      return !!((t && t.value.trim()) || (i && i.value.trim()) || (p && p.value.trim()));
+    }
+
+    function applyMetrics(metrics) {
+      Object.entries(metrics || {}).forEach(([username, m]) => {
+        const card = document.getElementById(`user-card-${username}`);
+        if (!card) return;
+        const active = card.querySelector('[data-metric="active"]');
+        const approved = card.querySelector('[data-metric="approved"]');
+        if (active) active.textContent = m.active_tasks;
+        if (approved) approved.textContent = m.approved_tasks;
+      });
+    }
+
+    async function loadState() {
+      const res = await fetch('/api/state', { headers: { 'Accept': 'application/json' } });
+      if (!res.ok) return null;
+      return res.json();
+    }
+
+    // Métricas da aba Equipe (leve): roda a cada tarefa criada/movida ou post publicado
+    async function refreshMetrics() {
+      const state = await loadState();
+      if (state) applyMetrics(state.metrics);
+    }
+
+    // Setores, colaboradores e listas: troca só os blocos necessários, sem perder o que está digitado
+    async function softRefresh() {
+      const [state, pageRes] = await Promise.all([loadState(), fetch('/', { headers: { 'Accept': 'text/html' } })]);
+      if (!state || !pageRes.ok || pageRes.redirected) { window.location.reload(); return; }
+      const doc = new DOMParser().parseFromString(await pageRes.text(), 'text/html');
+      const swap = (id) => {
+        const cur = document.getElementById(id);
+        const novo = doc.getElementById(id);
+        if (cur && novo) cur.innerHTML = novo.innerHTML;
+      };
+
+      SECTORS_DATA.splice(0, SECTORS_DATA.length, ...state.sectors);
+      ALL_USERS.splice(0, ALL_USERS.length, ...state.users);
+
+      ['sidebar-sectors-list', 'sidebar-sectors-count', 'sector-pills-container',
+       'collaborators-grid', 'badge-team-count', 'profiles-count-badge'].forEach(swap);
+
+      ['task-input-assigned', 'post-tool-type-select'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        const previous = sel.value;
+        swap(id);
+        if ([...sel.options].some(o => o.value === previous)) sel.value = previous;
+      });
+
+      const stillExists = SECTORS_DATA.some(s => s.id === currentSelectedSectorId);
+      if (!stillExists) {
+        currentSelectedSectorId = SECTORS_DATA.length ? SECTORS_DATA[0].id : 0;
+        if (SECTORS_DATA.length) applySectorTemplate(currentSelectedSectorId);
+      } else if (!hasUnsavedInput()) {
+        applySectorTemplate(currentSelectedSectorId);
+      } else {
+        document.querySelectorAll('.sector-pill-btn').forEach(btn => { btn.className = PILL_INACTIVE; });
+        const active = document.getElementById(`sector-pill-btn-${currentSelectedSectorId}`);
+        if (active) active.className = PILL_ACTIVE;
+      }
+
+      applyMetrics(state.metrics);
+      lucide.createIcons();
+    }
+
+    let refreshTimer = null;
+    let refreshNeedsFull = false;
+    function scheduleRefresh(full) {
+      if (full) refreshNeedsFull = true;
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(async () => {
+        const doFull = refreshNeedsFull;
+        refreshNeedsFull = false;
+        try {
+          if (doFull) await softRefresh(); else await refreshMetrics();
+        } catch (err) {
+          console.error('Erro ao atualizar ao vivo:', err);
+          if (doFull && !hasUnsavedInput()) window.location.reload();
+        }
+      }, 400);
+    }
+
     // ================= WEBSOCKET COM DISPARO REATIVO COMPLETO =================
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     let socket;
+    let wsPingTimer = null;
+    let wsEverConnected = false;
     function conectarWebSocket() {
       socket = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
+      socket.onopen = function() {
+        // Mantém a conexão viva (evita queda por inatividade)
+        clearInterval(wsPingTimer);
+        wsPingTimer = setInterval(() => {
+          if (socket.readyState === WebSocket.OPEN) socket.send('ping');
+        }, 25000);
+        // Voltou depois de uma queda: sincroniza o que foi perdido nesse intervalo
+        if (wsEverConnected) {
+          if (hasUnsavedInput()) scheduleRefresh(true);
+          else window.location.reload();
+        }
+        wsEverConnected = true;
+      };
       socket.onmessage = function(event) {
+        if (event.data === 'pong') return;
         try {
           const data = JSON.parse(event.data);
           
@@ -2335,6 +2443,7 @@
             if (isAssignedToMe(data.task.assigned_to)) {
               insertTaskToMyProfileDOM(data.task);
             }
+            scheduleRefresh(false);
           }
           else if (data.type === "TASK_STATUS_UPDATED") {
             moveTaskVisual(data.task_id, data.new_status, data.assigned_to);
@@ -2346,11 +2455,13 @@
                 insertMyCompletedDOM(data.post);
               }
             }
+            scheduleRefresh(false);
           }
           else if (data.type === "NEW_FEED_POST" || data.type === "POST_CREATED") {
             if (data.post) {
               insertPostToFeedDOM(data.post);
             }
+            scheduleRefresh(false);
           }
           else if (data.type === "NEW_COMMENT") {
             appendCommentToDOM(data.post_id, data.author, data.text);
@@ -2360,13 +2471,13 @@
             if (likesElem) likesElem.textContent = data.likes;
           }
           else if (data.type === "REFRESH" || data.type === "USER_DELETED") {
-            window.location.reload();
+            scheduleRefresh(true);
           }
         } catch (err) {
           console.error('Erro ao processar mensagem do WebSocket:', err);
         }
       };
-      socket.onclose = () => setTimeout(conectarWebSocket, 2000);
+      socket.onclose = () => { clearInterval(wsPingTimer); setTimeout(conectarWebSocket, 2000); };
     }
     conectarWebSocket();
 
