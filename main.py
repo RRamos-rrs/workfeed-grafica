@@ -916,9 +916,7 @@ async def create_task(
     final_op = clean_op  # vazio quando o setor não tem o campo (o cartão não mostra "OP")
     final_due = clean_due or "A definir"
 
-    if extra_details:
-        adicional = " | ".join(extra_details)
-        clean_instructions = f"{clean_instructions} ({adicional})".strip() if clean_instructions else adicional
+    # A descrição fica somente com o texto digitado (sem anexar nomes/campos extras entre parênteses)
 
     image_url = None
     if image and image.filename:
