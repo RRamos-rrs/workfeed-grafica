@@ -210,6 +210,7 @@
           </p>
           {% endfor %}
         </div>
+        <div id="sidebar-dept-list" class="space-y-1.5 text-xs text-slate-600"></div>
       </div>
     </aside>
 
@@ -1135,7 +1136,7 @@
         <button type="button" onclick="document.getElementById('modalSectorTeam').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
       </div>
       <div id="sectorTeamBody" class="space-y-2"></div>
-      <button type="button" id="sectorTeamDelegate" class="w-full text-xs font-bold py-3 rounded-xl bg-[#0284c7] text-white hover:bg-sky-700 transition">Delegar demanda neste setor</button>
+      <button type="button" id="sectorTeamDelegate" class="w-full text-xs font-bold py-3 rounded-xl bg-[#0284c7] text-white hover:bg-sky-700 transition">Delegar demanda</button>
     </div>
   </div>
 
@@ -1213,6 +1214,7 @@
     ];
 
     const ASSIGNEE_USERS = {{ assignees|tojson }};
+    const DEPT_LIST = [];
 
     const TEAM_OPEN_DATA = [
       {% for task in tasks if task.status != 'Aprovado' %}
@@ -1624,15 +1626,41 @@
       lucide.createIcons();
     }
 
-    function openSectorTeam(sectorId) {
-      const sec = SECTORS_DATA.find(s => s.id === sectorId);
+    function openDeptTeam(i) {
+      const d = DEPT_LIST[i];
+      if (d) openSectorTeam(0, { id: 0, name: d, icon: '🏢' });
+    }
+    function renderDeptSectors() {
+      const box = document.getElementById('sidebar-dept-list');
+      if (!box) return;
+      const nn = t => (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      const mine = SECTORS_DATA.map(s => nn(s.name));
+      const seen = new Set();
+      DEPT_LIST.length = 0;
+      ASSIGNEE_USERS.forEach(u => {
+        const d = (u.department || '').trim();
+        const k = nn(d);
+        if (!k || seen.has(k)) return;
+        seen.add(k);
+        if (mine.some(m => m && (m.includes(k) || k.includes(m)))) return;
+        DEPT_LIST.push(d);
+      });
+      box.innerHTML = DEPT_LIST.map((d, i) => `
+        <div onclick="openDeptTeam(${i})" class="p-2 rounded-xl bg-slate-50 hover:bg-blue-50 hover:border-blue-200 border border-slate-100 font-medium flex items-center justify-between cursor-pointer transition">
+          <span class="flex items-center gap-2"><span>🏢</span> ${esc(d)}</span>
+          <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-400"></i>
+        </div>`).join('');
+      lucide.createIcons();
+    }
+    function openSectorTeam(sectorId, pseudo) {
+      const sec = pseudo || SECTORS_DATA.find(s => s.id === sectorId);
       if (!sec) return;
       const norm = t => (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
       const modal = document.getElementById('modalSectorTeam');
       document.getElementById('sectorTeamTitle').textContent = `${sec.icon || ''} ${sec.name}`;
       const goDelegate = (name) => {
         modal.classList.add('hidden');
-        selectSectorAndGoToForm(sectorId);
+        if (sectorId) selectSectorAndGoToForm(sectorId); else switchTab('new-task');
         if (name) {
           const hidden = document.getElementById('task-input-assigned');
           const input = document.getElementById('assignee-search');
@@ -1670,7 +1698,7 @@
       render();
       modal.classList.remove('hidden');
       fetch('/api/assignees', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(d => {
-        if (d && d.users) { ASSIGNEE_USERS.splice(0, ASSIGNEE_USERS.length, ...d.users); render(); }
+        if (d && d.users) { ASSIGNEE_USERS.splice(0, ASSIGNEE_USERS.length, ...d.users); render(); renderDeptSectors(); }
       }).catch(() => {});
     }
 
@@ -3210,6 +3238,7 @@
         SECTORS_DATA.splice(0, SECTORS_DATA.length, ...state.sectors);
         ['sidebar-sectors-list', 'sidebar-sectors-count', 'sector-pills-container'].forEach(swap);
         swapSelect('post-tool-type-select');
+        renderDeptSectors();
 
         const stillExists = SECTORS_DATA.some(s => s.id === currentSelectedSectorId);
         if (!stillExists) {
@@ -3228,12 +3257,17 @@
         ALL_USERS.splice(0, ALL_USERS.length, ...state.users);
         ['collaborators-grid', 'badge-team-count', 'profiles-count-badge'].forEach(swap);
         renderAssigneeList();
+        fetch('/api/assignees', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(d => {
+          if (d && d.users) { ASSIGNEE_USERS.splice(0, ASSIGNEE_USERS.length, ...d.users); renderAssigneeList(); renderDeptSectors(); }
+        }).catch(() => {});
         applyMetrics(state.metrics);
       }
 
       lucide.createIcons();
     }
 
+
+    document.addEventListener('DOMContentLoaded', () => renderDeptSectors());
 
     // Seletor de responsável com busca (colaboradores e equipes/departamentos da minha equipe)
     function renderAssigneeList() {
@@ -3267,7 +3301,7 @@
       input.addEventListener('focus', () => {
         open();
         fetch('/api/assignees', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(d => {
-          if (d && d.users) { ASSIGNEE_USERS.splice(0, ASSIGNEE_USERS.length, ...d.users); renderAssigneeList(); }
+          if (d && d.users) { ASSIGNEE_USERS.splice(0, ASSIGNEE_USERS.length, ...d.users); renderAssigneeList(); renderDeptSectors(); }
         }).catch(() => {});
       });
       input.addEventListener('input', () => { hidden.value = ''; open(); });
