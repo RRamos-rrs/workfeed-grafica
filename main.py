@@ -374,7 +374,7 @@ async def save_sector(
     except IntegrityError:
         db.rollback()
         return JSONResponse(status_code=400, content={"success": False, "message": "Já existe um setor com esse nome."})
-    spawn_bg(manager.broadcast({"type": "REFRESH"}))
+    spawn_bg(manager.broadcast({"type": "REFRESH", "scope": "sectors"}))
     return JSONResponse(content={"success": True, "message": "Modelo de setor salvo com sucesso!"})
 
 @app.delete("/api/sectors/{sector_id}")
@@ -393,7 +393,7 @@ async def delete_sector(request: Request, sector_id: int, db: Session = Depends(
 
     db.delete(sector)
     db.commit()
-    spawn_bg(manager.broadcast({"type": "REFRESH"}))
+    spawn_bg(manager.broadcast({"type": "REFRESH", "scope": "sectors"}))
     return JSONResponse(content={"success": True, "message": "Setor removido com sucesso!"})
 
 @app.get("/api/users/profile/{full_name}")
@@ -524,7 +524,7 @@ async def register(
     db.add(new_user)
     db.commit()
 
-    spawn_bg(manager.broadcast({"type": "REFRESH"}))
+    spawn_bg(manager.broadcast({"type": "REFRESH", "scope": "team"}))
 
     redirect = RedirectResponse(url="/", status_code=303)
     redirect.set_cookie(key="user_session", value=clean_username, httponly=True, samesite="lax")
@@ -567,7 +567,7 @@ async def add_collaborator(
         existing.manager_id = manager_ref_id
         db.commit()
 
-        spawn_bg(manager.broadcast({"type": "REFRESH"}))
+        spawn_bg(manager.broadcast({"type": "REFRESH", "scope": "team"}))
         return JSONResponse(content={"success": True, "message": "Colaborador vinculado com sucesso!"})
 
     new_user = models.User(
@@ -581,7 +581,7 @@ async def add_collaborator(
     db.add(new_user)
     db.commit()
 
-    spawn_bg(manager.broadcast({"type": "REFRESH"}))
+    spawn_bg(manager.broadcast({"type": "REFRESH", "scope": "team"}))
     return JSONResponse(content={"success": True, "message": "Colaborador adicionado com sucesso!"})
 
 @app.delete("/api/users/{username}")

@@ -2467,12 +2467,14 @@
 
     // Setores, colaboradores e listas: troca só os blocos necessários, sem perder o que está digitado
     const serverSnapshots = new Map();
-    async function softRefresh() {
+    // Cada ação atualiza só a sua parte da tela: 'sectors' (setores) ou 'team' (equipe)
+    async function softRefresh(scopes) {
+      const wantSectors = scopes.has('sectors');
+      const wantTeam = scopes.has('team');
       const [state, pageRes] = await Promise.all([loadState(), fetch('/', { headers: { 'Accept': 'text/html' } })]);
-      if (!state || !pageRes.ok || pageRes.redirected) { window.location.reload(); return; }
+      if (!state || !pageRes.ok || pageRes.redirected) return;
       const doc = new DOMParser().parseFromString(await pageRes.text(), 'text/html');
-      // Só troca o bloco se o conteúdo mudou de verdade (evita a tela piscar)
-      // (compara com o último HTML recebido do servidor, não com a tela, que muda com ícones e scripts)
+      // Compara com o último HTML recebido do servidor; se igual, não toca na tela
       const swap = (id) => {
         const cur = document.getElementById(id);
         const novo = doc.getElementById(id);
@@ -2482,66 +2484,53 @@
         serverSnapshots.set(id, html);
         cur.innerHTML = html;
       };
-
-      SECTORS_DATA.splice(0, SECTORS_DATA.length, ...state.sectors);
-      ALL_USERS.splice(0, ALL_USERS.length, ...state.users);
-
-      ['sidebar-sectors-list', 'sidebar-sectors-count', 'sector-pills-container',
-       'collaborators-grid', 'badge-team-count', 'profiles-count-badge'].forEach(swap);
-
-      ['task-input-assigned', 'post-tool-type-select'].forEach(id => {
+      const swapSelect = (id) => {
         const sel = document.getElementById(id);
         if (!sel) return;
         const previous = sel.value;
         swap(id);
         if ([...sel.options].some(o => o.value === previous)) sel.value = previous;
-      });
+      };
 
-      const stillExists = SECTORS_DATA.some(s => s.id === currentSelectedSectorId);
-      if (!stillExists) {
-        currentSelectedSectorId = SECTORS_DATA.length ? SECTORS_DATA[0].id : 0;
-        if (SECTORS_DATA.length) applySectorTemplate(currentSelectedSectorId);
-      } else if (!hasUnsavedInput()) {
-        applySectorTemplate(currentSelectedSectorId);
-      } else {
-        document.querySelectorAll('.sector-pill-btn').forEach(btn => { btn.className = PILL_INACTIVE; });
-        const active = document.getElementById(`sector-pill-btn-${currentSelectedSectorId}`);
-        if (active) active.className = PILL_ACTIVE;
+      if (wantSectors) {
+        SECTORS_DATA.splice(0, SECTORS_DATA.length, ...state.sectors);
+        ['sidebar-sectors-list', 'sidebar-sectors-count', 'sector-pills-container'].forEach(swap);
+        swapSelect('post-tool-type-select');
+
+        const stillExists = SECTORS_DATA.some(s => s.id === currentSelectedSectorId);
+        if (!stillExists) {
+          currentSelectedSectorId = SECTORS_DATA.length ? SECTORS_DATA[0].id : 0;
+          if (SECTORS_DATA.length) applySectorTemplate(currentSelectedSectorId);
+        } else if (!hasUnsavedInput()) {
+          applySectorTemplate(currentSelectedSectorId);
+        } else {
+          document.querySelectorAll('.sector-pill-btn').forEach(btn => { btn.className = PILL_INACTIVE; });
+          const active = document.getElementById(`sector-pill-btn-${currentSelectedSectorId}`);
+          if (active) active.className = PILL_ACTIVE;
+        }
       }
 
-      // Quadro, feed e concluídos: sincroniza sem recarregar a página
-      const typing = document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)
-        && document.activeElement.closest('#feed-posts-container');
-      ['kanban-col-Atribuído', 'kanban-col-Em Produção', 'kanban-col-Aprovado', 'my-completed-container',
-       'badge-kanban-Atribuído', 'badge-kanban-Em Produção', 'badge-kanban-Aprovado', 'badge-kanban-total',
-       'badge-feed-total', 'badge-my-completed', 'my-profile-completed-counter'].forEach(swap);
-      if (!typing) swap('feed-posts-container');
-
-      // Minhas tarefas: refaz só se mudou
-      const byId = (a, b) => a.id - b.id;
-      const incoming = (state.my_tasks || []).map(normalizeTask).sort(byId);
-      const current = Array.from(MY_TASKS.values()).sort(byId);
-      if (JSON.stringify(incoming) !== JSON.stringify(current)) {
-        MY_TASKS.clear();
-        incoming.forEach(t => MY_TASKS.set(t.id, t));
-        renderMyTasks();
+      if (wantTeam) {
+        ALL_USERS.splice(0, ALL_USERS.length, ...state.users);
+        ['collaborators-grid', 'badge-team-count', 'profiles-count-badge'].forEach(swap);
+        swapSelect('task-input-assigned');
+        applyMetrics(state.metrics);
       }
 
-      applyMetrics(state.metrics);
-      recalculateKanbanBadges();
       lucide.createIcons();
     }
 
+    // Agrupa avisos seguidos e atualiza só o que a ação mexeu (nada de sincronizar tudo sozinho)
     let refreshTimer = null;
-    let refreshNeedsFull = false;
-    function scheduleRefresh(full) {
-      if (full) refreshNeedsFull = true;
+    const pendingScopes = new Set();
+    function scheduleRefresh(scope) {
+      if (scope) pendingScopes.add(scope);
       clearTimeout(refreshTimer);
       refreshTimer = setTimeout(async () => {
-        const doFull = refreshNeedsFull;
-        refreshNeedsFull = false;
+        const scopes = new Set(pendingScopes);
+        pendingScopes.clear();
         try {
-          if (doFull) await softRefresh(); else await refreshMetrics();
+          if (scopes.size) await softRefresh(scopes); else await refreshMetrics();
         } catch (err) {
           console.error('Erro ao atualizar ao vivo:', err);
         }
@@ -2561,10 +2550,6 @@
         wsPingTimer = setInterval(() => {
           if (socket.readyState === WebSocket.OPEN) socket.send('ping');
         }, 25000);
-        // Voltou depois de uma queda: sincroniza o que foi perdido nesse intervalo
-        if (wsEverConnected) {
-          scheduleRefresh(true);   // sincroniza o que foi perdido, sem recarregar a página
-        }
         wsEverConnected = true;
       };
       socket.onmessage = function(event) {
@@ -2605,8 +2590,11 @@
             const likesElem = document.getElementById(`post-likes-${data.post_id}`);
             if (likesElem) likesElem.textContent = data.likes;
           }
-          else if (data.type === "REFRESH" || data.type === "USER_DELETED") {
-            scheduleRefresh(true);
+          else if (data.type === "USER_DELETED") {
+            scheduleRefresh('team');
+          }
+          else if (data.type === "REFRESH") {
+            scheduleRefresh(data.scope === 'sectors' ? 'sectors' : 'team');
           }
         } catch (err) {
           console.error('Erro ao processar mensagem do WebSocket:', err);
