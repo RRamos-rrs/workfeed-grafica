@@ -493,6 +493,7 @@ def home(request: Request, db: Session = Depends(get_db)):
             "my_completed_posts": my_completed_posts,
             "posts": posts,
             "users": team_users,
+            "assignees": all_assignees(db),
             "collaborators": collaborators,
             "sectors": sectors
         }
@@ -671,6 +672,19 @@ def get_state(request: Request, db: Session = Depends(get_db)):
                                      "team_tasks": team_tasks, "recent_posts": recent_posts})
     response.headers["Cache-Control"] = "no-store"
     return response
+
+def all_assignees(db):
+    return [{"full_name": u.full_name, "username": u.username, "role": u.role,
+             "department": u.department or "Operacional"}
+            for u in db.query(models.User).order_by(models.User.full_name).all()]
+
+
+@app.get("/api/assignees")
+def api_assignees(request: Request, db: Session = Depends(get_db)):
+    if not get_current_user(request, db):
+        return unauthorized()
+    return JSONResponse(content={"users": all_assignees(db)}, headers={"Cache-Control": "no-store"})
+
 
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):

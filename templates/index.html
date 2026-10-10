@@ -790,7 +790,7 @@
                 <div class="relative">
                   <i data-lucide="user-check" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
 <input type="hidden" id="task-input-assigned" name="assigned_to" value="">
-                  <input type="text" id="assignee-search" autocomplete="off" placeholder="Buscar colaborador ou equipe..." class="w-full text-xs pl-10 pr-8 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] bg-white transition font-medium">
+                  <input type="text" id="assignee-search" autocomplete="off" placeholder="Buscar pessoa ou equipe..." class="w-full text-xs pl-10 pr-8 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] bg-white transition font-medium">
                   <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
                   <div id="assignee-list" class="hidden absolute z-30 left-0 right-0 mt-1 max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg"></div>
                 </div>
@@ -1196,6 +1196,8 @@
       }{% if not loop.last %},{% endif %}
       {% endfor %}
     ];
+
+    const ASSIGNEE_USERS = {{ assignees|tojson }};
 
     const TEAM_OPEN_DATA = [
       {% for task in tasks if task.status != 'Aprovado' %}
@@ -3176,7 +3178,7 @@
       if (!list || !input || !hidden) return;
       const q = input.value.trim().toLowerCase();
       const groups = {};
-      ALL_USERS.forEach(u => {
+      ASSIGNEE_USERS.forEach(u => {
         const hay = `${u.full_name} ${u.role || ''} ${u.department || ''}`.toLowerCase();
         if (q && !hay.includes(q)) return;
         const d = u.department || 'Operacional';
@@ -3197,7 +3199,12 @@
       const hidden = document.getElementById('task-input-assigned');
       if (!list || !input || !hidden) return;
       const open = () => { renderAssigneeList(); list.classList.remove('hidden'); };
-      input.addEventListener('focus', open);
+      input.addEventListener('focus', () => {
+        open();
+        fetch('/api/assignees', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(d => {
+          if (d && d.users) { ASSIGNEE_USERS.splice(0, ASSIGNEE_USERS.length, ...d.users); renderAssigneeList(); }
+        }).catch(() => {});
+      });
       input.addEventListener('input', () => { hidden.value = ''; open(); });
       list.addEventListener('mousedown', e => {
         const btn = e.target.closest('.assignee-opt');
@@ -3212,7 +3219,7 @@
       if (form) form.addEventListener('submit', e => {
         if (!hidden.value) {
           const q = input.value.trim().toLowerCase();
-          const m = ALL_USERS.filter(u => u.full_name.toLowerCase() === q);
+          const m = ASSIGNEE_USERS.filter(u => u.full_name.toLowerCase() === q);
           if (m.length === 1) hidden.value = m[0].full_name;
           else { e.preventDefault(); e.stopImmediatePropagation(); open(); input.focus(); alert('Selecione um responsável da lista.'); }
         }
