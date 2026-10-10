@@ -169,6 +169,29 @@ def can_manage_post(db: Session, user, post) -> bool:
         return True
     return is_manager_user(user) and post.author in get_team_names(db, user)
 
+def serialize_notification(n) -> dict:
+    return {
+        "id": n.id, "kind": n.kind, "text": n.text,
+        "task_id": n.task_id, "post_id": n.post_id,
+        "is_read": bool(n.is_read),
+        "created_at": fmt_dt(n.created_at, "%d/%m %H:%M", default="Agora"),
+    }
+
+def push_notification(db: Session, to_name, kind: str, text: str, actor=None, task_id=None, post_id=None):
+    """Guarda a notificação e avisa em tempo real quem a recebe (não notifica a si mesmo)."""
+    to_name = (to_name or "").strip()
+    if not to_name or to_name.lower() == (actor or "").strip().lower():
+        return
+    try:
+        n = models.Notification(user_name=to_name, kind=kind, text=(text or "")[:300], task_id=task_id, post_id=post_id)
+        db.add(n)
+        db.commit()
+        db.refresh(n)
+        spawn_bg(manager.broadcast({"type": "NOTIFICATION", "to": to_name.lower(), "notification": serialize_notification(n)}))
+    except Exception as err:
+        db.rollback()
+        print(f"Aviso: não foi possível criar a notificação: {err}")
+
 def get_team_owner_id(user):
     """Id do gestor que representa a equipa do utilizador."""
     return user.id if is_manager_user(user) else user.manager_id
@@ -790,6 +813,8 @@ async def create_task(
         }
     }
     spawn_bg(manager.broadcast(task_payload))
+    push_notification(db, new_task.assigned_to, "task_assigned", f"{delegator} delegou: {new_task.title}",
+                      actor=delegator, task_id=new_task.id)
 
     return JSONResponse(content={"success": True, "task": task_payload["task"]})
 
@@ -998,6 +1023,14 @@ async def update_task_status_api(request: Request, task_id: int, payload: Status
         "post": new_post_payload
     }))
 
+    actor = current_user.full_name
+    if new_status == "Em Produção" and old_status != "Em Produção":
+        push_notification(db, task.delegated_by, "task_started", f"{task.assigned_to} iniciou: {task.title}",
+                          actor=actor, task_id=task.id)
+    elif new_status == "Aprovado" and old_status != "Aprovado":
+        push_notification(db, task.delegated_by, "task_done", f"{task.assigned_to} concluiu: {task.title}",
+                          actor=actor, task_id=task.id, post_id=(new_post_payload or {}).get("id"))
+
     return {"success": True, "published_to_feed": published, "new_status": new_status}
 
 @app.post("/posts/{post_id}/like")
@@ -1031,8 +1064,10 @@ async def add_comment(request: Request, post_id: int, text: str = Form(...), db:
     if not clean_text:
         return JSONResponse(status_code=400, content={"success": False, "message": "Comentário vazio."})
 
-    if not db.query(models.Post.id).filter(models.Post.id == post_id).first():
+    target_post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not target_post:
         return JSONResponse(status_code=404, content={"success": False, "message": "Post não encontrado."})
+    post_owner, post_title = target_post.author, target_post.title
 
     comment = models.Comment(post_id=post_id, author=author_name, text=clean_text)
     db.add(comment)
@@ -1046,5 +1081,48 @@ async def add_comment(request: Request, post_id: int, text: str = Form(...), db:
         "text": clean_text
     }
     spawn_bg(manager.broadcast(comment_data))
+    push_notification(db, post_owner, "post_comment", f"{author_name} comentou em \"{post_title}\"",
+                      actor=author_name, post_id=post_id)
 
     return JSONResponse(content={"success": True, "comment": comment_data})
+
+@app.get("/api/notifications")
+def list_notifications(request: Request, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return unauthorized()
+    name = (current_user.full_name or "").strip().lower()
+    base = db.query(models.Notification).filter(func.lower(models.Notification.user_name) == name)
+    unread = base.filter(models.Notification.is_read == False).count()  # noqa: E712
+    items = base.order_by(models.Notification.id.desc()).limit(30).all()
+    response = JSONResponse(content={"unread": unread, "items": [serialize_notification(n) for n in items]})
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+@app.post("/api/notifications/read-all")
+def read_all_notifications(request: Request, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return unauthorized()
+    name = (current_user.full_name or "").strip().lower()
+    db.query(models.Notification).filter(
+        func.lower(models.Notification.user_name) == name,
+        models.Notification.is_read == False  # noqa: E712
+    ).update({"is_read": True}, synchronize_session=False)
+    db.commit()
+    return {"success": True}
+
+@app.post("/api/notifications/{notification_id}/read")
+def read_notification(request: Request, notification_id: int, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return unauthorized()
+    name = (current_user.full_name or "").strip().lower()
+    n = db.query(models.Notification).filter(
+        models.Notification.id == notification_id,
+        func.lower(models.Notification.user_name) == name
+    ).first()
+    if n and not n.is_read:
+        n.is_read = True
+        db.commit()
+    return {"success": True}

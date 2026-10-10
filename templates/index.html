@@ -81,6 +81,21 @@
         </button>
         {% endif %}
 
+        <!-- SINO DE NOTIFICAÇÕES -->
+        <div class="relative">
+          <button type="button" id="notif-bell" onclick="toggleNotifPanel(event)" title="Notificações" class="relative text-slate-300 hover:text-white p-2 rounded-xl hover:bg-slate-800/60 transition">
+            <i data-lucide="bell" class="w-5 h-5"></i>
+            <span id="notif-badge" class="hidden absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center"></span>
+          </button>
+          <div id="notif-panel" class="hidden absolute right-0 mt-2 w-[min(92vw,360px)] bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-[70]">
+            <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+              <h4 class="text-xs font-extrabold text-slate-900">Notificações</h4>
+              <button type="button" onclick="markAllNotifRead()" class="text-[11px] font-bold text-blue-600 hover:underline">Marcar todas como lidas</button>
+            </div>
+            <div id="notif-list" class="max-h-[60vh] overflow-y-auto divide-y divide-slate-100"></div>
+          </div>
+        </div>
+
         <div class="flex items-center gap-2.5 pl-2 border-l border-slate-700/60">
           <button onclick='openUserProfileModal({{ current_user.full_name|tojson }})' class="flex items-center gap-2.5 text-left group">
             <div class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black text-xs shadow-sm">
@@ -2171,12 +2186,123 @@
       lucide.createIcons();
     }
 
+    // ---------- Central de notificações (sino) ----------
+    const notifState = { items: [], unread: 0 };
+    const NOTIF_TITLES = {
+      task_assigned: 'Nova demanda para você',
+      task_started: 'Demanda iniciada',
+      task_done: 'Demanda concluída',
+      post_comment: 'Novo comentário'
+    };
+    const NOTIF_ICONS = { task_assigned: 'clipboard-list', task_started: 'play-circle', task_done: 'check-circle', post_comment: 'message-circle' };
+
+    function renderNotifications() {
+      const badge = document.getElementById('notif-badge');
+      const list = document.getElementById('notif-list');
+      if (badge) {
+        badge.textContent = notifState.unread > 99 ? '99+' : notifState.unread;
+        badge.classList.toggle('hidden', notifState.unread === 0);
+      }
+      updateDocTitle();
+      if (!list) return;
+      if (!notifState.items.length) {
+        list.innerHTML = '<p class="p-6 text-center text-xs text-slate-400">Nenhuma notificação por enquanto.</p>';
+        return;
+      }
+      list.innerHTML = notifState.items.map(n => `
+        <button type="button" data-id="${Number(n.id)}" class="notif-item w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 transition ${n.is_read ? '' : 'bg-blue-50/60'}">
+          <span class="mt-0.5 w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center ${n.is_read ? 'bg-slate-100 text-slate-500' : 'bg-blue-100 text-blue-700'}">
+            <i data-lucide="${NOTIF_ICONS[n.kind] || 'bell'}" class="w-3.5 h-3.5"></i>
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="block text-[11px] ${n.is_read ? 'font-medium text-slate-600' : 'font-bold text-slate-900'} leading-snug break-words">${esc(n.text)}</span>
+            <span class="block text-[10px] font-mono text-slate-400 mt-0.5">${esc(n.created_at)}</span>
+          </span>
+          ${n.is_read ? '' : '<span class="mt-1.5 w-2 h-2 rounded-full bg-blue-600 flex-shrink-0"></span>'}
+        </button>`).join('');
+      list.querySelectorAll('.notif-item').forEach(b => {
+        b.onclick = () => openNotification(Number(b.dataset.id));
+      });
+      lucide.createIcons();
+    }
+
+    async function loadNotifications() {
+      try {
+        const res = await fetch('/api/notifications', { headers: { 'Accept': 'application/json' } });
+        if (!res.ok) return;
+        const data = await res.json();
+        notifState.items = data.items || [];
+        notifState.unread = data.unread || 0;
+        renderNotifications();
+      } catch (err) {
+        console.error('Erro ao carregar notificações:', err);
+      }
+    }
+
+    function toggleNotifPanel(e) {
+      if (e) e.stopPropagation();
+      const panel = document.getElementById('notif-panel');
+      if (!panel) return;
+      panel.classList.toggle('hidden');
+      if (!panel.classList.contains('hidden')) renderNotifications();
+    }
+    document.addEventListener('click', (e) => {
+      const panel = document.getElementById('notif-panel');
+      if (panel && !panel.classList.contains('hidden') && !panel.contains(e.target)) panel.classList.add('hidden');
+    });
+
+    async function markAllNotifRead() {
+      notifState.items.forEach(n => { n.is_read = true; });
+      notifState.unread = 0;
+      renderNotifications();
+      try { await fetch('/api/notifications/read-all', { method: 'POST' }); } catch (_) {}
+    }
+
+    function openNotification(id) {
+      const n = notifState.items.find(x => x.id === id);
+      if (!n) return;
+      if (!n.is_read) {
+        n.is_read = true;
+        notifState.unread = Math.max(0, notifState.unread - 1);
+        fetch(`/api/notifications/${id}/read`, { method: 'POST' }).catch(() => {});
+        renderNotifications();
+      }
+      const panel = document.getElementById('notif-panel');
+      if (panel) panel.classList.add('hidden');
+
+      if (n.post_id && document.getElementById(`feed-post-${n.post_id}`)) {
+        switchTab('feed');
+        const art = document.getElementById(`feed-post-${n.post_id}`);
+        art.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        art.classList.add('ring-2', 'ring-blue-400');
+        setTimeout(() => art.classList.remove('ring-2', 'ring-blue-400'), 2500);
+      } else if (n.task_id && document.getElementById(`my-task-${n.task_id}`)) {
+        switchTab('my-profile');
+        const card = document.getElementById(`my-task-${n.task_id}`);
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.classList.add('ring-2', 'ring-blue-400');
+        setTimeout(() => card.classList.remove('ring-2', 'ring-blue-400'), 2500);
+      } else if (n.task_id && document.getElementById(`task-${n.task_id}`)) {
+        goToKanbanTask(n.task_id);
+      } else if (n.kind === 'task_assigned') {
+        switchTab('my-profile');
+      }
+    }
+
+    function receiveNotification(n) {
+      if (!n || notifState.items.some(x => x.id === n.id)) return;
+      notifState.items.unshift(n);
+      notifState.items = notifState.items.slice(0, 30);
+      if (!n.is_read) notifState.unread += 1;
+      renderNotifications();
+      showToast(NOTIF_TITLES[n.kind] || 'Notificação', n.text, () => openNotification(n.id));
+    }
+
     // ---------- Avisos de demanda nova ----------
     function updateDocTitle() {
-      document.title = unreadNew > 0 ? `(${unreadNew}) ${BASE_TITLE}` : BASE_TITLE;
+      document.title = notifState.unread > 0 ? `(${notifState.unread}) ${BASE_TITLE}` : BASE_TITLE;
     }
     function resetUnread() {
-      unreadNew = 0;
       updateDocTitle();
     }
     function showToast(title, text, onClick) {
@@ -2918,6 +3044,7 @@
         wsPingTimer = setInterval(() => {
           if (socket.readyState === WebSocket.OPEN) socket.send('ping');
         }, 25000);
+        if (wsEverConnected) loadNotifications();   // pega o que chegou enquanto estava desconectado
         wsEverConnected = true;
       };
       socket.onmessage = function(event) {
@@ -2930,7 +3057,6 @@
             if (isAssignedToMe(data.task.assigned_to)) {
               insertTaskToMyProfileDOM(data.task);
             }
-            notifyNewTask(data.task);
             scheduleRefresh(false);
           }
           else if (data.type === "TASK_STATUS_UPDATED") {
@@ -2950,6 +3076,9 @@
               insertPostToFeedDOM(data.post);
             }
             scheduleRefresh(false);
+          }
+          else if (data.type === "NOTIFICATION") {
+            if ((data.to || '') === CURRENT_USER_NAME) receiveNotification(data.notification);
           }
           else if (data.type === "POST_UPDATED") {
             updatePostInDOM(data.post);
@@ -2980,6 +3109,7 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       hydrateCarousels(document);
+      loadNotifications();
       renderMyTasks();
       renderOverdueAlert();
       switchTab(sessionStorage.getItem('aba_ativa') || 'my-profile');
