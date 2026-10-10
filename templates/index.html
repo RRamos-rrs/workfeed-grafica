@@ -28,6 +28,9 @@
       outline-offset: -2px;
     }
     /* Classes do Tailwind v4 que nao existem no CDN v3 (sombras e blur) */
+    @media (max-width: 1023px) { main { padding-bottom: 5.5rem; } }
+    @media (max-width: 640px) { input, select, textarea { font-size: 16px !important; } }
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
     .shadow-xs { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); }
     .shadow-2xs { box-shadow: 0 1px 0 0 rgb(0 0 0 / 0.05); }
     .backdrop-blur-xs { backdrop-filter: blur(2px); }
@@ -37,7 +40,7 @@
 
   <!-- ================= TOPBAR ESCURA ================= -->
   <header class="bg-[#0b1e36] text-white sticky top-0 z-50 shadow-md">
-    <div class="max-w-[1440px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+    <div class="max-w-[1440px] mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
       
       <!-- LOGO -->
       <div class="flex items-center gap-3 cursor-pointer select-none" onclick="switchTab('my-profile')">
@@ -48,7 +51,7 @@
           <span class="text-base font-extrabold tracking-tight block leading-tight text-white">
             WorkFeed <span class="text-amber-500 font-extrabold">Gráfica</span>
           </span>
-          <p class="text-[9px] uppercase font-bold tracking-widest text-slate-400">Gestão Integrada de Demandas</p>
+          <p class="hidden sm:block text-[9px] uppercase font-bold tracking-widest text-slate-400">Gestão Integrada de Demandas</p>
         </div>
       </div>
 
@@ -67,7 +70,7 @@
       </div>
 
       <!-- AÇÕES / PERFIL -->
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-1.5 sm:gap-3">
         {% if current_user.role in ['Gestor', 'manager', 'admin'] %}
         <button 
           type="button" 
@@ -75,7 +78,7 @@
           title="Montar ou Editar Modelos de Tarefas por Setor"
           class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold py-1.5 px-3 rounded-xl shadow-sm flex items-center gap-1.5 text-xs transition">
           <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5 text-amber-400"></i>
-          <span>Modelos</span>
+          <span class="hidden sm:inline">Modelos</span>
         </button>
 
         <button 
@@ -83,7 +86,7 @@
           onclick="document.getElementById('modalCollaborator').classList.remove('hidden')" 
           class="bg-[#0284c7] hover:bg-[#0369a1] text-white font-bold py-1.5 px-3.5 rounded-xl shadow-sm flex items-center gap-1.5 text-xs transition active:scale-95">
           <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
-          <span>+ Colaborador</span>
+          <span class="hidden sm:inline">+ Colaborador</span><span class="sm:hidden">+</span>
         </button>
         {% endif %}
 
@@ -119,13 +122,20 @@
       </div>
 
     </div>
+    <!-- BUSCA NO CELULAR -->
+    <div class="md:hidden px-3 pb-2.5">
+      <div class="relative">
+        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+        <input id="global-search-input-m" type="text" oninput="handleGlobalSearch(this.value)" placeholder="Buscar demandas, OP, cliente..." class="w-full bg-[#122846] text-white placeholder-slate-400 pl-9 pr-3 py-2 rounded-xl border border-slate-700/60 focus:outline-none focus:border-amber-500">
+      </div>
+    </div>
   </header>
 
   <!-- ================= LAYOUT PRINCIPAL ================= -->
-  <div class="max-w-[1440px] mx-auto w-full px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
+  <div class="max-w-[1440px] mx-auto w-full px-3 sm:px-6 py-4 sm:py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
 
     <!-- ================= BARRA LATERAL ================= -->
-    <aside class="lg:col-span-3 space-y-4">
+    <aside class="hidden lg:block lg:col-span-3 space-y-4">
       <nav class="bg-white rounded-2xl border border-slate-200/90 p-2 shadow-xs space-y-1">
         
         <button onclick="switchTab('my-profile')" id="tab-btn-my-profile" class="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-bold rounded-xl transition bg-[#0b1e36] text-white">
@@ -225,14 +235,14 @@
             </div>
           </div>
           
-          <div class="flex items-center gap-3">
-            <div class="px-5 py-2.5 bg-orange-50/70 rounded-2xl border border-orange-200/80 text-center min-w-[130px]">
+          <div class="flex items-center gap-3 w-full sm:w-auto">
+            <div class="flex-1 sm:flex-none px-3 sm:px-5 py-2.5 bg-orange-50/70 rounded-2xl border border-orange-200/80 text-center sm:min-w-[130px]">
               <p class="text-[10px] uppercase font-bold text-orange-600 tracking-wider flex items-center justify-center gap-1">
                 <i data-lucide="clock" class="w-3.5 h-3.5"></i> Minhas Pendências
               </p>
               <p id="my-profile-pending-counter" class="text-xl font-bold text-orange-600 font-mono mt-0.5">{{ (my_pending_tasks|length) + (my_in_progress_tasks|length) }}</p>
             </div>
-            <div class="px-5 py-2.5 bg-emerald-50/70 rounded-2xl border border-emerald-200/80 text-center min-w-[130px]">
+            <div class="flex-1 sm:flex-none px-3 sm:px-5 py-2.5 bg-emerald-50/70 rounded-2xl border border-emerald-200/80 text-center sm:min-w-[130px]">
               <p class="text-[10px] uppercase font-bold text-emerald-600 tracking-wider flex items-center justify-center gap-1">
                 <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Concluídos
               </p>
@@ -473,10 +483,11 @@
           </button>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+        <p class="md:hidden text-[11px] text-slate-400 px-1 -mb-1">Deslize para o lado para ver as colunas →</p>
+        <div class="flex md:grid md:grid-cols-3 overflow-x-auto md:overflow-visible snap-x snap-mandatory md:snap-none gap-3 md:gap-4 items-start no-scrollbar -mx-3 px-3 md:mx-0 md:px-0 pb-2">
           
           <!-- COLUNA 1: ATRIBUÍDO -->
-          <div class="bg-slate-100/90 rounded-2xl p-3 border border-slate-200/80 flex flex-col min-h-[520px]">
+          <div class="bg-slate-100/90 rounded-2xl p-3 border border-slate-200/80 flex flex-col min-h-[320px] md:min-h-[520px] min-w-[88%] sm:min-w-[60%] md:min-w-0 flex-shrink-0 md:flex-shrink snap-center">
             <div class="flex items-center justify-between px-2 mb-3">
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-amber-500 ring-4 ring-amber-100"></span>
@@ -530,7 +541,7 @@
           </div>
 
           <!-- COLUNA 2: EM EXECUÇÃO -->
-          <div class="bg-slate-100/90 rounded-2xl p-3 border border-slate-200/80 flex flex-col min-h-[520px]">
+          <div class="bg-slate-100/90 rounded-2xl p-3 border border-slate-200/80 flex flex-col min-h-[320px] md:min-h-[520px] min-w-[88%] sm:min-w-[60%] md:min-w-0 flex-shrink-0 md:flex-shrink snap-center">
             <div class="flex items-center justify-between px-2 mb-3">
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-blue-500 ring-4 ring-blue-100"></span>
@@ -584,7 +595,7 @@
           </div>
 
           <!-- COLUNA 3: CONCLUÍDO -->
-          <div class="bg-slate-100/90 rounded-2xl p-3 border border-slate-200/80 flex flex-col min-h-[520px]">
+          <div class="bg-slate-100/90 rounded-2xl p-3 border border-slate-200/80 flex flex-col min-h-[320px] md:min-h-[520px] min-w-[88%] sm:min-w-[60%] md:min-w-0 flex-shrink-0 md:flex-shrink snap-center">
             <div class="flex items-center justify-between px-2 mb-3">
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-emerald-500 ring-4 ring-emerald-100"></span>
@@ -687,7 +698,7 @@
       <section id="content-new-task" class="hidden max-w-2xl mx-auto space-y-4">
         
         <div class="flex items-center justify-between px-1">
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 flex-wrap">
             <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Setor Ativo:</span>
             <div id="sector-pills-container" class="flex flex-wrap gap-1.5">
               {% for sec in sectors %}
@@ -873,6 +884,28 @@
     </main>
   </div>
 
+  <!-- ================= MENU INFERIOR (CELULAR) ================= -->
+  <nav id="mobile-nav" class="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 shadow-[0_-2px_10px_rgba(0,0,0,0.06)] safe-bottom">
+    <div class="grid grid-cols-5">
+      <button type="button" onclick="switchTab('my-profile')" id="mnav-my-profile" class="mnav-btn relative flex flex-col items-center gap-0.5 py-2 text-[10px] font-semibold text-slate-500">
+        <i data-lucide="user" class="w-5 h-5"></i><span>Meu Perfil</span>
+        <span id="mnav-badge-my-tasks" class="hidden absolute top-1 left-1/2 ml-2 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center"></span>
+      </button>
+      <button type="button" onclick="switchTab('kanban')" id="mnav-kanban" class="mnav-btn relative flex flex-col items-center gap-0.5 py-2 text-[10px] font-semibold text-slate-500">
+        <i data-lucide="kanban" class="w-5 h-5"></i><span>Quadro</span>
+      </button>
+      <button type="button" onclick="switchTab('new-task')" id="mnav-new-task" class="mnav-btn flex flex-col items-center gap-0.5 py-2 text-[10px] font-semibold text-slate-500">
+        <span class="-mt-5 w-11 h-11 rounded-full bg-[#0284c7] text-white flex items-center justify-center shadow-lg border-4 border-white"><i data-lucide="plus" class="w-5 h-5"></i></span><span>Delegar</span>
+      </button>
+      <button type="button" onclick="switchTab('feed')" id="mnav-feed" class="mnav-btn flex flex-col items-center gap-0.5 py-2 text-[10px] font-semibold text-slate-500">
+        <i data-lucide="layout-grid" class="w-5 h-5"></i><span>Feed</span>
+      </button>
+      <button type="button" onclick="switchTab('profiles')" id="mnav-profiles" class="mnav-btn flex flex-col items-center gap-0.5 py-2 text-[10px] font-semibold text-slate-500">
+        <i data-lucide="users" class="w-5 h-5"></i><span>Equipe</span>
+      </button>
+    </div>
+  </nav>
+
   <!-- ================= MODAL: FAZER POST (ESTILO INSTAGRAM) ================= -->
   <div id="modalCreatePost" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden p-4 backdrop-blur-xs">
     <div class="bg-white rounded-3xl w-full max-w-lg shadow-2xl relative overflow-hidden flex flex-col max-h-[92vh]">
@@ -1048,8 +1081,8 @@
   </div>
 
   <!-- MODAL ADICIONAR COLABORADOR -->
-  <div id="modalCollaborator" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
-    <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
+  <div id="modalCollaborator" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl p-5 sm:p-6 w-full max-w-md shadow-2xl relative max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center mb-4 border-b pb-3">
         <h3 class="text-base font-bold text-slate-900">Cadastrar Novo Colaborador</h3>
         <button type="button" onclick="document.getElementById('modalCollaborator').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
@@ -2343,7 +2376,7 @@
       if (!box) {
         box = document.createElement('div');
         box.id = 'toast-container';
-        box.className = 'fixed bottom-4 right-4 z-[60] space-y-2 w-[calc(100%-2rem)] max-w-xs';
+        box.className = 'fixed bottom-20 lg:bottom-4 right-4 z-[60] space-y-2 w-[calc(100%-2rem)] max-w-xs';
         document.body.appendChild(box);
       }
       const el = document.createElement('button');
@@ -2882,6 +2915,12 @@
       const inpCount = inpCont ? inpCont.querySelectorAll('[id^="my-task-"]').length : 0;
       const total = pCount + inpCount;
 
+      const mBadge = document.getElementById('mnav-badge-my-tasks');
+      if (mBadge) {
+        mBadge.textContent = total;
+        mBadge.classList.toggle('hidden', total === 0);
+      }
+
       const badgeNav = document.getElementById('badge-my-tasks-total');
       if (badgeNav) {
         badgeNav.textContent = total;
@@ -2948,12 +2987,17 @@
         const btn = document.getElementById(`tab-btn-${t}`);
         if (sec) sec.classList.add('hidden');
         if (btn) btn.className = "w-full flex items-center justify-between gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-100 hover:text-slate-900";
+        const mbtn = document.getElementById(`mnav-${t}`);
+        if (mbtn) { mbtn.classList.remove('text-[#0284c7]'); mbtn.classList.add('text-slate-500'); }
       });
 
       const activeSec = document.getElementById(`content-${tab}`);
       const activeBtn = document.getElementById(`tab-btn-${tab}`);
       if (activeSec) activeSec.classList.remove('hidden');
       if (activeBtn) activeBtn.className = "w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-bold rounded-xl transition bg-[#0b1e36] text-white";
+      const activeM = document.getElementById(`mnav-${tab}`);
+      if (activeM) { activeM.classList.remove('text-slate-500'); activeM.classList.add('text-[#0284c7]'); }
+      window.scrollTo({ top: 0 });
       lucide.createIcons();
     }
 
