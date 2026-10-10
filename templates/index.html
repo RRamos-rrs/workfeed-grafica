@@ -2466,10 +2466,11 @@
       const [state, pageRes] = await Promise.all([loadState(), fetch('/', { headers: { 'Accept': 'text/html' } })]);
       if (!state || !pageRes.ok || pageRes.redirected) { window.location.reload(); return; }
       const doc = new DOMParser().parseFromString(await pageRes.text(), 'text/html');
+      // Só troca o bloco se o conteúdo mudou de verdade (evita a tela piscar)
       const swap = (id) => {
         const cur = document.getElementById(id);
         const novo = doc.getElementById(id);
-        if (cur && novo) cur.innerHTML = novo.innerHTML;
+        if (cur && novo && cur.innerHTML !== novo.innerHTML) cur.innerHTML = novo.innerHTML;
       };
 
       SECTORS_DATA.splice(0, SECTORS_DATA.length, ...state.sectors);
@@ -2498,7 +2499,26 @@
         if (active) active.className = PILL_ACTIVE;
       }
 
+      // Quadro, feed e concluídos: sincroniza sem recarregar a página
+      const typing = document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)
+        && document.activeElement.closest('#feed-posts-container');
+      ['kanban-col-Atribuído', 'kanban-col-Em Produção', 'kanban-col-Aprovado', 'my-completed-container',
+       'badge-kanban-Atribuído', 'badge-kanban-Em Produção', 'badge-kanban-Aprovado', 'badge-kanban-total',
+       'badge-feed-total', 'badge-my-completed', 'my-profile-completed-counter'].forEach(swap);
+      if (!typing) swap('feed-posts-container');
+
+      // Minhas tarefas: refaz só se mudou
+      const byId = (a, b) => a.id - b.id;
+      const incoming = (state.my_tasks || []).map(normalizeTask).sort(byId);
+      const current = Array.from(MY_TASKS.values()).sort(byId);
+      if (JSON.stringify(incoming) !== JSON.stringify(current)) {
+        MY_TASKS.clear();
+        incoming.forEach(t => MY_TASKS.set(t.id, t));
+        renderMyTasks();
+      }
+
       applyMetrics(state.metrics);
+      recalculateKanbanBadges();
       lucide.createIcons();
     }
 
@@ -2514,7 +2534,6 @@
           if (doFull) await softRefresh(); else await refreshMetrics();
         } catch (err) {
           console.error('Erro ao atualizar ao vivo:', err);
-          if (doFull && !hasUnsavedInput()) window.location.reload();
         }
       }, 400);
     }
@@ -2534,8 +2553,7 @@
         }, 25000);
         // Voltou depois de uma queda: sincroniza o que foi perdido nesse intervalo
         if (wsEverConnected) {
-          if (hasUnsavedInput()) scheduleRefresh(true);
-          else window.location.reload();
+          scheduleRefresh(true);   // sincroniza o que foi perdido, sem recarregar a página
         }
         wsEverConnected = true;
       };

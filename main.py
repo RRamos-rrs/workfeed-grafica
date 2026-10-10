@@ -458,7 +458,17 @@ def get_state(request: Request, db: Session = Depends(get_db)):
         "department": u.department or "Operacional",
     } for u in team_users]
 
-    response = JSONResponse(content={"sectors": sectors, "users": users, "metrics": metrics})
+    me = (current_user.full_name or "").strip().lower()
+    my_tasks = [{
+        "id": t.id, "status": t.status, "tool_type": t.tool_type, "op_number": t.op_number,
+        "title": t.title, "supplier": t.supplier, "due_date": t.due_date,
+        "instructions": t.instructions, "delegated_by": t.delegated_by, "image_url": t.image_url,
+    } for t in db.query(models.Task).filter(
+        func.lower(models.Task.assigned_to) == me,
+        models.Task.status.in_(["Atribuído", "Em Produção"])
+    ).order_by(models.Task.id).all()]
+
+    response = JSONResponse(content={"sectors": sectors, "users": users, "metrics": metrics, "my_tasks": my_tasks})
     response.headers["Cache-Control"] = "no-store"
     return response
 
