@@ -1515,15 +1515,29 @@
       e.preventDefault();
       document.getElementById('builder-fields-json').value = JSON.stringify(builderCurrentFields);
       const formData = new FormData(e.target);
-      const res = await fetch('/api/sectors/save', { method: 'POST', body: formData });
-      if (res.ok) window.location.reload();
+      try {
+        const res = await fetch('/api/sectors/save', { method: 'POST', body: formData });
+        if (res.ok) { window.location.reload(); return; }
+        let msg = `Erro ${res.status} ao salvar o modelo.`;
+        try { const data = await res.json(); if (data && data.message) msg = data.message; } catch (_) {}
+        alert(msg);
+      } catch (err) {
+        alert('Não foi possível falar com o servidor: ' + err);
+      }
     }
 
     async function deleteSectorFromBuilder() {
       const sectorId = document.getElementById('builder-sector-id').value;
       if (!confirm("Excluir este setor?")) return;
-      const res = await fetch(`/api/sectors/${sectorId}`, { method: 'DELETE' });
-      if (res.ok) window.location.reload();
+      try {
+        const res = await fetch(`/api/sectors/${sectorId}`, { method: 'DELETE' });
+        if (res.ok) { window.location.reload(); return; }
+        let msg = `Erro ${res.status} ao excluir o setor.`;
+        try { const data = await res.json(); if (data && data.message) msg = data.message; } catch (_) {}
+        alert(msg);
+      } catch (err) {
+        alert('Não foi possível falar com o servidor: ' + err);
+      }
     }
 
     async function submitCollaborator(e) {
