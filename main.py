@@ -308,6 +308,7 @@ def get_team_names(db: Session, user) -> List[str]:
 
 # Mantém referência às tarefas em segundo plano (evita que o Python as descarte a meio)
 _bg_tasks = set()
+_sectors_ready = False
 
 def spawn_bg(coro):
     task = asyncio.create_task(coro)
@@ -453,8 +454,12 @@ def home(request: Request, db: Session = Depends(get_db)):
     if not current_user:
         return RedirectResponse(url="/login")
 
-    ensure_default_sectors(db)
-    claim_default_sectors(db)
+    global _sectors_ready
+    if not _sectors_ready:
+        ensure_default_sectors(db)
+        claim_default_sectors(db)
+        if db.query(models.SectorConfig).filter(models.SectorConfig.owner_id.is_(None)).count() == 0:
+            _sectors_ready = True  # nada mais a ajustar: evita repetir estas consultas a cada carregamento
 
     role_normalized = (current_user.role or "").strip().lower()
     is_manager = role_normalized in ["gestor", "manager", "admin"]

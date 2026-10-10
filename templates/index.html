@@ -1095,7 +1095,7 @@
           </button>
           <div class="flex items-center gap-2 ml-auto">
             <button type="button" onclick="document.getElementById('modalSectorBuilder').classList.add('hidden')" class="px-4 py-2 bg-slate-100 text-slate-700 font-semibold rounded-xl">Cancelar</button>
-            <button type="submit" class="px-5 py-2 bg-[#0284c7] hover:bg-[#0369a1] text-white font-bold rounded-xl transition shadow-xs">Salvar Modelo</button>
+            <button id="btn-save-sector" type="submit" class="px-5 py-2 bg-[#0284c7] hover:bg-[#0369a1] text-white font-bold rounded-xl transition shadow-xs disabled:opacity-60">Salvar Modelo</button>
           </div>
         </div>
       </form>
@@ -1878,13 +1878,18 @@
       e.preventDefault();
       document.getElementById('builder-fields-json').value = JSON.stringify(builderCurrentFields);
       const formData = new FormData(e.target);
+      const saveBtn = document.getElementById('btn-save-sector');
+      if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Salvando...'; }
+      const resetSaveBtn = () => { if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Salvar Modelo'; } };
       try {
         const res = await fetch('/api/sectors/save', { method: 'POST', body: formData });
         if (res.ok) { window.location.reload(); return; }
+        resetSaveBtn();
         let msg = `Erro ${res.status} ao salvar o modelo.`;
         try { const data = await res.json(); if (data && data.message) msg = data.message; } catch (_) {}
         alert(msg);
       } catch (err) {
+        resetSaveBtn();
         alert('Não foi possível falar com o servidor: ' + err);
       }
     }
