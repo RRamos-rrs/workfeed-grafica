@@ -16,8 +16,13 @@
     .font-mono { font-family: 'JetBrains Mono', monospace; }
     .kanban-dropzone.dragover {
       background-color: #f8fafc;
-      border: 2px dashed #0284c7;
+      outline: 2px dashed #0284c7;
+      outline-offset: -2px;
     }
+    /* Classes do Tailwind v4 que nao existem no CDN v3 (sombras e blur) */
+    .shadow-xs { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); }
+    .shadow-2xs { box-shadow: 0 1px 0 0 rgb(0 0 0 / 0.05); }
+    .backdrop-blur-xs { backdrop-filter: blur(2px); }
   </style>
 </head>
 <body class="bg-[#eef2f6] text-slate-800 min-h-screen flex flex-col antialiased">
@@ -75,7 +80,7 @@
         {% endif %}
 
         <div class="flex items-center gap-2.5 pl-2 border-l border-slate-700/60">
-          <button onclick="openUserProfileModal('{{ current_user.full_name }}')" class="flex items-center gap-2.5 text-left group">
+          <button onclick='openUserProfileModal({{ current_user.full_name|tojson }})' class="flex items-center gap-2.5 text-left group">
             <div class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black text-xs shadow-sm">
               {{ current_user.full_name[:2]|upper }}
             </div>
@@ -183,7 +188,7 @@
             <div>
               <div class="flex items-center gap-2">
                 <h2 class="text-base font-bold text-slate-900 leading-snug">{{ current_user.full_name }}</h2>
-                <i data-lucide="info" onclick="openUserProfileModal('{{ current_user.full_name }}')" class="w-4 h-4 text-slate-400 hover:text-amber-500 transition cursor-pointer"></i>
+                <i data-lucide="info" onclick='openUserProfileModal({{ current_user.full_name|tojson }})' class="w-4 h-4 text-slate-400 hover:text-amber-500 transition cursor-pointer"></i>
               </div>
               <p class="text-xs text-slate-500 mt-0.5">
                 Usuário: <span class="font-mono font-medium text-slate-700">@{{ current_user.username }}</span> • Função: <span class="font-semibold text-amber-600">{{ current_user.role }}</span>
@@ -306,13 +311,13 @@
                 <span class="text-[10px] uppercase font-bold text-amber-900 tracking-wider flex items-center gap-1.5">
                   <i data-lucide="file-text" class="w-3.5 h-3.5 text-amber-600"></i> Especificações do Trabalho:
                 </span>
-                <p class="text-slate-700 leading-relaxed font-medium text-[11px] whitespace-pre-line">${clean_inst}</p>
+                <p class="text-slate-700 leading-relaxed font-medium text-[11px] whitespace-pre-line">{{ clean_inst }}</p>
               </div>
               {% endif %}
 
               <!-- AÇÕES: COPIAR E INICIAR -->
               <div class="task-footer-actions flex items-center justify-between pt-2 border-t border-slate-100">
-                <button type="button" onclick="copyOrderText('{{ task.op_number }}', '{{ task.tool_type }}', '{{ task.title }}', '{{ task.supplier }}', '{{ task.due_date }}', `{{ clean_inst }}`)" class="text-slate-600 hover:text-amber-700 font-bold flex items-center gap-1.5 text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl transition shadow-2xs">
+                <button type="button" data-op="{{ task.op_number or '' }}" data-tool="{{ task.tool_type }}" data-title="{{ task.title }}" data-supplier="{{ task.supplier }}" data-due="{{ task.due_date }}" data-inst="{{ clean_inst }}" class="copy-btn text-slate-600 hover:text-amber-700 font-bold flex items-center gap-1.5 text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl transition shadow-2xs">
                   <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Demanda
                 </button>
                 <button onclick="updateTaskStatusFast('{{ task.id }}', 'Em Produção')" class="text-xs font-bold bg-[#0284c7] hover:bg-[#0369a1] text-white px-4 py-2 rounded-xl transition shadow-xs flex items-center gap-1.5 active:scale-95">
@@ -485,7 +490,7 @@
               <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 bg-slate-50/80 rounded-xl border border-slate-100 text-xs">
                 <div>
                   <p class="text-slate-400 font-semibold text-[10px] uppercase">Publicado por</p>
-                  <p onclick="openUserProfileModal('{{ post.author }}')" class="font-bold text-slate-800 flex items-center gap-1 mt-0.5 cursor-pointer hover:text-amber-600">
+                  <p onclick='openUserProfileModal({{ post.author|tojson }})' class="font-bold text-slate-800 flex items-center gap-1 mt-0.5 cursor-pointer hover:text-amber-600">
                     <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> {{ post.author }}
                   </p>
                 </div>
@@ -572,7 +577,7 @@
 
             <div id="kanban-col-Atribuído" class="kanban-dropzone space-y-2.5 flex-1 p-1 rounded-xl" data-status="Atribuído" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Atribuído')">
               {% for task in tasks if task.status == 'Atribuído' %}
-              <div id="task-{{ task.id }}" class="kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 border-l-amber-500 shadow-2xs cursor-grab active:cursor-grabbing hover:shadow-sm transition space-y-2" draggable="true" ondragstart="handleDragStart(event, '{{ task.id }}')">
+              <div id="task-{{ task.id }}" data-assigned="{{ task.assigned_to }}" class="kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 border-l-amber-500 shadow-2xs cursor-grab active:cursor-grabbing hover:shadow-sm transition space-y-2" draggable="true" ondragstart="handleDragStart(event, '{{ task.id }}')">
                 <div class="flex items-center justify-between gap-2">
                   <div class="flex items-center gap-1.5 flex-wrap">
                     <span class="text-[9px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
@@ -594,7 +599,7 @@
                 </p>
 
                 <div class="flex items-center justify-between pt-1.5 border-t border-slate-100 text-[10px]">
-                  <span onclick="openUserProfileModal('{{ task.assigned_to }}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
+                  <span onclick='openUserProfileModal({{ task.assigned_to|tojson }})' class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
                     <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
                   </span>
 
@@ -625,7 +630,7 @@
 
             <div id="kanban-col-Em Produção" class="kanban-dropzone space-y-2.5 flex-1 p-1 rounded-xl" data-status="Em Produção" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Em Produção')">
               {% for task in tasks if task.status == 'Em Produção' %}
-              <div id="task-{{ task.id }}" class="kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 border-l-blue-500 shadow-2xs cursor-grab active:cursor-grabbing hover:shadow-sm transition space-y-2" draggable="true" ondragstart="handleDragStart(event, '{{ task.id }}')">
+              <div id="task-{{ task.id }}" data-assigned="{{ task.assigned_to }}" class="kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 border-l-blue-500 shadow-2xs cursor-grab active:cursor-grabbing hover:shadow-sm transition space-y-2" draggable="true" ondragstart="handleDragStart(event, '{{ task.id }}')">
                 <div class="flex items-center justify-between gap-2">
                   <div class="flex items-center gap-1.5 flex-wrap">
                     <span class="text-[9px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
@@ -647,7 +652,7 @@
                 </p>
 
                 <div class="flex items-center justify-between pt-1.5 border-t border-slate-100 text-[10px]">
-                  <span onclick="openUserProfileModal('{{ task.assigned_to }}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
+                  <span onclick='openUserProfileModal({{ task.assigned_to|tojson }})' class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
                     <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
                   </span>
 
@@ -678,7 +683,7 @@
 
             <div id="kanban-col-Aprovado" class="kanban-dropzone space-y-2.5 flex-1 p-1 rounded-xl" data-status="Aprovado" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Aprovado')">
               {% for task in tasks if task.status == 'Aprovado' %}
-              <div id="task-{{ task.id }}" class="kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 border-l-emerald-500 shadow-2xs hover:shadow-sm transition space-y-2">
+              <div id="task-{{ task.id }}" data-assigned="{{ task.assigned_to }}" class="kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 border-l-emerald-500 shadow-2xs hover:shadow-sm transition space-y-2">
                 <div class="flex items-start justify-between gap-2">
                   <div class="flex items-center gap-1.5 flex-wrap">
                     <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
@@ -700,7 +705,7 @@
                 </p>
 
                 <div class="flex items-center justify-between pt-1.5 border-t border-slate-100 text-[10px]">
-                  <span onclick="openUserProfileModal('{{ task.assigned_to }}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
+                  <span onclick='openUserProfileModal({{ task.assigned_to|tojson }})' class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
                     <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>{{ task.assigned_to }}</b>
                   </span>
                   <span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">✔ Entregue</span>
@@ -729,7 +734,7 @@
           {% for member in collaborators %}
           <div id="user-card-{{ member.username }}" class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-amber-300 transition">
             <div class="flex items-start justify-between">
-              <div onclick="openUserProfileModal('{{ member.name }}')" class="flex items-center gap-3 cursor-pointer flex-1">
+              <div onclick='openUserProfileModal({{ member.name|tojson }})' class="flex items-center gap-3 cursor-pointer flex-1">
                 <div class="w-12 h-12 rounded-xl bg-amber-500 text-white font-black text-sm flex items-center justify-center shadow-sm">
                   {{ member.name[:2]|upper }}
                 </div>
@@ -1204,14 +1209,22 @@
   <!-- ================= JAVASCRIPT ================= -->
   <script>
     lucide.createIcons();
-    const CURRENT_USER_NAME = "{{ current_user.full_name }}".trim().toLowerCase();
+    const CURRENT_USER_FULL = {{ current_user.full_name|tojson }};
+    const CURRENT_USER_NAME = CURRENT_USER_FULL.trim().toLowerCase();
+
+    // Escapa texto antes de usar dentro de innerHTML (evita XSS e quebra de HTML)
+    function esc(value) {
+      return String(value ?? '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
 
     const SECTORS_DATA = [
       {% for sec in sectors %}
       {
         id: {{ sec.id }},
-        name: `{{ sec.name }}`,
-        icon: `{{ sec.icon }}`,
+        name: {{ sec.name|tojson }},
+        icon: {{ sec.icon|tojson }},
         fields: (() => {
           try {
             const raw = {{ sec.fields_schema | tojson }};
@@ -1227,10 +1240,10 @@
     const ALL_USERS = [
       {% for u in users %}
       { 
-        full_name: `{{ u.full_name }}`, 
-        username: `{{ u.username }}`,
-        role: `{{ u.role }}`,
-        department: `{{ u.department or 'Operacional' }}`
+        full_name: {{ u.full_name|tojson }}, 
+        username: {{ u.username|tojson }},
+        role: {{ u.role|tojson }},
+        department: {{ (u.department or 'Operacional')|tojson }}
       }{% if not loop.last %},{% endif %}
       {% endfor %}
     ];
@@ -1241,7 +1254,7 @@
     function isAssignedToMe(assignedTo) {
       if (!assignedTo) return false;
       const target = assignedTo.trim().toLowerCase();
-      return target === CURRENT_USER_NAME || target.includes(CURRENT_USER_NAME) || CURRENT_USER_NAME.includes(target);
+      return target === CURRENT_USER_NAME;
     }
 
     function openUserProfileModal(userName) {
@@ -1398,16 +1411,16 @@
       if (fSupplier && fSupplier.type === 'text') {
         supplierCont.innerHTML = `
           <i data-lucide="user" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
-          <input required type="text" name="supplier" id="task-input-supplier" placeholder="${fSupplier.placeholder || 'Nome / Setor Solicitante'}" value="{{ current_user.full_name }}" class="w-full text-xs pl-10 pr-3.5 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] bg-white transition">
+          <input required type="text" name="supplier" id="task-input-supplier" placeholder="${esc(fSupplier.placeholder || 'Nome / Setor Solicitante')}" value="${esc(CURRENT_USER_FULL)}" class="w-full text-xs pl-10 pr-3.5 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] bg-white transition">
         `;
       } else {
         let optsHtml = '';
         if (fSupplier && fSupplier.options) {
           let customOpts = Array.isArray(fSupplier.options) ? fSupplier.options : fSupplier.options.split(',').map(o => o.trim()).filter(Boolean);
-          optsHtml = customOpts.map(o => `<option value="${o}">${o}</option>`).join('');
+          optsHtml = customOpts.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('');
         } else {
-          const secOpts = SECTORS_DATA.map(s => `<option value="${s.name}">${s.icon} ${s.name}</option>`).join('');
-          const userOpts = ALL_USERS.map(u => `<option value="${u.full_name}" ${u.full_name.toLowerCase() === CURRENT_USER_NAME ? 'selected' : ''}>${u.full_name}</option>`).join('');
+          const secOpts = SECTORS_DATA.map(s => `<option value="${esc(s.name)}">${esc(s.icon)} ${esc(s.name)}</option>`).join('');
+          const userOpts = ALL_USERS.map(u => `<option value="${esc(u.full_name)}" ${u.full_name.toLowerCase() === CURRENT_USER_NAME ? 'selected' : ''}>${esc(u.full_name)}</option>`).join('');
           optsHtml = `
             <optgroup label="Setores Ativos">${secOpts}</optgroup>
             <optgroup label="Colaboradores">${userOpts}</optgroup>
@@ -1425,19 +1438,19 @@
 
       const fTitle = sector.fields.find(f => f.id === 'title');
       if (fTitle) {
-        document.getElementById('lbl-task-title').innerHTML = `${fTitle.label} <span class="text-rose-500">*</span>`;
+        document.getElementById('lbl-task-title').innerHTML = `${esc(fTitle.label)} <span class="text-rose-500">*</span>`;
         if (fTitle.placeholder) document.getElementById('task-input-title').placeholder = fTitle.placeholder;
       }
       if (fSupplier) {
-        document.getElementById('lbl-task-supplier').innerHTML = `${fSupplier.label} <span class="text-rose-500">*</span>`;
+        document.getElementById('lbl-task-supplier').innerHTML = `${esc(fSupplier.label)} <span class="text-rose-500">*</span>`;
       }
       const fDue = sector.fields.find(f => f.id === 'due_date');
       if (fDue) {
-        document.getElementById('lbl-task-due').innerHTML = `${fDue.label} <span class="text-rose-500">*</span>`;
+        document.getElementById('lbl-task-due').innerHTML = `${esc(fDue.label)} <span class="text-rose-500">*</span>`;
       }
       const fInstructions = sector.fields.find(f => f.id === 'instructions');
       if (fInstructions) {
-        document.getElementById('lbl-task-instructions').innerHTML = `${fInstructions.label} <span class="text-rose-500">*</span>`;
+        document.getElementById('lbl-task-instructions').innerHTML = `${esc(fInstructions.label)} <span class="text-rose-500">*</span>`;
         if (fInstructions.placeholder) document.getElementById('task-input-instructions').placeholder = fInstructions.placeholder;
       }
 
@@ -1460,17 +1473,17 @@
           if (f.type === 'select') {
             let rawOpts = f.options || '';
             let opts = Array.isArray(rawOpts) ? rawOpts : (typeof rawOpts === 'string' ? rawOpts.split(',').map(o => o.trim()).filter(Boolean) : ['Padrão']);
-            const optHtml = opts.map(o => `<option value="${o}">${o}</option>`).join('');
+            const optHtml = opts.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('');
             wrap.innerHTML = `
-              <label class="block text-xs font-bold text-slate-800 mb-1.5">${f.label} ${reqMark}</label>
-              <select ${reqAttr} name="${f.id}" class="w-full text-xs p-3.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] bg-white font-medium">
+              <label class="block text-xs font-bold text-slate-800 mb-1.5">${esc(f.label)} ${reqMark}</label>
+              <select ${reqAttr} name="${esc(f.id)}" class="w-full text-xs p-3.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] bg-white font-medium">
                 ${optHtml}
               </select>
             `;
           } else {
             wrap.innerHTML = `
-              <label class="block text-xs font-bold text-slate-800 mb-1.5">${f.label} ${reqMark}</label>
-              <input ${reqAttr} type="${f.type || 'text'}" name="${f.id}" placeholder="${f.placeholder || ''}" class="w-full text-xs p-3.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] bg-white">
+              <label class="block text-xs font-bold text-slate-800 mb-1.5">${esc(f.label)} ${reqMark}</label>
+              <input ${reqAttr} type="${esc(f.type || 'text')}" name="${esc(f.id)}" placeholder="${esc(f.placeholder || '')}" class="w-full text-xs p-3.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] bg-white">
             `;
           }
           container.appendChild(wrap);
@@ -1562,7 +1575,7 @@
         const isSelect = f.type === 'select';
         item.innerHTML = `
           <div class="flex items-center justify-between gap-2">
-            <span class="font-bold text-[11px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">Campo #${idx + 1} (${f.id})</span>
+            <span class="font-bold text-[11px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">Campo #${idx + 1} (${esc(f.id)})</span>
             <button type="button" onclick="removeFieldFromBuilder(${idx})" class="text-rose-500 hover:text-rose-700 p-1">
               <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
             </button>
@@ -1570,7 +1583,7 @@
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div>
               <label class="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">Nome / Rótulo</label>
-              <input type="text" oninput="builderCurrentFields[${idx}].label = this.value" value="${f.label}" class="w-full px-2.5 py-1.5 border rounded-lg text-xs font-semibold focus:ring-1 focus:ring-blue-500">
+              <input type="text" oninput="builderCurrentFields[${idx}].label = this.value" value="${esc(f.label)}" class="w-full px-2.5 py-1.5 border rounded-lg text-xs font-semibold focus:ring-1 focus:ring-blue-500">
             </div>
             <div>
               <label class="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">Tipo</label>
@@ -1583,7 +1596,7 @@
             </div>
             <div>
               <label class="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">${isSelect ? 'Opções (separadas por vírgula)' : 'Placeholder'}</label>
-              <input type="text" oninput="handleBuilderOptionsInput(${idx}, this.value, ${isSelect})" value="${isSelect ? (f.options || '') : (f.placeholder || '')}" class="w-full px-2.5 py-1.5 border rounded-lg text-xs font-semibold focus:ring-1 focus:ring-blue-500">
+              <input type="text" oninput="handleBuilderOptionsInput(${idx}, this.value, ${isSelect})" value="${esc(isSelect ? (f.options || '') : (f.placeholder || ''))}" class="w-full px-2.5 py-1.5 border rounded-lg text-xs font-semibold focus:ring-1 focus:ring-blue-500">
             </div>
           </div>
         `;
@@ -1705,6 +1718,7 @@
       card.id = `task-${task.id}`;
       card.className = "kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 border-l-amber-500 shadow-2xs cursor-grab active:cursor-grabbing hover:shadow-sm transition space-y-2";
       card.draggable = true;
+      card.dataset.assigned = task.assigned_to || '';
       card.ondragstart = (e) => handleDragStart(e, task.id);
 
       const isMyTask = isAssignedToMe(task.assigned_to);
@@ -1713,22 +1727,22 @@
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-1.5 flex-wrap">
             <span class="text-[9px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
-              ${task.tool_type || 'Geral'}
+              ${esc(task.tool_type || 'Geral')}
             </span>
-            ${task.op_number ? `<span class="text-[9px] font-mono text-slate-400 bg-slate-50 px-1 rounded">Ref: ${task.op_number}</span>` : ''}
+            ${task.op_number ? `<span class="text-[9px] font-mono text-slate-400 bg-slate-50 px-1 rounded">Ref: ${esc(task.op_number)}</span>` : ''}
           </div>
           <span class="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Pendente</span>
         </div>
         
-        <h4 class="text-xs font-bold text-slate-900 leading-snug">${task.title}</h4>
+        <h4 class="text-xs font-bold text-slate-900 leading-snug">${esc(task.title)}</h4>
         
         <p class="text-[10px] text-slate-500 truncate">
-          Destino: <b>${task.supplier || 'Interno'}</b>
+          Destino: <b>${esc(task.supplier || 'Interno')}</b>
         </p>
 
         <div class="flex items-center justify-between pt-1.5 border-t border-slate-100 text-[10px]">
-          <span onclick="openUserProfileModal('${task.assigned_to}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
-            <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>${task.assigned_to}</b>
+          <span onclick="openUserProfileModal(this.dataset.user)" data-user="${esc(task.assigned_to)}" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
+            <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>${esc(task.assigned_to)}</b>
           </span>
           ${isMyTask ? `
           <button type="button" onclick="updateTaskStatusFast('${task.id}', 'Em Produção')" class="text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded text-[10px] font-bold border border-blue-200 transition">
@@ -1785,9 +1799,9 @@
         <div class="flex items-center justify-between gap-2 flex-wrap">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="text-[10px] font-black uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
-              ${task.tool_type || 'Geral'}
+              ${esc(task.tool_type || 'Geral')}
             </span>
-            ${task.op_number ? `<span class="text-[11px] font-mono font-bold text-slate-700 bg-slate-100 border border-slate-200/80 px-2.5 py-0.5 rounded-lg">OP: ${task.op_number}</span>` : ''}
+            ${task.op_number ? `<span class="text-[11px] font-mono font-bold text-slate-700 bg-slate-100 border border-slate-200/80 px-2.5 py-0.5 rounded-lg">OP: ${esc(task.op_number)}</span>` : ''}
             ${prioBadgeHtml}
           </div>
           <span class="text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50/70 border border-amber-200/60 px-2 py-0.5 rounded-md flex items-center gap-1">
@@ -1797,7 +1811,7 @@
 
         <div>
           <h4 class="text-sm sm:text-base font-extrabold text-slate-900 leading-snug tracking-tight">
-            ${task.title}
+            ${esc(task.title)}
           </h4>
         </div>
 
@@ -1808,7 +1822,7 @@
             </div>
             <div class="truncate">
               <p class="text-[9px] uppercase font-bold text-slate-400 leading-tight">Solicitante</p>
-              <p class="font-bold text-slate-800 truncate text-[11px]">${task.supplier || 'Interno'}</p>
+              <p class="font-bold text-slate-800 truncate text-[11px]">${esc(task.supplier || 'Interno')}</p>
             </div>
           </div>
 
@@ -1818,7 +1832,7 @@
             </div>
             <div class="truncate">
               <p class="text-[9px] uppercase font-bold text-slate-400 leading-tight">Prazo Limite</p>
-              <p class="font-mono font-bold text-rose-600 text-[11px]">${task.due_date || 'A definir'}</p>
+              <p class="font-mono font-bold text-rose-600 text-[11px]">${esc(task.due_date || 'A definir')}</p>
             </div>
           </div>
         </div>
@@ -1828,11 +1842,11 @@
           <span class="text-[10px] uppercase font-bold text-amber-900 tracking-wider flex items-center gap-1.5">
             <i data-lucide="file-text" class="w-3 h-3 text-amber-600"></i> Especificações do Trabalho:
           </span>
-          <p class="text-slate-700 leading-relaxed font-medium text-[11px] whitespace-pre-line">${cleanInstructions}</p>
+          <p class="text-slate-700 leading-relaxed font-medium text-[11px] whitespace-pre-line">${esc(cleanInstructions)}</p>
         </div>` : ''}
 
         <div class="task-footer-actions flex items-center justify-between pt-2 border-t border-slate-100">
-          <button type="button" onclick="copyOrderText('${task.op_number || ''}', '${task.tool_type || ''}', '${task.title || ''}', '${task.supplier || ''}', '${task.due_date || ''}', \`${cleanInstructions}\`)" class="text-slate-600 hover:text-amber-700 font-bold flex items-center gap-1.5 text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl transition shadow-2xs">
+          <button type="button" data-op="${esc(task.op_number || '')}" data-tool="${esc(task.tool_type || '')}" data-title="${esc(task.title || '')}" data-supplier="${esc(task.supplier || '')}" data-due="${esc(task.due_date || '')}" data-inst="${esc(cleanInstructions)}" class="copy-btn text-slate-600 hover:text-amber-700 font-bold flex items-center gap-1.5 text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl transition shadow-2xs">
             <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Demanda
           </button>
           <button onclick="updateTaskStatusFast('${task.id}', 'Em Produção')" class="text-xs font-bold bg-[#0284c7] hover:bg-[#0369a1] text-white px-4 py-2 rounded-xl transition shadow-xs flex items-center gap-1.5 active:scale-95">
@@ -1863,13 +1877,13 @@
           <div class="min-w-0">
             <div class="flex items-center gap-1.5 flex-wrap">
               <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
-                ${post.tool_type || 'Geral'}
+                ${esc(post.tool_type || 'Geral')}
               </span>
-              ${post.op_number ? `<span class="text-[9px] font-mono text-slate-400 bg-slate-50 px-1 rounded">Ref: ${post.op_number}</span>` : ''}
+              ${post.op_number ? `<span class="text-[9px] font-mono text-slate-400 bg-slate-50 px-1 rounded">Ref: ${esc(post.op_number)}</span>` : ''}
             </div>
-            <h4 class="text-xs font-bold text-slate-900 leading-snug truncate mt-0.5">${post.title}</h4>
+            <h4 class="text-xs font-bold text-slate-900 leading-snug truncate mt-0.5">${esc(post.title)}</h4>
             <p class="text-[10px] text-slate-400 truncate">
-              Setor: <b class="text-slate-600">${post.supplier || 'Interno'}</b> • <span class="font-mono text-emerald-700 font-medium">Agora</span>
+              Setor: <b class="text-slate-600">${esc(post.supplier || 'Interno')}</b> • <span class="font-mono text-emerald-700 font-medium">Agora</span>
             </p>
           </div>
         </div>
@@ -1907,8 +1921,8 @@
       if (post.comments && Array.isArray(post.comments)) {
         commentsHtml = post.comments.map(c => `
           <div class="bg-white p-3 rounded-xl border border-slate-200/80 text-xs shadow-2xs">
-            <span class="font-bold text-slate-900">${c.author}:</span> 
-            <span class="text-slate-700 ml-1">${c.text}</span>
+            <span class="font-bold text-slate-900">${esc(c.author)}:</span> 
+            <span class="text-slate-700 ml-1">${esc(c.text)}</span>
           </div>
         `).join('');
       }
@@ -1921,11 +1935,11 @@
           <div class="space-y-1.5">
             <div class="flex flex-wrap items-center gap-2">
               <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
-                ${post.tool_type || 'Geral'}
+                ${esc(post.tool_type || 'Geral')}
               </span>
-              ${post.op_number ? `<span class="text-[11px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">Ref: ${post.op_number}</span>` : ''}
+              ${post.op_number ? `<span class="text-[11px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">Ref: ${esc(post.op_number)}</span>` : ''}
             </div>
-            <h3 class="text-sm sm:text-base font-bold text-slate-900 leading-snug">${post.title}</h3>
+            <h3 class="text-sm sm:text-base font-bold text-slate-900 leading-snug">${esc(post.title)}</h3>
           </div>
           <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
             <i data-lucide="check-check" class="w-3.5 h-3.5 text-emerald-600"></i> Concluído
@@ -1934,27 +1948,27 @@
 
         ${post.image_url ? `
         <div class="bg-slate-950 flex items-center justify-center border-b border-slate-200 overflow-hidden">
-          <img src="${post.image_url}" alt="Mídia do Post" class="w-full object-cover max-h-[480px]">
+          <img src="${esc(post.image_url)}" alt="Mídia do Post" class="w-full object-cover max-h-[480px]">
         </div>` : ''}
 
         <div class="p-5 space-y-4">
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 bg-slate-50/80 rounded-xl border border-slate-100 text-xs">
             <div>
               <p class="text-slate-400 font-semibold text-[10px] uppercase">Publicado por</p>
-              <p onclick="openUserProfileModal('${post.author}')" class="font-bold text-slate-800 flex items-center gap-1 mt-0.5 cursor-pointer hover:text-amber-600">
-                <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> ${post.author}
+              <p onclick="openUserProfileModal(this.dataset.user)" data-user="${esc(post.author)}" class="font-bold text-slate-800 flex items-center gap-1 mt-0.5 cursor-pointer hover:text-amber-600">
+                <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i> ${esc(post.author)}
               </p>
             </div>
             <div>
               <p class="text-slate-400 font-semibold text-[10px] uppercase">Setor</p>
               <p class="font-bold text-amber-700 flex items-center gap-1 mt-0.5">
-                <i data-lucide="building-2" class="w-3.5 h-3.5 text-amber-500"></i> ${post.supplier || 'Operacional'}
+                <i data-lucide="building-2" class="w-3.5 h-3.5 text-amber-500"></i> ${esc(post.supplier || 'Operacional')}
               </p>
             </div>
             <div>
               <p class="text-slate-400 font-semibold text-[10px] uppercase">Data de Registro</p>
               <p class="font-semibold text-slate-700 font-mono mt-0.5">
-                ${post.created_at || 'Agora'}
+                ${esc(post.created_at || 'Agora')}
               </p>
             </div>
           </div>
@@ -1964,7 +1978,7 @@
             <span class="font-bold text-amber-900 flex items-center gap-1 text-[11px]">
               <i data-lucide="file-text" class="w-3.5 h-3.5 text-amber-600"></i> Descrição:
             </span>
-            <p class="text-slate-700 leading-relaxed font-medium whitespace-pre-line">${post.instructions}</p>
+            <p class="text-slate-700 leading-relaxed font-medium whitespace-pre-line">${esc(post.instructions)}</p>
           </div>` : ''}
         </div>
 
@@ -1998,15 +2012,21 @@
     }
 
     async function updateTaskStatusFast(taskId, newStatus) {
-      moveTaskVisual(taskId, newStatus, "{{ current_user.full_name }}");
+      // Mantem o responsavel original do cartao (nao troca por quem clicou/arrastou)
+      const cardEl = document.getElementById(`task-${taskId}`);
+      const assigned = (cardEl && cardEl.dataset.assigned) || CURRENT_USER_FULL;
+      moveTaskVisual(taskId, newStatus, assigned);
       try {
-        await fetch(`/api/tasks/${taskId}/status`, {
+        const res = await fetch(`/api/tasks/${taskId}/status`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: newStatus })
         });
+        // Se o servidor recusar, recarrega para a tela voltar a refletir o banco
+        if (!res.ok) window.location.reload();
       } catch (err) {
         console.error(err);
+        window.location.reload();
       }
     }
 
@@ -2020,12 +2040,40 @@
           kanbanCard = document.createElement('div');
           kanbanCard.id = `task-${taskId}`;
           kanbanCard.className = "kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 shadow-2xs hover:shadow-sm transition space-y-2";
+          kanbanCard.dataset.assigned = assignedTo || '';
           targetKanbanCol.prepend(kanbanCard);
         } else {
           targetKanbanCol.prepend(kanbanCard);
         }
 
-        if (newStatus === "Em Produção") {
+        if (newStatus === "Atribuído") {
+          kanbanCard.className = "kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 border-l-amber-500 shadow-2xs cursor-grab active:cursor-grabbing hover:shadow-sm transition space-y-2";
+          kanbanCard.draggable = true;
+
+          const headerDiv = kanbanCard.querySelector('.flex.items-center.justify-between') || kanbanCard.querySelector('.flex.items-start.justify-between');
+          if (headerDiv) {
+            headerDiv.className = "flex items-center justify-between gap-2";
+            const badgeStatus = headerDiv.querySelector('span:last-child');
+            if (badgeStatus) {
+              badgeStatus.className = "text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded";
+              badgeStatus.textContent = "Pendente";
+            }
+          }
+
+          const footer = kanbanCard.querySelector('.border-t');
+          if (footer) {
+            footer.innerHTML = `
+              <span onclick="openUserProfileModal(this.dataset.user)" data-user="${esc(assignedTo)}" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
+                <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>${esc(assignedTo)}</b>
+              </span>
+              ${isMyTask ? `
+              <button type="button" onclick="updateTaskStatusFast('${taskId}', 'Em Produção')" class="text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded text-[10px] font-bold border border-blue-200 transition">
+                Iniciar
+              </button>
+              ` : `<span class="text-[9px] text-slate-400 italic">Aguardando resp.</span>`}
+            `;
+          }
+        } else if (newStatus === "Em Produção") {
           kanbanCard.className = "kanban-card bg-white p-3.5 rounded-xl border border-slate-200/80 border-l-4 border-l-blue-500 shadow-2xs cursor-grab active:cursor-grabbing hover:shadow-sm transition space-y-2";
           
           const headerDiv = kanbanCard.querySelector('.flex.items-center.justify-between') || kanbanCard.querySelector('.flex.items-start.justify-between');
@@ -2041,7 +2089,7 @@
           const footer = kanbanCard.querySelector('.border-t');
           if (footer) {
             footer.innerHTML = `
-              <span onclick="openUserProfileModal('${assignedTo}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
+              <span onclick="openUserProfileModal(this.dataset.user)" data-user="${esc(assignedTo)}" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
                 <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>${assignedTo}</b>
               </span>
               ${isMyTask ? `
@@ -2085,7 +2133,7 @@
           const footer = kanbanCard.querySelector('.border-t');
           if (footer) {
             footer.innerHTML = `
-              <span onclick="openUserProfileModal('${assignedTo}')" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
+              <span onclick="openUserProfileModal(this.dataset.user)" data-user="${esc(assignedTo)}" class="text-slate-600 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition truncate max-w-[140px]">
                 <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <b>${assignedTo}</b>
               </span>
               <span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">✔ Entregue</span>
@@ -2170,11 +2218,12 @@
       const input = form.querySelector('input[name="text"]');
       const text = input.value.trim();
       if (!text) return;
-      input.value = '';
 
       try {
+        // monta o FormData ANTES de limpar o campo, senao o texto vai vazio
         const formData = new FormData(form);
-        formData.append('text', text);
+        formData.set('text', text);
+        input.value = '';
         await fetch(`/posts/${postId}/comment`, { method: 'POST', body: formData });
       } catch (err) {
         console.error("Erro ao comentar:", err);
@@ -2186,7 +2235,7 @@
       if (!list) return;
       const div = document.createElement('div');
       div.className = "bg-white p-3 rounded-xl border border-slate-200/80 text-xs shadow-2xs";
-      div.innerHTML = `<span class="font-bold text-slate-900">${author}:</span> <span class="text-slate-700 ml-1">${text}</span>`;
+      div.innerHTML = `<span class="font-bold text-slate-900">${esc(author)}:</span> <span class="text-slate-700 ml-1">${esc(text)}</span>`;
       list.appendChild(div);
     }
 
@@ -2209,7 +2258,7 @@
         const sec = document.getElementById(`content-${t}`);
         const btn = document.getElementById(`tab-btn-${t}`);
         if (sec) sec.classList.add('hidden');
-        if (btn) btn.className = "w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-100 hover:text-slate-900";
+        if (btn) btn.className = "w-full flex items-center justify-between gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-slate-600 hover:bg-slate-100 hover:text-slate-900";
       });
 
       const activeSec = document.getElementById(`content-${tab}`);
@@ -2219,10 +2268,33 @@
       lucide.createIcons();
     }
 
+    async function copyText(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (e) {
+        // Fallback para HTTP (fora de localhost/HTTPS o navigator.clipboard nao existe)
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      }
+    }
+
     function copyOrderText(op, tool, title, supplier, due, instructions) {
       const text = `*DEMANDA DE TRABALHO*\n• Ref/OP: ${op || 'S/N'}\n• Descrição: ${title}\n• Solicitante: ${supplier}\n• Prazo: ${due}\n• Detalhes: ${instructions || 'Nenhum'}`;
-      navigator.clipboard.writeText(text).then(() => alert('📋 Demanda copiada com sucesso!'));
+      copyText(text).then(() => alert('📋 Demanda copiada com sucesso!'));
     }
+
+    document.addEventListener('click', (e) => {
+      const b = e.target.closest('.copy-btn');
+      if (!b) return;
+      const d = b.dataset;
+      copyOrderText(d.op, d.tool, d.title, d.supplier, d.due, d.inst);
+    });
 
     let draggedTaskId = null;
     function handleDragStart(e, taskId) {
@@ -2286,7 +2358,9 @@
           else if (data.type === "REFRESH") {
             window.location.reload();
           }
-        } catch (err) {}
+        } catch (err) {
+          console.error('Erro ao processar mensagem do WebSocket:', err);
+        }
       };
       socket.onclose = () => setTimeout(conectarWebSocket, 2000);
     }
