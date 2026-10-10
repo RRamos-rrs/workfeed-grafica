@@ -365,7 +365,7 @@
 
         <div id="feed-posts-container" class="space-y-6">
           {% for post in posts %}
-          <article id="feed-post-{{ post.id }}" data-id="{{ post.id }}" data-title="{{ post.title }}" data-tool="{{ post.tool_type }}" data-op="{{ post.op_number or '' }}" data-inst="{{ clean_inst(post) }}" class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <article id="feed-post-{{ post.id }}" data-id="{{ post.id }}" data-title="{{ post.title }}" data-tool="{{ post.tool_type }}" data-op="{{ post.op_number or '' }}" data-inst="{{ clean_inst(post) }}" data-visibility="{{ post.visibility or 'team' }}" class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
             <!-- CABEÇALHO DO POST -->
             <div class="p-5 border-b border-slate-100 flex items-start justify-between gap-4">
               <div class="space-y-1.5">
@@ -860,6 +860,14 @@
                 class="w-full text-xs p-3.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] bg-white transition resize-none"></textarea>
             </div>
 
+<div>
+              <label class="block text-xs font-bold text-slate-800 mb-1.5">Post ao concluir aparece para</label>
+              <select name="visibility" class="w-full text-xs px-3.5 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] bg-white font-medium">
+                <option value="team">👥 Só a minha equipe</option>
+                <option value="all">🌐 Minha equipe e outras equipes</option>
+              </select>
+            </div>
+
             <!-- 5. ANEXO -->
             <div>
               <label class="block text-xs font-bold text-slate-800 mb-1.5">Anexo (opcional)</label>
@@ -1009,6 +1017,14 @@
             oninput="document.getElementById('post-char-counter').textContent = `${this.value.length}/300`"
             placeholder="Escreva sobre o trabalho realizado, observações técnicas ou destaques..." 
             class="w-full p-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white resize-none text-slate-700 font-medium leading-relaxed"></textarea>
+        </div>
+
+<div>
+          <label class="block font-bold text-slate-700 mb-1.5">Quem pode ver este post</label>
+          <select name="visibility" class="w-full pl-3 pr-8 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white font-semibold text-slate-700 text-xs">
+            <option value="team">👥 Só a minha equipe</option>
+            <option value="all">🌐 Minha equipe e outras equipes</option>
+          </select>
         </div>
 
         <!-- Rodapé / Botões de Ação -->
@@ -1349,6 +1365,7 @@
       form.elements['title'].value = art.dataset.title || '';
       form.elements['op_number'].value = art.dataset.op || '';
       form.elements['instructions'].value = art.dataset.inst || '';
+      form.elements['visibility'].value = art.dataset.visibility || 'team';
       const sel = form.elements['tool_type'];
       const tool = art.dataset.tool || 'GERAL';
       if (![...sel.options].some(o => o.value === tool)) {
@@ -2711,6 +2728,7 @@
       article.dataset.tool = post.tool_type || '';
       article.dataset.op = post.op_number || '';
       article.dataset.inst = post.instructions || '';
+      article.dataset.visibility = post.visibility || 'team';
       article.className = "bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden";
       article.innerHTML = `
         <div class="p-5 border-b border-slate-100 flex items-start justify-between gap-4">
@@ -2809,6 +2827,9 @@
 
     function insertPostToFeedDOM(post) {
       if (!post || document.getElementById(`feed-post-${post.id}`)) return;
+      // posts de outras equipes só entram se o autor liberou para todas
+      const mine = ALL_USERS.some(u => (u.full_name || '').toLowerCase() === (post.author || '').toLowerCase());
+      if (!mine && post.visibility !== 'all') return;
 
       const container = document.getElementById('feed-posts-container');
       const noFeedMsg = document.getElementById('no-feed-msg');
@@ -3498,7 +3519,10 @@
             if ((data.to || '') === CURRENT_USER_NAME) receiveNotification(data.notification);
           }
           else if (data.type === "POST_UPDATED") {
-            updatePostInDOM(data.post);
+            const mineP = data.post && ALL_USERS.some(u => (u.full_name || '').toLowerCase() === (data.post.author || '').toLowerCase());
+            if (data.post && !mineP && data.post.visibility !== 'all') removePostFromDOM(data.post.id);
+            else if (data.post && !document.getElementById(`feed-post-${data.post.id}`)) insertPostToFeedDOM(data.post);
+            else updatePostInDOM(data.post);
           }
           else if (data.type === "POST_DELETED") {
             removePostFromDOM(data.post_id);

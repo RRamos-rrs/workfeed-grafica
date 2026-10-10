@@ -53,6 +53,7 @@ class Task(Base):
     status = Column(String(50), default="Atribuído")
     image_url = Column(String(500), nullable=True)
     priority = Column(String(20), nullable=True)  # Normal | Alta | Urgente
+    visibility = Column(String(10), nullable=True, default="team")  # team | all (post ao concluir)
     started_at = Column(DateTime, nullable=True)    # quando foi iniciada
     completed_at = Column(DateTime, nullable=True)  # quando foi concluída
     post_id = Column(Integer, nullable=True)        # post criado no feed ao concluir
@@ -74,6 +75,7 @@ class Post(Base):
     image_url = Column(String(500), nullable=True)
     priority = Column(String(20), nullable=True)
     image_urls = Column(Text, nullable=True)  # lista JSON com todas as fotos do post (carrossel)
+    visibility = Column(String(10), nullable=True, default="team")  # team | all
     likes = Column(Integer, default=0, server_default="0")
     created_at = Column(DateTime, default=datetime.utcnow)
 

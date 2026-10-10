@@ -40,6 +40,8 @@ for _ddl in ("ALTER TABLE sector_configs ADD COLUMN owner_id INTEGER;",
              "ALTER TABLE tasks ADD COLUMN started_at TIMESTAMP;",
              "ALTER TABLE tasks ADD COLUMN completed_at TIMESTAMP;",
              "ALTER TABLE tasks ADD COLUMN post_id INTEGER;",
+             "ALTER TABLE tasks ADD COLUMN visibility VARCHAR(10) DEFAULT 'team';",
+             "ALTER TABLE posts ADD COLUMN visibility VARCHAR(10) DEFAULT 'team';",
              # o nome do setor deixa de ser único no sistema todo: cada equipe pode ter o seu "Comercial", etc.
              "ALTER TABLE sector_configs DROP CONSTRAINT IF EXISTS sector_configs_name_key;"):
     try:
@@ -215,6 +217,9 @@ def post_images(post) -> List[str]:
         urls = [post.image_url]
     return urls
 
+def norm_visibility(value) -> str:
+    return "all" if (value or "").strip().lower() == "all" else "team"
+
 def serialize_post(post, created_default="") -> dict:
     return {
         "id": post.id,
@@ -232,6 +237,7 @@ def serialize_post(post, created_default="") -> dict:
         "images": post_images(post),
         "created_at": fmt_dt(getattr(post, "created_at", None), default=created_default),
         "likes": post.likes or 0,
+        "visibility": norm_visibility(getattr(post, "visibility", None)),
         "comments": [{"author": c.author, "text": c.text} for c in (post.comments or [])],
     }
 
@@ -453,7 +459,8 @@ def home(request: Request, db: Session = Depends(get_db)):
     posts = db.query(models.Post).options(joinedload(models.Post.comments)).filter(
         or_(
             models.Post.author.in_(team_user_names),
-            models.Post.delegated_by.in_(team_user_names)
+            models.Post.delegated_by.in_(team_user_names),
+            models.Post.visibility == "all"
         )
     ).order_by(models.Post.created_at.desc()).all()
 
@@ -665,7 +672,7 @@ def get_state(request: Request, db: Session = Depends(get_db)):
         models.Task.status != "Aprovado"
     ).order_by(models.Task.id).all()]
     recent_posts = [serialize_post(p) for p in db.query(models.Post).options(joinedload(models.Post.comments)).filter(
-        or_(models.Post.author.in_(names), models.Post.delegated_by.in_(names))
+        or_(models.Post.author.in_(names), models.Post.delegated_by.in_(names), models.Post.visibility == "all")
     ).order_by(models.Post.created_at.desc()).limit(20).all()]
 
     response = JSONResponse(content={"sectors": sectors, "users": users, "metrics": metrics, "my_tasks": my_tasks,
@@ -873,6 +880,7 @@ async def create_task(
     instructions: str = Form(""),
     due_date: str = Form("A definir"),
     priority: str = Form("Normal"),
+    visibility: str = Form("team"),
     image: UploadFile = File(None),
     db: Session = Depends(get_db)
 ):
@@ -893,7 +901,7 @@ async def create_task(
 
     extra_details = []
     for key, value in form_data.items():
-        if key not in ['sector_id', 'sector_name', 'image', 'assigned_to', 'priority'] and isinstance(value, str):
+        if key not in ['sector_id', 'sector_name', 'image', 'assigned_to', 'priority', 'visibility'] and isinstance(value, str):
             val_str = value.strip()
             if not val_str:
                 continue
@@ -936,6 +944,7 @@ async def create_task(
         supplier=final_supplier,
         instructions=clean_instructions,
         priority=final_priority,
+        visibility=norm_visibility(visibility),
         due_date=final_due,
         status="Atribuído",
         image_url=image_url
@@ -1021,6 +1030,7 @@ async def create_manual_post(
     tool_type: str = Form("GERAL"),
     op_number: str = Form(""),
     instructions: str = Form(""),
+    visibility: str = Form("team"),
     images: List[UploadFile] = File(default=[]),
     db: Session = Depends(get_db)
 ):
@@ -1049,7 +1059,8 @@ async def create_manual_post(
         instructions=instructions.strip(),
         due_date="Concluído",
         image_url=urls[0] if urls else None,
-        image_urls=json.dumps(urls) if urls else None
+        image_urls=json.dumps(urls) if urls else None,
+        visibility=norm_visibility(visibility)
     )
     db.add(post)
     db.commit()
@@ -1067,6 +1078,7 @@ async def update_post(
     tool_type: str = Form("GERAL"),
     op_number: str = Form(""),
     instructions: str = Form(""),
+    visibility: str = Form("team"),
     db: Session = Depends(get_db)
 ):
     current_user = get_current_user(request, db)
@@ -1088,6 +1100,7 @@ async def update_post(
         legacy_p, _ = split_priority(post.instructions)
         post.priority = legacy_p  # guarda a prioridade antiga antes de limpar o texto
     post.instructions = instructions.strip()
+    post.visibility = norm_visibility(visibility)
     db.commit()
     db.refresh(post)
 
@@ -1158,6 +1171,7 @@ async def update_task_status_api(request: Request, task_id: int, payload: Status
                 title=task.title or "Demanda Concluída",
                 instructions=clean_inst(task),
                 priority=prio_of(task),
+                visibility=norm_visibility(getattr(task, "visibility", None)),
                 due_date=task.due_date or "Concluído",
                 image_url=task.image_url
             )
