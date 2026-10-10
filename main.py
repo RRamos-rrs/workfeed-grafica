@@ -16,6 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel
 
 import unicodedata
+from datetime import datetime, timezone, timedelta
 import models
 from database import engine, get_db
 
@@ -50,6 +51,7 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 templates = Jinja2Templates(directory="templates")
+templates.env.filters["localtime"] = lambda dt, fmt="%d/%m/%Y %H:%M": fmt_dt(dt, fmt)
 
 class ConnectionManager:
     def __init__(self):
@@ -106,6 +108,24 @@ def get_team_users(db: Session, user):
             or_(models.User.id == manager_ref_id, models.User.manager_id == manager_ref_id)
         ).all()
     return [user]
+
+# Horas são guardadas em UTC; o site mostra no horário de Brasília
+try:
+    from zoneinfo import ZoneInfo
+    LOCAL_TZ = ZoneInfo("America/Sao_Paulo")
+except Exception:
+    LOCAL_TZ = timezone(timedelta(hours=-3))
+
+def to_local_time(dt):
+    if not dt:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(LOCAL_TZ)
+
+def fmt_dt(dt, fmt="%d/%m/%Y %H:%M", default=""):
+    local = to_local_time(dt)
+    return local.strftime(fmt) if local else default
 
 def get_team_owner_id(user):
     """Id do gestor que representa a equipa do utilizador."""
@@ -780,7 +800,7 @@ async def create_direct_post(
             "due_date": post.due_date,
             "instructions": post.instructions,
             "image_url": post.image_url,
-            "created_at": post.created_at.strftime('%d/%m/%Y %H:%M') if getattr(post, 'created_at', None) else "",
+            "created_at": fmt_dt(getattr(post, 'created_at', None)),
             "likes": 0,
             "comments": []
         }
@@ -840,7 +860,7 @@ async def create_manual_post(
             "due_date": post.due_date,
             "instructions": post.instructions,
             "image_url": post.image_url,
-            "created_at": post.created_at.strftime('%d/%m/%Y %H:%M') if getattr(post, 'created_at', None) else "Agora",
+            "created_at": fmt_dt(getattr(post, 'created_at', None), default="Agora"),
             "likes": 0,
             "comments": []
         }
@@ -909,7 +929,7 @@ async def update_task_status_api(request: Request, task_id: int, payload: Status
                 "due_date": post.due_date,
                 "instructions": post.instructions,
                 "image_url": post.image_url,
-                "created_at": post.created_at.strftime('%d/%m/%Y %H:%M') if getattr(post, 'created_at', None) else "",
+                "created_at": fmt_dt(getattr(post, 'created_at', None)),
                 "likes": 0,
                 "comments": []
             }

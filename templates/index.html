@@ -279,7 +279,7 @@
                   </div>
                   <h4 class="text-xs font-bold text-slate-900 leading-snug truncate mt-0.5">{{ post.title }}</h4>
                   <p class="text-[10px] text-slate-400 truncate">
-                    Solicitante: <b class="text-slate-600">{{ post.supplier }}</b> • <span class="font-mono text-emerald-700 font-medium">{{ post.created_at.strftime('%d/%m %H:%M') if post.created_at else 'Concluído' }}</span>
+                    Solicitante: <b class="text-slate-600">{{ post.supplier }}</b> • <span class="font-mono text-emerald-700 font-medium">{{ post.created_at|localtime('%d/%m %H:%M') or 'Concluído' }}</span>
                   </p>
                 </div>
               </div>
@@ -371,7 +371,7 @@
                 <div>
                   <p class="text-slate-400 font-semibold text-[10px] uppercase">Data de Registro</p>
                   <p class="font-semibold text-slate-700 font-mono mt-0.5">
-                    {{ post.created_at.strftime('%d/%m/%Y %H:%M') if post.created_at else post.due_date }}
+                    {{ post.created_at|localtime or post.due_date }}
                   </p>
                 </div>
               </div>
