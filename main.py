@@ -39,7 +39,9 @@ for _ddl in ("ALTER TABLE sector_configs ADD COLUMN owner_id INTEGER;",
              "ALTER TABLE posts ADD COLUMN priority VARCHAR(20);",
              "ALTER TABLE tasks ADD COLUMN started_at TIMESTAMP;",
              "ALTER TABLE tasks ADD COLUMN completed_at TIMESTAMP;",
-             "ALTER TABLE tasks ADD COLUMN post_id INTEGER;"):
+             "ALTER TABLE tasks ADD COLUMN post_id INTEGER;",
+             # o nome do setor deixa de ser único no sistema todo: cada equipe pode ter o seu "Comercial", etc.
+             "ALTER TABLE sector_configs DROP CONSTRAINT IF EXISTS sector_configs_name_key;"):
     try:
         with engine.begin() as conn:
             conn.execute(text(_ddl))
@@ -507,8 +509,13 @@ async def save_sector(
     except ValueError:
         return JSONResponse(status_code=400, content={"success": False, "message": "Campos do modelo inválidos."})
     sector = None
+    visible = visible_sectors(db, current_user)
     if sector_id > 0:
-        sector = next((x for x in visible_sectors(db, current_user) if x.id == sector_id), None)
+        sector = next((x for x in visible if x.id == sector_id), None)
+
+    # nome repetido só conta dentro dos setores que a própria equipe enxerga
+    if any((x.name or "").strip().lower() == clean_name.lower() and (not sector or x.id != sector.id) for x in visible):
+        return JSONResponse(status_code=400, content={"success": False, "message": "Sua equipe já tem um setor com esse nome."})
 
     if not sector:
         sector = models.SectorConfig(
@@ -527,7 +534,11 @@ async def save_sector(
         db.commit()
     except IntegrityError:
         db.rollback()
-        return JSONResponse(status_code=400, content={"success": False, "message": "Já existe um setor com esse nome."})
+        return JSONResponse(status_code=400, content={"success": False, "message": "Já existe um setor com esse nome em outra equipe e o banco ainda não foi atualizado. Reinicie o servidor e tente de novo."})
+    except Exception as err:
+        db.rollback()
+        print(f"Erro ao salvar setor: {err}")
+        return JSONResponse(status_code=500, content={"success": False, "message": "Erro ao salvar o setor. Tente novamente."})
     spawn_bg(manager.broadcast({"type": "REFRESH", "scope": "sectors"}))
     return JSONResponse(content={"success": True, "message": "Modelo de setor salvo com sucesso!"})
 

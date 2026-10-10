@@ -7,7 +7,7 @@ class SectorConfig(Base):
     __tablename__ = "sector_configs"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), unique=True, nullable=False)
+    name = Column(String(100), nullable=False)  # único só dentro de cada equipe (checado no servidor)
     icon = Column(String(20), default="📁")
     owner_id = Column(Integer, nullable=True)  # gestor dono do setor (None = setor padrão partilhado)
     
